@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { AppShell, PageHeader } from "@/components/pncms/AppShell";
 import { Btn, Badge, Section, Field, Input, Select } from "@/components/pncms/ui-kit";
 import { Plus, AlertTriangle, Eye, Check, X, Search } from "lucide-react";
@@ -6,13 +7,19 @@ import { sanctions } from "@/data/mock";
 
 const Sanctions = () => {
   const [open, setOpen] = useState(false);
+  const navigate = useNavigate();
   const pending = sanctions.filter(s => s.status === "Pending").length;
   return (
     <AppShell>
       <PageHeader
         title="Sanction Management"
         subtitle="Overtime Sanction Authorization Register"
-        actions={<Btn variant="gold" onClick={() => setOpen(true)}><Plus className="w-4 h-4" /> New Sanction</Btn>}
+        actions={
+          <>
+            <Btn variant="outline" onClick={() => setOpen(true)}>Quick Entry</Btn>
+            <Btn variant="gold" onClick={() => navigate("/sanctions/new")}><Plus className="w-4 h-4" /> New Sanction</Btn>
+          </>
+        }
       />
 
       {pending > 0 && (
