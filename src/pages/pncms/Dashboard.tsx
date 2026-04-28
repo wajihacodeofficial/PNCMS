@@ -1,6 +1,7 @@
+import { useNavigate } from "react-router-dom";
 import { AppShell, PageHeader } from "@/components/pncms/AppShell";
 import { StatCard, Section, Btn, Badge } from "@/components/pncms/ui-kit";
-import { Users, FileWarning, ClipboardList, Wallet, CalendarDays, TrendingUp, Plus, FileBarChart2, UserPlus, FileDown } from "lucide-react";
+import { Users, FileWarning, ClipboardList, Wallet, CalendarDays, TrendingUp, Plus, FileBarChart2, UserPlus, FileDown, FilePlus2, Receipt } from "lucide-react";
 import { activity } from "@/data/mock";
 import { exportToPDF, exportToExcel } from "@/lib/export";
 import {
@@ -17,6 +18,8 @@ const chart = [
 const max = Math.max(...chart.map(c => c.v));
 
 const Dashboard = () => {
+  const navigate = useNavigate();
+  
   const handleExportPDF = () => {
     const headers = [["Metric", "Value", "Subtitle"]];
     const data = [
@@ -59,7 +62,26 @@ const Dashboard = () => {
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
-            <Btn variant="gold"><Plus className="w-4 h-4" /> New Action</Btn>
+
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Btn variant="gold"><Plus className="w-4 h-4" /> New Action</Btn>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="bg-background-alt border-border w-48">
+                <DropdownMenuItem onClick={() => navigate("/employment-records/new")} className="gap-2 cursor-pointer">
+                  <UserPlus className="w-4 h-4" /> Enroll Personnel
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => navigate("/sanctions/new")} className="gap-2 cursor-pointer">
+                  <FilePlus2 className="w-4 h-4" /> Create Sanction
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => navigate("/leave/new")} className="gap-2 cursor-pointer">
+                  <CalendarDays className="w-4 h-4" /> Record Leave
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => navigate("/work-logs")} className="gap-2 cursor-pointer">
+                  <Receipt className="w-4 h-4" /> Mark Attendance
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
           </>
         }
       />
@@ -118,10 +140,18 @@ const Dashboard = () => {
 
     <Section title="Quick Actions" className="mt-6">
       <div className="grid grid-cols-4 gap-3">
-        <Btn variant="outline" className="h-14 justify-start"><UserPlus className="w-4 h-4" /> Enroll Personnel</Btn>
-        <Btn variant="outline" className="h-14 justify-start"><FileWarning className="w-4 h-4" /> New Sanction</Btn>
-        <Btn variant="outline" className="h-14 justify-start"><ClipboardList className="w-4 h-4" /> Open Work Log</Btn>
-        <Btn variant="outline" className="h-14 justify-start"><Wallet className="w-4 h-4" /> Process Payment</Btn>
+        <Btn variant="outline" className="h-14 justify-start" onClick={() => navigate("/employment-records/new")}>
+          <UserPlus className="w-4 h-4" /> Enroll Personnel
+        </Btn>
+        <Btn variant="outline" className="h-14 justify-start" onClick={() => navigate("/sanctions/new")}>
+          <FileWarning className="w-4 h-4" /> New Sanction
+        </Btn>
+        <Btn variant="outline" className="h-14 justify-start" onClick={() => navigate("/work-logs")}>
+          <ClipboardList className="w-4 h-4" /> Open Work Log
+        </Btn>
+        <Btn variant="outline" className="h-14 justify-start" onClick={() => navigate("/payments")}>
+          <Wallet className="w-4 h-4" /> Process Payment
+        </Btn>
       </div>
     </Section>
     </AppShell>

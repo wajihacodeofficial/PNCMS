@@ -107,6 +107,8 @@
   .panel {
     @apply bg-card border border-border rounded-md;
     box-shadow: var(--shadow-command);
+    will-change: transform, opacity;
+    backface-visibility: hidden;
   }
   .gold-rule {
     height: 2px;

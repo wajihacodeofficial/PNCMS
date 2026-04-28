@@ -1,4 +1,4 @@
-import { ReactNode, ButtonHTMLAttributes, InputHTMLAttributes, SelectHTMLAttributes } from "react";
+import { ReactNode, ButtonHTMLAttributes, InputHTMLAttributes, SelectHTMLAttributes, forwardRef } from "react";
 import { cn } from "@/lib/utils";
 
 /* === BADGE === */
@@ -27,30 +27,32 @@ export const Badge = ({ children, variant = "neutral", className }: { children: 
 
 /* === BUTTON === */
 type BtnVariant = "primary" | "gold" | "outline" | "ghost" | "danger" | "success";
-export const Btn = ({
-  children, variant = "primary", className, ...rest
-}: ButtonHTMLAttributes<HTMLButtonElement> & { variant?: BtnVariant }) => {
-  const map: Record<BtnVariant, string> = {
-    primary: "bg-primary text-primary-foreground hover:bg-primary/90",
-    gold:    "bg-accent text-accent-foreground hover:brightness-105 shadow-command",
-    outline: "border border-primary/30 text-primary hover:bg-primary/5",
-    ghost:   "text-primary hover:bg-muted",
-    danger:  "bg-destructive text-destructive-foreground hover:bg-destructive/90",
-    success: "bg-success text-success-foreground hover:bg-success/90",
-  };
-  return (
-    <button
-      className={cn(
-        "inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-sm text-xs font-semibold uppercase tracking-wider transition-all",
-        map[variant],
-        className
-      )}
-      {...rest}
-    >
-      {children}
-    </button>
-  );
-};
+export const Btn = forwardRef<HTMLButtonElement, ButtonHTMLAttributes<HTMLButtonElement> & { variant?: BtnVariant }>(
+  ({ children, variant = "primary", className, ...rest }, ref) => {
+    const map: Record<BtnVariant, string> = {
+      primary: "bg-primary text-primary-foreground hover:bg-primary/90",
+      gold:    "bg-accent text-accent-foreground hover:brightness-105 shadow-command",
+      outline: "border border-primary/30 text-primary hover:bg-primary/5",
+      ghost:   "text-primary hover:bg-muted",
+      danger:  "bg-destructive text-destructive-foreground hover:bg-destructive/90",
+      success: "bg-success text-success-foreground hover:bg-success/90",
+    };
+    return (
+      <button
+        ref={ref}
+        className={cn(
+          "inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-sm text-xs font-semibold uppercase tracking-wider transition-all",
+          map[variant],
+          className
+        )}
+        {...rest}
+      >
+        {children}
+      </button>
+    );
+  }
+);
+Btn.displayName = "Btn";
 
 /* === FIELD === */
 export const Field = ({ label, children, required }: { label: string; children: ReactNode; required?: boolean }) => (

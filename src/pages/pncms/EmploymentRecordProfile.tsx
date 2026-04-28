@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { AppShell, PageHeader } from "@/components/pncms/AppShell";
 import { Btn, Badge, Section, StatCard } from "@/components/pncms/ui-kit";
 import { 
@@ -17,11 +17,14 @@ const EmploymentRecordProfile = () => {
   const { id } = useParams();
   const [isActive, setIsActive] = useState(true);
   
-  // Mock data for demonstration - in real app would fetch based on id
-  const isMinisterial = id?.includes("1042") || true; 
-  const joiningUnitDate = new Date("2022-01-15");
-  const unitDuration = intervalToDuration({ start: joiningUnitDate, end: new Date() });
-  const tenureStr = formatDuration(unitDuration, { format: ['years', 'months', 'days'], delimiter: ', ' });
+  // Memoized calculations to prevent performance lag on re-renders
+  const { tenureStr, isMinisterial } = useMemo(() => {
+    const isMin = id?.includes("1042") || true; 
+    const joiningUnitDate = new Date("2022-01-15");
+    const unitDuration = intervalToDuration({ start: joiningUnitDate, end: new Date() });
+    const str = formatDuration(unitDuration, { format: ['years', 'months', 'days'], delimiter: ', ' });
+    return { tenureStr: str, isMinisterial: isMin };
+  }, [id]);
 
   return (
     <AppShell>

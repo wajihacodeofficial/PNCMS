@@ -27,6 +27,7 @@ import Help from "./pages/pncms/Help";
 import About from "./pages/pncms/About";
 import Departments from "./pages/pncms/Departments";
 import Ranks from "./pages/pncms/Ranks";
+import Discipline from "./pages/pncms/Discipline";
 import NotFound from "./pages/NotFound.tsx";
 
 const queryClient = new QueryClient();
@@ -36,7 +37,7 @@ const App = () => (
     <TooltipProvider>
       <Toaster />
       <Sonner />
-      <BrowserRouter>
+      <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
         <Routes>
           <Route path="/" element={<Login />} />
           <Route path="/dashboard" element={<Dashboard />} />
@@ -58,6 +59,7 @@ const App = () => (
           <Route path="/settings" element={<Settings />} />
           <Route path="/settings/departments" element={<Departments />} />
           <Route path="/settings/ranks" element={<Ranks />} />
+          <Route path="/discipline" element={<Discipline />} />
           <Route path="/backup" element={<Backup />} />
           <Route path="/audit" element={<AuditLog />} />
           <Route path="/notifications" element={<Notifications />} />

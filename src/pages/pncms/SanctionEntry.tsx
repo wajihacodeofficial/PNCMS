@@ -48,7 +48,7 @@ const SanctionEntry = () => {
                 {bulk.map((b,i)=>(
                   <tr key={i}>
                     <td className="font-mono">{String(i+1).padStart(2,"0")}</td>
-                    <td><Select className="w-full">{personnel.map(p=><option key={p.svc} selected={p.name===b.emp}>{p.name}</option>)}</Select></td>
+                    <td><Select className="w-full" defaultValue={b.emp}>{personnel.map(p=><option key={p.svc} value={p.name}>{p.name}</option>)}</Select></td>
                     <td><Input type="number" defaultValue={b.hours} className="w-24" /></td>
                     <td><Select><option>April 2026</option></Select></td>
                     <td><button onClick={()=>setBulk(bulk.filter((_,x)=>x!==i))} className="text-destructive p-1.5 hover:bg-destructive/10 rounded-sm"><Trash2 className="w-4 h-4" /></button></td>

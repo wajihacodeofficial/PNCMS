@@ -2,7 +2,7 @@ import { NavLink, useNavigate } from "react-router-dom";
 import {
   LayoutDashboard, Users, FileWarning, ClipboardList, Wallet,
   CalendarDays, CheckSquare, FileBarChart2, Settings, LogOut,
-  DatabaseBackup, ShieldAlert, Bell, HelpCircle, Info, Building2, ShieldCheck
+  DatabaseBackup, ShieldAlert, Bell, HelpCircle, Info, Building2, ShieldCheck, Gavel
 } from "lucide-react";
 import crest from "@/assets/navy-crest.png";
 
@@ -11,9 +11,14 @@ const groups: { heading: string; items: { to: string; label: string; icon: React
     { to: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
     { to: "/notifications", label: "Notifications", icon: Bell },
   ]},
-  { heading: "Employment", items: [
+  { heading: "Establishment", items: [
+    { to: "/settings/departments", label: "Departments", icon: Building2 },
+    { to: "/settings/ranks", label: "Rank System", icon: ShieldCheck },
+  ]},
+  { heading: "Personnel", items: [
     { to: "/employment-records", label: "Employment Record", icon: Users },
     { to: "/attendance", label: "Attendance", icon: CheckSquare },
+    { to: "/discipline", label: "Disciplinary Actions", icon: Gavel },
   ]},
   { heading: "Overtime & Pay", items: [
     { to: "/sanctions", label: "Sanctions", icon: FileWarning },
@@ -23,17 +28,11 @@ const groups: { heading: string; items: { to: string; label: string; icon: React
   { heading: "Leave", items: [
     { to: "/leave", label: "Leave Accounts", icon: CalendarDays },
   ]},
-  { heading: "Records", items: [
+  { heading: "System Controls", items: [
     { to: "/reports", label: "Reports Hub", icon: FileBarChart2 },
     { to: "/audit", label: "Audit Trail", icon: ShieldAlert },
-  ]},
-  { heading: "System", items: [
-    { to: "/settings", label: "System Settings", icon: Settings },
-    { to: "/settings/departments", label: "Departments", icon: Building2 },
-    { to: "/settings/ranks", label: "Rank System", icon: ShieldCheck },
     { to: "/backup", label: "Backup & Restore", icon: DatabaseBackup },
-    { to: "/help", label: "Help & Manual", icon: HelpCircle },
-    { to: "/about", label: "About", icon: Info },
+    { to: "/settings", label: "System Settings", icon: Settings },
   ]},
 ];
 

@@ -21,9 +21,12 @@ let win: BrowserWindow | null
 
 function createWindow() {
   win = new BrowserWindow({
-    icon: path.join(process.env.VITE_PUBLIC, 'electron-vite.svg'),
+    icon: path.join(process.env.VITE_PUBLIC!, 'electron-vite.svg'),
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
+      backgroundThrottling: false,
+      devTools: true,
+      spellcheck: false,
     },
     width: 1200,
     height: 800,
@@ -39,7 +42,7 @@ function createWindow() {
     win.loadURL(process.env.VITE_DEV_SERVER_URL)
   } else {
     // win.loadFile('dist/index.html')
-    win.loadFile(path.join(process.env.DIST, 'index.html'))
+    win.loadFile(path.join(process.env.DIST!, 'index.html'))
   }
 }
 

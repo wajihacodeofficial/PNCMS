@@ -1,23 +1,21 @@
-import { ipcRenderer, contextBridge } from 'electron'
+/* eslint-disable @typescript-eslint/no-require-imports */
+/* eslint-disable @typescript-eslint/no-explicit-any */
+const { ipcRenderer, contextBridge } = require('electron')
 
 // --------- Expose some API to the Renderer process ---------
 contextBridge.exposeInMainWorld('ipcRenderer', {
-  on(...args: Parameters<typeof ipcRenderer.on>) {
-    const [channel, listener] = args
-    return ipcRenderer.on(channel, (event, ...args) => listener(event, ...args))
+  on(channel: string, listener: (event: any, ...args: any[]) => void) {
+    return ipcRenderer.on(channel, (event: any, ...args: any[]) => listener(event, ...args))
   },
-  off(...args: Parameters<typeof ipcRenderer.off>) {
-    const [channel, ...omit] = args
-    return ipcRenderer.off(channel, ...omit)
+  off(channel: string, ...args: any[]) {
+    return ipcRenderer.off(channel, ...args)
   },
-  send(...args: Parameters<typeof ipcRenderer.send>) {
-    const [channel, ...omit] = args
-    return ipcRenderer.send(channel, ...omit)
+  send(channel: string, ...args: any[]) {
+    return ipcRenderer.send(channel, ...args)
   },
-  invoke(...args: Parameters<typeof ipcRenderer.invoke>) {
-    const [channel, ...omit] = args
-    return ipcRenderer.invoke(channel, ...omit)
+  invoke(channel: string, ...args: any[]) {
+    return ipcRenderer.invoke(channel, ...args)
   },
 
-  // You can expose other apts here
+  // You can expose other apis here
 })
