@@ -24,8 +24,8 @@ export const Sidebar = () => {
       {/* Brand */}
       <div className="px-5 pt-6 pb-5 border-b border-sidebar-border">
         <div className="flex flex-col items-center text-center">
-          <div className="w-16 h-16 rounded-md bg-white flex items-center justify-center shadow-elevated">
-            <img src={crest} alt="Pakistan Navy crest" className="w-12 h-12 object-contain" width={48} height={48} loading="lazy" />
+          <div className="w-20 h-20 rounded-md bg-white flex items-center justify-center shadow-elevated p-1.5">
+            <img src={crest} alt="Pakistan Navy crest" className="w-full h-full object-contain" width={80} height={80} loading="lazy" />
           </div>
           <h1 className="mt-3 text-2xl text-white tracking-wider">PNCMS</h1>
           <div className="gold-rule mx-auto my-2" />
@@ -69,6 +69,14 @@ export const Sidebar = () => {
           <LogOut className="w-4 h-4" />
           <span className="text-sm font-semibold uppercase tracking-wider">Logout</span>
         </button>
+        <div className="mt-3 pt-3 border-t border-sidebar-border text-center">
+          <p className="text-[0.6rem] text-sidebar-foreground/50 font-body tracking-wide">
+            Developed by
+          </p>
+          <p className="text-[0.65rem] text-white font-semibold uppercase tracking-wider mt-0.5">
+            Code Vertex Solutions
+          </p>
+        </div>
       </div>
     </aside>
   );
