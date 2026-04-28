@@ -1,0 +1,34 @@
+export const personnel = [
+  { svc: "PN-CIV-1042", code: "EMP-2041", name: "Muhammad Tariq Khan", cadre: "Clerical", dept: "Administration", bps: "BPS-14", cnic: "42101-1234567-1", status: "Active" },
+  { svc: "PN-CIV-1043", code: "EMP-2042", name: "Aisha Rehman", cadre: "Technical", dept: "Engineering Wing", bps: "BPS-16", cnic: "42201-2345678-2", status: "Active" },
+  { svc: "PN-CIV-1044", code: "EMP-2043", name: "Bilal Ahmed Siddiqui", cadre: "Drawing", dept: "Naval Dockyard", bps: "BPS-12", cnic: "42301-3456789-3", status: "On Leave" },
+  { svc: "PN-CIV-1045", code: "EMP-2044", name: "Fatima Zahra", cadre: "Clerical", dept: "Personnel Records", bps: "BPS-15", cnic: "42401-4567890-4", status: "Active" },
+  { svc: "PN-CIV-1046", code: "EMP-2045", name: "Imran Hussain Shah", cadre: "Stenographer", dept: "Naval Headquarters", bps: "BPS-16", cnic: "42501-5678901-5", status: "Active" },
+  { svc: "PN-CIV-1047", code: "EMP-2046", name: "Saima Nawaz", cadre: "Technical", dept: "Logistics Command", bps: "BPS-14", cnic: "42601-6789012-6", status: "Active" },
+  { svc: "PN-CIV-1048", code: "EMP-2047", name: "Asad Mehmood Qureshi", cadre: "Driver", dept: "Transport Pool", bps: "BPS-07", cnic: "42701-7890123-7", status: "Suspended" },
+  { svc: "PN-CIV-1049", code: "EMP-2048", name: "Nazia Akhtar", cadre: "Clerical", dept: "Finance Directorate", bps: "BPS-15", cnic: "42801-8901234-8", status: "Active" },
+];
+
+export const sanctions = [
+  { id: "SNC-2026-0142", emp: "Muhammad Tariq Khan", dept: "Administration", hours: 40, period: "Apr 2026", status: "Pending", date: "21-Apr-2026" },
+  { id: "SNC-2026-0141", emp: "Aisha Rehman", dept: "Engineering Wing", hours: 60, period: "Apr 2026", status: "Approved", date: "18-Apr-2026" },
+  { id: "SNC-2026-0140", emp: "Imran Hussain Shah", dept: "Naval Headquarters", hours: 30, period: "Apr 2026", status: "Approved", date: "16-Apr-2026" },
+  { id: "SNC-2026-0139", emp: "Saima Nawaz", dept: "Logistics Command", hours: 25, period: "Apr 2026", status: "Rejected", date: "12-Apr-2026" },
+  { id: "SNC-2026-0138", emp: "Nazia Akhtar", dept: "Finance Directorate", hours: 50, period: "Apr 2026", status: "Pending", date: "10-Apr-2026" },
+];
+
+export const payments = [
+  { emp: "Aisha Rehman", cadre: "Technical", gross: 60, leave: 4, payable: 56, rate: 420, amount: 23520, status: "Processed" },
+  { emp: "Imran Hussain Shah", cadre: "Stenographer", gross: 30, leave: 0, payable: 30, rate: 380, amount: 11400, status: "Paid" },
+  { emp: "Fatima Zahra", cadre: "Clerical", gross: 45, leave: 2, payable: 43, rate: 350, amount: 15050, status: "Pending" },
+  { emp: "Bilal Ahmed Siddiqui", cadre: "Drawing", gross: 38, leave: 6, payable: 32, rate: 360, amount: 11520, status: "Processed" },
+  { emp: "Nazia Akhtar", cadre: "Clerical", gross: 50, leave: 1, payable: 49, rate: 350, amount: 17150, status: "Pending" },
+];
+
+export const activity = [
+  { time: "09:42", text: "Sanction SNC-2026-0142 submitted for Muhammad Tariq Khan", tag: "SANCTION" },
+  { time: "09:18", text: "Work log closed for Aisha Rehman — 56 payable hrs", tag: "WORK LOG" },
+  { time: "08:55", text: "Payment batch APR-2026-B disbursed (Rs. 184,640)", tag: "PAYMENT" },
+  { time: "08:30", text: "Daily muster roll opened by Admin Clerk", tag: "ATTENDANCE" },
+  { time: "08:12", text: "Leave entry filed — Bilal Ahmed Siddiqui (Casual, 3 days)", tag: "LEAVE" },
+];
