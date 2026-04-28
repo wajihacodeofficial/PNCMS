@@ -21,6 +21,10 @@ const Login = () => {
         SYSTEM v3.4.1 · BUILD 20260428
       </div>
 
+      <div className="absolute bottom-5 left-0 right-0 text-center label-mil text-white/60 text-[0.65rem] z-10">
+        Developed by <span className="text-white font-semibold tracking-widest">Code Vertex Solutions</span>
+      </div>
+
       <div className="relative w-[440px] animate-fade-in">
         <div className="bg-white/10 backdrop-blur-xl border border-white/20 rounded-md shadow-elevated p-10">
           <div className="flex flex-col items-center text-center mb-8">
