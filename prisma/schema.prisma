@@ -1,0 +1,56 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Employee {
+  id              String    @id @default(cuid())
+  serviceNo       String    @unique
+  name            String
+  rank            String
+  department      String
+  joiningDate     DateTime
+  status          String    @default("Active")
+  sanctions       Sanction[]
+  workLogs        WorkLog[]
+  leaves          Leave[]
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+}
+
+model Sanction {
+  id              String    @id @default(cuid())
+  amount          Float
+  reason          String
+  date            DateTime
+  employeeId      String
+  employee        Employee  @relation(fields: [employeeId], references: [id])
+  createdAt       DateTime  @default(now())
+}
+
+model WorkLog {
+  id              String    @id @default(cuid())
+  date            DateTime
+  hours           Float
+  employeeId      String
+  employee        Employee  @relation(fields: [employeeId], references: [id])
+  createdAt       DateTime  @default(now())
+}
+
+model Leave {
+  id              String    @id @default(cuid())
+  startDate       DateTime
+  endDate         DateTime
+  type            String
+  status          String    @default("Pending")
+  employeeId      String
+  employee        Employee  @relation(fields: [employeeId], references: [id])
+  createdAt       DateTime  @default(now())
+}

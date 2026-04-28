@@ -1,7 +1,14 @@
 import { AppShell, PageHeader } from "@/components/pncms/AppShell";
 import { StatCard, Section, Btn, Badge } from "@/components/pncms/ui-kit";
-import { Users, FileWarning, ClipboardList, Wallet, CalendarDays, TrendingUp, Plus, FileBarChart2, UserPlus } from "lucide-react";
+import { Users, FileWarning, ClipboardList, Wallet, CalendarDays, TrendingUp, Plus, FileBarChart2, UserPlus, FileDown } from "lucide-react";
 import { activity } from "@/data/mock";
+import { exportToPDF, exportToExcel } from "@/lib/export";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 const chart = [
   { m: "Nov", v: 60 }, { m: "Dec", v: 72 }, { m: "Jan", v: 55 },
@@ -9,18 +16,53 @@ const chart = [
 ];
 const max = Math.max(...chart.map(c => c.v));
 
-const Dashboard = () => (
-  <AppShell>
-    <PageHeader
-      title="Civilian Management Command Dashboard"
-      subtitle="Operational Overview · April 2026"
-      actions={
-        <>
-          <Btn variant="outline"><FileBarChart2 className="w-4 h-4" /> Export Brief</Btn>
-          <Btn variant="gold"><Plus className="w-4 h-4" /> New Action</Btn>
-        </>
-      }
-    />
+const Dashboard = () => {
+  const handleExportPDF = () => {
+    const headers = [["Metric", "Value", "Subtitle"]];
+    const data = [
+      ["Total Personnel", "412", "Active across 11 directorates"],
+      ["Pending Sanctions", "14", "Awaiting CO approval"],
+      ["Open Work Logs", "27", "In current cycle"],
+      ["Pending Payments", "Rs. 1.84M", "9 batches awaiting release"],
+    ];
+    exportToPDF("PNCMS Operational Brief", headers, data, "pncms_brief");
+  };
+
+  const handleExportExcel = () => {
+    const headers = ["Metric", "Value", "Subtitle"];
+    const data = [
+      ["Total Personnel", "412", "Active across 11 directorates"],
+      ["Pending Sanctions", "14", "Awaiting CO approval"],
+      ["Open Work Logs", "27", "In current cycle"],
+      ["Pending Payments", "Rs. 1.84M", "9 batches awaiting release"],
+    ];
+    exportToExcel("Dashboard Stats", headers, data, "pncms_brief");
+  };
+
+  return (
+    <AppShell>
+      <PageHeader
+        title="Civilian Management Command Dashboard"
+        subtitle="Operational Overview · April 2026"
+        actions={
+          <>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Btn variant="outline"><FileBarChart2 className="w-4 h-4" /> Export Brief</Btn>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="bg-background-alt border-border">
+                <DropdownMenuItem onClick={handleExportPDF} className="gap-2 cursor-pointer">
+                  <FileDown className="w-4 h-4" /> Export PDF
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={handleExportExcel} className="gap-2 cursor-pointer">
+                  <FileDown className="w-4 h-4" /> Export Excel
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+            <Btn variant="gold"><Plus className="w-4 h-4" /> New Action</Btn>
+          </>
+        }
+      />
 
     <div className="grid grid-cols-3 gap-5">
       <StatCard label="Total Personnel" value="412" sub="Active across 11 directorates" icon={<Users className="w-5 h-5" />} accent="primary" />
@@ -82,6 +124,7 @@ const Dashboard = () => (
         <Btn variant="outline" className="h-14 justify-start"><Wallet className="w-4 h-4" /> Process Payment</Btn>
       </div>
     </Section>
-  </AppShell>
-);
+    </AppShell>
+  );
+};
 export default Dashboard;

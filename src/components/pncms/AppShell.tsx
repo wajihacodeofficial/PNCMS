@@ -1,7 +1,7 @@
-import { ReactNode } from "react";
-import { Sidebar } from "./Sidebar";
-import { Bell, ShieldCheck, ChevronDown } from "lucide-react";
-import { useNavigate } from "react-router-dom";
+import { ReactNode } from 'react';
+import { Sidebar } from './Sidebar';
+import { Bell, ShieldCheck, ChevronDown } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 
 export const AppShell = ({ children }: { children: ReactNode }) => {
   const navigate = useNavigate();
@@ -17,12 +17,17 @@ export const AppShell = ({ children }: { children: ReactNode }) => {
               Secure Session · Encrypted
             </div>
             <span className="text-border">|</span>
-            <span className="label-mil">Terminal: NHQ-ADM-04</span>
+            <span className="label-mil">Terminal: DIL-ADM-04</span>
           </div>
           <div className="flex items-center gap-5">
-            <button onClick={() => navigate("/notifications")} className="relative text-muted-foreground hover:text-primary">
+            <button
+              onClick={() => navigate('/notifications')}
+              className="relative text-muted-foreground hover:text-primary"
+            >
               <Bell className="w-5 h-5" />
-              <span className="absolute -top-1 -right-1 w-4 h-4 bg-destructive text-white text-[10px] rounded-full flex items-center justify-center">3</span>
+              <span className="absolute -top-1 -right-1 w-4 h-4 bg-destructive text-white text-[10px] rounded-full flex items-center justify-center">
+                3
+              </span>
             </button>
             <div className="h-6 w-px bg-border" />
             <div className="flex items-center gap-3">
@@ -30,7 +35,9 @@ export const AppShell = ({ children }: { children: ReactNode }) => {
                 AC
               </div>
               <div className="leading-tight">
-                <div className="text-sm font-semibold text-primary">Admin Clerk</div>
+                <div className="text-sm font-semibold text-primary">
+                  Admin Clerk
+                </div>
                 <div className="label-mil text-[0.6rem] flex items-center gap-1">
                   <ShieldCheck className="w-3 h-3 text-accent" /> Authority L3
                 </div>
@@ -46,8 +53,14 @@ export const AppShell = ({ children }: { children: ReactNode }) => {
 };
 
 export const PageHeader = ({
-  title, subtitle, actions,
-}: { title: string; subtitle?: string; actions?: ReactNode }) => (
+  title,
+  subtitle,
+  actions,
+}: {
+  title: string;
+  subtitle?: string;
+  actions?: ReactNode;
+}) => (
   <div className="flex items-end justify-between mb-6 pb-5 border-b border-border">
     <div>
       <h1 className="text-3xl text-primary leading-none">{title}</h1>
