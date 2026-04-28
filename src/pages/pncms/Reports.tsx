@@ -1,18 +1,22 @@
 import { AppShell, PageHeader } from "@/components/pncms/AppShell";
 import { Btn, Field, Select } from "@/components/pncms/ui-kit";
-import { FileText, Users, Wallet, ClipboardList, CalendarDays, BarChart3, ShieldCheck, FileSpreadsheet } from "lucide-react";
+import { FileText, Users, Wallet, ClipboardList, CalendarDays, BarChart3, ShieldCheck, FileSpreadsheet, Eye } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 
 const reports = [
-  { icon: Users, title: "Personnel Master Report", desc: "Complete civilian staff register with service, cadre, BPS and posting." },
-  { icon: ClipboardList, title: "Sanction Register Report", desc: "All sanction requests with approval trail and authority signatures." },
-  { icon: Wallet, title: "Overtime Payment Bill", desc: "Department-wise overtime disbursement with subtotals and grand total." },
-  { icon: CalendarDays, title: "Leave Account Report", desc: "Casual, earned, sick and LFP balances per personnel for any period." },
-  { icon: BarChart3, title: "Attendance Statement", desc: "Monthly muster roll summary with present/absent/late percentages." },
-  { icon: ShieldCheck, title: "Late-Sitting Facility (LFP) Report", desc: "LFP credits earned and consumed by each civilian employee." },
-  { icon: FileText, title: "Audit & Activity Trail", desc: "System-wide audit log of every transaction with operator identity and time." },
+  { slug:"personnel-master", icon: Users, title: "Personnel Master Report", desc: "Complete civilian staff register with service, cadre, BPS and posting." },
+  { slug:"sanction-register", icon: ClipboardList, title: "Sanction Register Report", desc: "All sanction requests with approval trail and authority signatures." },
+  { slug:"overtime-payment-bill", icon: Wallet, title: "Overtime Payment Bill", desc: "Department-wise overtime disbursement with subtotals and grand total." },
+  { slug:"leave-account", icon: CalendarDays, title: "Leave Account Report", desc: "Casual, earned, sick and LFP balances per personnel for any period." },
+  { slug:"attendance", icon: BarChart3, title: "Attendance Statement", desc: "Monthly muster roll summary with present/absent/late percentages." },
+  { slug:"late-sitting", icon: ShieldCheck, title: "Late-Sitting Facility (LFP) Report", desc: "LFP credits earned and consumed by each civilian employee." },
+  { slug:"department-summary", icon: BarChart3, title: "Department Summary Report", desc: "Aggregate strength, OT and leave figures per department." },
+  { slug:"audit-trail", icon: FileText, title: "Audit & Activity Trail", desc: "System-wide audit log of every transaction with operator identity and time." },
 ];
 
-const Reports = () => (
+const Reports = () => {
+  const navigate = useNavigate();
+  return (
   <AppShell>
     <PageHeader title="Reports Hub" subtitle="Authorized Export Centre · PDF & Excel Outputs" />
 
@@ -42,8 +46,9 @@ const Reports = () => (
               </div>
 
               <div className="flex gap-2 mt-4">
-                <Btn variant="primary" className="flex-1"><FileText className="w-4 h-4" /> Export PDF</Btn>
-                <Btn variant="outline" className="flex-1"><FileSpreadsheet className="w-4 h-4" /> Export Excel</Btn>
+                <Btn variant="gold" className="flex-1" onClick={()=>navigate(`/reports/${r.slug}`)}><Eye className="w-4 h-4" /> Preview</Btn>
+                <Btn variant="primary" className="flex-1"><FileText className="w-4 h-4" /> PDF</Btn>
+                <Btn variant="outline" className="flex-1"><FileSpreadsheet className="w-4 h-4" /> Excel</Btn>
               </div>
             </div>
           </div>
@@ -51,5 +56,5 @@ const Reports = () => (
       ))}
     </div>
   </AppShell>
-);
+);};
 export default Reports;

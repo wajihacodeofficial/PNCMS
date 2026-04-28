@@ -1,8 +1,10 @@
 import { ReactNode } from "react";
 import { Sidebar } from "./Sidebar";
 import { Bell, ShieldCheck, ChevronDown } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 
 export const AppShell = ({ children }: { children: ReactNode }) => {
+  const navigate = useNavigate();
   return (
     <div className="min-h-screen w-full flex bg-background">
       <Sidebar />
@@ -18,7 +20,7 @@ export const AppShell = ({ children }: { children: ReactNode }) => {
             <span className="label-mil">Terminal: NHQ-ADM-04</span>
           </div>
           <div className="flex items-center gap-5">
-            <button className="relative text-muted-foreground hover:text-primary">
+            <button onClick={() => navigate("/notifications")} className="relative text-muted-foreground hover:text-primary">
               <Bell className="w-5 h-5" />
               <span className="absolute -top-1 -right-1 w-4 h-4 bg-destructive text-white text-[10px] rounded-full flex items-center justify-center">3</span>
             </button>
