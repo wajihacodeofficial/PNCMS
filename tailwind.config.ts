@@ -8,8 +8,8 @@ export default {
     container: { center: true, padding: "2rem", screens: { "2xl": "1400px" } },
     extend: {
       fontFamily: {
-        heading: ['"Barlow Condensed"', 'sans-serif'],
-        body: ['Barlow', 'sans-serif'],
+        heading: ['Montserrat', 'Inter', 'system-ui', 'sans-serif'],
+        body: ['Inter', 'system-ui', '-apple-system', 'Segoe UI', 'Roboto', 'sans-serif'],
       },
       colors: {
         border: "hsl(var(--border))",
