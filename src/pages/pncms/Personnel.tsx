@@ -3,9 +3,11 @@ import { AppShell, PageHeader } from "@/components/pncms/AppShell";
 import { Btn, Badge, Section, Field, Input, Select } from "@/components/pncms/ui-kit";
 import { Plus, Download, Search, Filter, Eye, Pencil, Upload, X, User } from "lucide-react";
 import { personnel } from "@/data/mock";
+import { useNavigate } from "react-router-dom";
 
 const Personnel = () => {
   const [open, setOpen] = useState(false);
+  const navigate = useNavigate();
   return (
     <AppShell>
       <PageHeader
@@ -13,8 +15,9 @@ const Personnel = () => {
         subtitle="Authorized Civilian Staff Management"
         actions={
           <>
+            <Btn variant="outline"><Upload className="w-4 h-4" /> Import CSV</Btn>
             <Btn variant="outline"><Download className="w-4 h-4" /> Export State</Btn>
-            <Btn variant="gold" onClick={() => setOpen(true)}><Plus className="w-4 h-4" /> Add Personnel</Btn>
+            <Btn variant="gold" onClick={() => navigate("/personnel/new")}><Plus className="w-4 h-4" /> Add Personnel</Btn>
           </>
         }
       />
@@ -67,8 +70,9 @@ const Personnel = () => {
                   </td>
                   <td className="text-right">
                     <div className="flex justify-end gap-1">
-                      <button className="p-1.5 rounded-sm hover:bg-muted text-info"><Eye className="w-4 h-4" /></button>
-                      <button className="p-1.5 rounded-sm hover:bg-muted text-primary"><Pencil className="w-4 h-4" /></button>
+                      <button onClick={()=>navigate(`/personnel/${p.svc}`)} className="p-1.5 rounded-sm hover:bg-muted text-info"><Eye className="w-4 h-4" /></button>
+                      <button onClick={()=>navigate(`/personnel/edit/${p.svc}`)} className="p-1.5 rounded-sm hover:bg-muted text-primary"><Pencil className="w-4 h-4" /></button>
+                      <button className="p-1.5 rounded-sm hover:bg-muted text-destructive"><X className="w-4 h-4" /></button>
                     </div>
                   </td>
                 </tr>

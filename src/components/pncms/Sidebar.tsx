@@ -1,20 +1,38 @@
 import { NavLink, useNavigate } from "react-router-dom";
 import {
   LayoutDashboard, Users, FileWarning, ClipboardList, Wallet,
-  CalendarDays, CheckSquare, FileBarChart2, Settings, LogOut
+  CalendarDays, CheckSquare, FileBarChart2, Settings, LogOut,
+  DatabaseBackup, ShieldAlert, Bell, HelpCircle, Info
 } from "lucide-react";
 import crest from "@/assets/navy-crest.png";
 
-const items = [
-  { to: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
-  { to: "/personnel", label: "Personnel Directory", icon: Users },
-  { to: "/sanctions", label: "Sanctions", icon: FileWarning },
-  { to: "/work-logs", label: "Work Logs", icon: ClipboardList },
-  { to: "/payments", label: "Payments", icon: Wallet },
-  { to: "/leave", label: "Leave Accounts", icon: CalendarDays },
-  { to: "/attendance", label: "Attendance", icon: CheckSquare },
-  { to: "/reports", label: "Reports Hub", icon: FileBarChart2 },
-  { to: "/settings", label: "System Settings", icon: Settings },
+const groups: { heading: string; items: { to: string; label: string; icon: any }[] }[] = [
+  { heading: "Command", items: [
+    { to: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
+    { to: "/notifications", label: "Notifications", icon: Bell },
+  ]},
+  { heading: "Personnel", items: [
+    { to: "/personnel", label: "Personnel Directory", icon: Users },
+    { to: "/attendance", label: "Attendance", icon: CheckSquare },
+  ]},
+  { heading: "Overtime & Pay", items: [
+    { to: "/sanctions", label: "Sanctions", icon: FileWarning },
+    { to: "/work-logs", label: "Work Logs", icon: ClipboardList },
+    { to: "/payments", label: "Payments", icon: Wallet },
+  ]},
+  { heading: "Leave", items: [
+    { to: "/leave", label: "Leave Accounts", icon: CalendarDays },
+  ]},
+  { heading: "Records", items: [
+    { to: "/reports", label: "Reports Hub", icon: FileBarChart2 },
+    { to: "/audit", label: "Audit Trail", icon: ShieldAlert },
+  ]},
+  { heading: "System", items: [
+    { to: "/settings", label: "System Settings", icon: Settings },
+    { to: "/backup", label: "Backup & Restore", icon: DatabaseBackup },
+    { to: "/help", label: "Help & Manual", icon: HelpCircle },
+    { to: "/about", label: "About", icon: Info },
+  ]},
 ];
 
 export const Sidebar = () => {
@@ -36,27 +54,34 @@ export const Sidebar = () => {
       </div>
 
       {/* Nav */}
-      <nav className="flex-1 overflow-y-auto py-3">
-        {items.map(({ to, label, icon: Icon }) => (
-          <NavLink
-            key={to}
-            to={to}
-            className={({ isActive }) =>
-              `relative flex items-center gap-3 px-5 py-3 text-sm font-body font-medium transition-colors ${
-                isActive
-                  ? "bg-sidebar-active text-white"
-                  : "text-sidebar-foreground/85 hover:bg-sidebar-hover hover:text-white"
-              }`
-            }
-          >
-            {({ isActive }) => (
-              <>
-                {isActive && <span className="absolute left-0 top-0 bottom-0 w-1 bg-accent" />}
-                <Icon className="w-4 h-4 shrink-0" />
-                <span className="tracking-wide">{label}</span>
-              </>
-            )}
-          </NavLink>
+      <nav className="flex-1 overflow-y-auto py-2">
+        {groups.map(group => (
+          <div key={group.heading} className="mb-1">
+            <div className="px-5 pt-3 pb-1.5 text-[0.6rem] font-bold uppercase tracking-[0.18em] text-sidebar-foreground/40">
+              {group.heading}
+            </div>
+            {group.items.map(({ to, label, icon: Icon }) => (
+              <NavLink
+                key={to}
+                to={to}
+                className={({ isActive }) =>
+                  `relative flex items-center gap-3 px-5 py-2.5 text-[0.82rem] font-body font-medium transition-colors ${
+                    isActive
+                      ? "bg-sidebar-active text-white"
+                      : "text-sidebar-foreground/85 hover:bg-sidebar-hover hover:text-white"
+                  }`
+                }
+              >
+                {({ isActive }) => (
+                  <>
+                    {isActive && <span className="absolute left-0 top-0 bottom-0 w-1 bg-accent" />}
+                    <Icon className="w-4 h-4 shrink-0" />
+                    <span className="tracking-wide">{label}</span>
+                  </>
+                )}
+              </NavLink>
+            ))}
+          </div>
         ))}
       </nav>
 
