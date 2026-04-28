@@ -1,12 +1,12 @@
 export const personnel = [
-  { svc: "PN-CIV-1042", code: "EMP-2041", name: "Muhammad Tariq Khan", cadre: "Clerical", dept: "Administration", bps: "BPS-14", cnic: "42101-1234567-1", status: "Active" },
-  { svc: "PN-CIV-1043", code: "EMP-2042", name: "Aisha Rehman", cadre: "Technical", dept: "Engineering Wing", bps: "BPS-16", cnic: "42201-2345678-2", status: "Active" },
-  { svc: "PN-CIV-1044", code: "EMP-2043", name: "Bilal Ahmed Siddiqui", cadre: "Drawing", dept: "Naval Dockyard", bps: "BPS-12", cnic: "42301-3456789-3", status: "On Leave" },
-  { svc: "PN-CIV-1045", code: "EMP-2044", name: "Fatima Zahra", cadre: "Clerical", dept: "Personnel Records", bps: "BPS-15", cnic: "42401-4567890-4", status: "Active" },
-  { svc: "PN-CIV-1046", code: "EMP-2045", name: "Imran Hussain Shah", cadre: "Stenographer", dept: "Naval Headquarters", bps: "BPS-16", cnic: "42501-5678901-5", status: "Active" },
-  { svc: "PN-CIV-1047", code: "EMP-2046", name: "Saima Nawaz", cadre: "Technical", dept: "Logistics Command", bps: "BPS-14", cnic: "42601-6789012-6", status: "Active" },
-  { svc: "PN-CIV-1048", code: "EMP-2047", name: "Asad Mehmood Qureshi", cadre: "Driver", dept: "Transport Pool", bps: "BPS-07", cnic: "42701-7890123-7", status: "Suspended" },
-  { svc: "PN-CIV-1049", code: "EMP-2048", name: "Nazia Akhtar", cadre: "Clerical", dept: "Finance Directorate", bps: "BPS-15", cnic: "42801-8901234-8", status: "Active" },
+  { svc: "PN-CIV-1042", name: "Muhammad Tariq Khan", rank: "Assistant", dept: "Administration", cardType: "Ministerial", bps: "BPS-14", cnic: "42101-1234567-1", status: "Active" },
+  { svc: "PN-CIV-1043", name: "Aisha Rehman", rank: "UDC", dept: "Engineering Wing", cardType: "Ministerial", bps: "BPS-16", cnic: "42201-2345678-2", status: "Active" },
+  { svc: "PN-CIV-1044", name: "Bilal Ahmed Siddiqui", rank: "Draftsman", dept: "Naval Dockyard", cardType: "Industrial", bps: "BPS-12", cnic: "42301-3456789-3", status: "On Leave" },
+  { svc: "PN-CIV-1045", name: "Fatima Zahra", rank: "LDC", dept: "Personnel Records", cardType: "Ministerial", bps: "BPS-15", cnic: "42401-4567890-4", status: "Active" },
+  { svc: "PN-CIV-1046", name: "Imran Hussain Shah", rank: "Stenographer", dept: "Naval Headquarters", cardType: "Ministerial", bps: "BPS-16", cnic: "42501-5678901-5", status: "Active" },
+  { svc: "PN-CIV-1047", name: "Saima Nawaz", rank: "Technician", dept: "Logistics Command", cardType: "Industrial", bps: "BPS-14", cnic: "42601-6789012-6", status: "Active" },
+  { svc: "PN-CIV-1048", name: "Asad Mehmood Qureshi", rank: "Driver", dept: "Transport Pool", cardType: "Ministerial", bps: "BPS-07", cnic: "42701-7890123-7", status: "Suspended" },
+  { svc: "PN-CIV-1049", name: "Nazia Akhtar", rank: "Assistant", dept: "Finance Directorate", cardType: "Ministerial", bps: "BPS-15", cnic: "42801-8901234-8", status: "Active" },
 ];
 
 export const sanctions = [

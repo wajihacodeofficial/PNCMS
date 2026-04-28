@@ -1,6 +1,7 @@
 import { AppShell, PageHeader } from "@/components/pncms/AppShell";
 import { Btn, Section, Field, Input, Badge } from "@/components/pncms/ui-kit";
-import { Save, AlertTriangle, ShieldCheck } from "lucide-react";
+import { Save, AlertTriangle, ShieldCheck, Shield, Building2 } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 
 const audit = [
   { time: "28-Apr-2026 09:42:11", user: "ADM-CLERK-04", action: "Submitted sanction SNC-2026-0142", target: "Muhammad Tariq Khan", ip: "10.14.22.41" },
@@ -10,7 +11,9 @@ const audit = [
   { time: "27-Apr-2026 16:12:57", user: "ADM-CLERK-04", action: "Updated overtime hourly rate", target: "Rate: 380 → 420", ip: "10.14.22.41" },
 ];
 
-const Settings = () => (
+const Settings = () => {
+  const navigate = useNavigate();
+  return (
   <AppShell>
     <PageHeader
       title="System Settings & Control"
@@ -57,6 +60,21 @@ const Settings = () => (
             <div className="flex justify-between"><span className="label-mil">Last Backup</span><span className="font-mono text-[0.7rem]">28-Apr-2026 02:00</span></div>
           </div>
         </div>
+
+        <div className="panel p-5 border-t-4 border-t-gold">
+          <div className="flex items-center gap-2 mb-4">
+            <Shield className="w-5 h-5 text-gold" />
+            <h4 className="heading-mil text-sm text-primary tracking-wider">Administrative Controls</h4>
+          </div>
+          <div className="grid grid-cols-1 gap-2">
+            <Btn variant="outline" className="justify-start h-10" onClick={() => navigate("/settings/departments")}>
+              <Building2 className="w-4 h-4 mr-2" /> Manage Departments
+            </Btn>
+            <Btn variant="outline" className="justify-start h-10" onClick={() => navigate("/settings/ranks")}>
+              <ShieldCheck className="w-4 h-4 mr-2" /> Manage Rank System
+            </Btn>
+          </div>
+        </div>
       </div>
     </div>
 
@@ -79,5 +97,6 @@ const Settings = () => (
       </div>
     </Section>
   </AppShell>
-);
+  );
+};
 export default Settings;

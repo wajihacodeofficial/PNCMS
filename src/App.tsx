@@ -5,7 +5,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import Login from "./pages/pncms/Login";
 import Dashboard from "./pages/pncms/Dashboard";
-import Personnel from "./pages/pncms/Personnel";
+import EmploymentRecords from "./pages/pncms/EmploymentRecords";
 import Sanctions from "./pages/pncms/Sanctions";
 import WorkLogs from "./pages/pncms/WorkLogs";
 import Payments from "./pages/pncms/Payments";
@@ -13,8 +13,8 @@ import Leave from "./pages/pncms/Leave";
 import Attendance from "./pages/pncms/Attendance";
 import Reports from "./pages/pncms/Reports";
 import Settings from "./pages/pncms/Settings";
-import EmployeeForm from "./pages/pncms/EmployeeForm";
-import EmployeeProfile from "./pages/pncms/EmployeeProfile";
+import EmploymentRecordForm from "./pages/pncms/EmploymentRecordForm";
+import EmploymentRecordProfile from "./pages/pncms/EmploymentRecordProfile";
 import SanctionEntry from "./pages/pncms/SanctionEntry";
 import LeaveDashboard from "./pages/pncms/LeaveDashboard";
 import LeaveEntry from "./pages/pncms/LeaveEntry";
@@ -25,6 +25,8 @@ import AuditLog from "./pages/pncms/AuditLog";
 import Notifications from "./pages/pncms/Notifications";
 import Help from "./pages/pncms/Help";
 import About from "./pages/pncms/About";
+import Departments from "./pages/pncms/Departments";
+import Ranks from "./pages/pncms/Ranks";
 import NotFound from "./pages/NotFound.tsx";
 
 const queryClient = new QueryClient();
@@ -38,10 +40,10 @@ const App = () => (
         <Routes>
           <Route path="/" element={<Login />} />
           <Route path="/dashboard" element={<Dashboard />} />
-          <Route path="/personnel" element={<Personnel />} />
-          <Route path="/personnel/new" element={<EmployeeForm />} />
-          <Route path="/personnel/edit/:id" element={<EmployeeForm />} />
-          <Route path="/personnel/:id" element={<EmployeeProfile />} />
+          <Route path="/employment-records" element={<EmploymentRecords />} />
+          <Route path="/employment-records/new" element={<EmploymentRecordForm />} />
+          <Route path="/employment-records/edit/:id" element={<EmploymentRecordForm />} />
+          <Route path="/employment-records/:id" element={<EmploymentRecordProfile />} />
           <Route path="/sanctions" element={<Sanctions />} />
           <Route path="/sanctions/new" element={<SanctionEntry />} />
           <Route path="/work-logs" element={<WorkLogs />} />
@@ -54,6 +56,8 @@ const App = () => (
           <Route path="/reports" element={<Reports />} />
           <Route path="/reports/:slug" element={<ReportPreview />} />
           <Route path="/settings" element={<Settings />} />
+          <Route path="/settings/departments" element={<Departments />} />
+          <Route path="/settings/ranks" element={<Ranks />} />
           <Route path="/backup" element={<Backup />} />
           <Route path="/audit" element={<AuditLog />} />
           <Route path="/notifications" element={<Notifications />} />

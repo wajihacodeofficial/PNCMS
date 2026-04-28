@@ -1,6 +1,3 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
 generator client {
   provider = "prisma-client-js"
 }
@@ -14,15 +11,75 @@ model Employee {
   id              String    @id @default(cuid())
   serviceNo       String    @unique
   name            String
-  rank            String
-  department      String
-  joiningDate     DateTime
+  rankId          String
+  rank            Rank      @relation(fields: [rankId], references: [id])
+  departmentId    String
+  department      Department @relation(fields: [departmentId], references: [id])
+  cardType        String    // "Ministerial" or "Industrial"
+  
+  // Extended Details
+  appointmentDate DateTime
+  joiningCurrentUnitDate DateTime
+  appointmentLetterRef String
+  joiningLetterRef String
+  retirementDate  DateTime
+  
+  // Addresses
+  presentAddress  String
+  permanentAddress String
+  
   status          String    @default("Active")
+  phones          EmployeePhone[]
+  letters         EmployeeLetter[]
+  
   sanctions       Sanction[]
   workLogs        WorkLog[]
   leaves          Leave[]
   createdAt       DateTime  @default(now())
   updatedAt       DateTime  @updatedAt
+}
+
+model Rank {
+  id              String    @id @default(cuid())
+  name            String    @unique
+  employees       Employee[]
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+}
+
+model Department {
+  id              String    @id @default(cuid())
+  name            String    @unique
+  location        String
+  navcom          String
+  hodName         String
+  hodRank         String
+  bornStrength    Int
+  approvedSanctionStrength Int
+  employees       Employee[]
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+}
+
+model EmployeePhone {
+  id              String    @id @default(cuid())
+  employeeId      String
+  employee        Employee  @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  phoneNumber     String
+  imei1           String?
+  imei2           String?
+  model           String?
+  brand           String?
+}
+
+model EmployeeLetter {
+  id              String    @id @default(cuid())
+  employeeId      String
+  employee        Employee  @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  referenceNumber String
+  referenceDate   DateTime
+  fileName        String
+  fileNumber      String
 }
 
 model Sanction {
@@ -31,7 +88,7 @@ model Sanction {
   reason          String
   date            DateTime
   employeeId      String
-  employee        Employee  @relation(fields: [employeeId], references: [id])
+  employee        Employee  @relation(fields: [employeeId], references: [id], onDelete: Cascade)
   createdAt       DateTime  @default(now())
 }
 
@@ -40,7 +97,7 @@ model WorkLog {
   date            DateTime
   hours           Float
   employeeId      String
-  employee        Employee  @relation(fields: [employeeId], references: [id])
+  employee        Employee  @relation(fields: [employeeId], references: [id], onDelete: Cascade)
   createdAt       DateTime  @default(now())
 }
 
@@ -51,6 +108,6 @@ model Leave {
   type            String
   status          String    @default("Pending")
   employeeId      String
-  employee        Employee  @relation(fields: [employeeId], references: [id])
+  employee        Employee  @relation(fields: [employeeId], references: [id], onDelete: Cascade)
   createdAt       DateTime  @default(now())
 }

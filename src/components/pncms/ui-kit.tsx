@@ -3,7 +3,7 @@ import { cn } from "@/lib/utils";
 
 /* === BADGE === */
 type BadgeVariant = "pending" | "approved" | "rejected" | "paid" | "processed" | "open" | "closed" | "info" | "danger" | "success" | "warning" | "neutral";
-export const Badge = ({ children, variant = "neutral" }: { children: ReactNode; variant?: BadgeVariant }) => {
+export const Badge = ({ children, variant = "neutral", className }: { children: ReactNode; variant?: BadgeVariant; className?: string }) => {
   const map: Record<BadgeVariant, string> = {
     pending:   "bg-warning/10 text-warning border-warning/30",
     approved:  "bg-success/10 text-success border-success/30",
@@ -19,7 +19,7 @@ export const Badge = ({ children, variant = "neutral" }: { children: ReactNode; 
     neutral:   "bg-muted text-foreground border-border",
   };
   return (
-    <span className={cn("inline-flex items-center gap-1.5 px-2.5 py-1 text-[0.65rem] font-semibold uppercase tracking-wider border rounded-sm", map[variant])}>
+    <span className={cn("inline-flex items-center gap-1.5 px-2.5 py-1 text-[0.65rem] font-semibold uppercase tracking-wider border rounded-sm", map[variant], className)}>
       {children}
     </span>
   );

@@ -2,17 +2,17 @@ import { NavLink, useNavigate } from "react-router-dom";
 import {
   LayoutDashboard, Users, FileWarning, ClipboardList, Wallet,
   CalendarDays, CheckSquare, FileBarChart2, Settings, LogOut,
-  DatabaseBackup, ShieldAlert, Bell, HelpCircle, Info
+  DatabaseBackup, ShieldAlert, Bell, HelpCircle, Info, Building2, ShieldCheck
 } from "lucide-react";
 import crest from "@/assets/navy-crest.png";
 
-const groups: { heading: string; items: { to: string; label: string; icon: any }[] }[] = [
+const groups: { heading: string; items: { to: string; label: string; icon: React.ComponentType<{ className?: string }> }[] }[] = [
   { heading: "Command", items: [
     { to: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
     { to: "/notifications", label: "Notifications", icon: Bell },
   ]},
-  { heading: "Personnel", items: [
-    { to: "/personnel", label: "Personnel Directory", icon: Users },
+  { heading: "Employment", items: [
+    { to: "/employment-records", label: "Employment Record", icon: Users },
     { to: "/attendance", label: "Attendance", icon: CheckSquare },
   ]},
   { heading: "Overtime & Pay", items: [
@@ -29,6 +29,8 @@ const groups: { heading: string; items: { to: string; label: string; icon: any }
   ]},
   { heading: "System", items: [
     { to: "/settings", label: "System Settings", icon: Settings },
+    { to: "/settings/departments", label: "Departments", icon: Building2 },
+    { to: "/settings/ranks", label: "Rank System", icon: ShieldCheck },
     { to: "/backup", label: "Backup & Restore", icon: DatabaseBackup },
     { to: "/help", label: "Help & Manual", icon: HelpCircle },
     { to: "/about", label: "About", icon: Info },
