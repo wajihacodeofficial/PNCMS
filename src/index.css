@@ -30,7 +30,7 @@
     --muted: 215 20% 94%;
     --muted-foreground: 213 14% 49%;       /* #6B7A8D */
 
-    --accent: 43 53% 54%;                  /* #C9A84C gold */
+    --accent: 0 0% 100%;                   /* white accent (replaces gold) */
     --accent-foreground: 215 53% 12%;
 
     --destructive: 0 75% 57%;              /* #E53E3E */
@@ -47,7 +47,7 @@
 
     --border: 214 32% 91%;                 /* #E2E8F0 */
     --input: 214 32% 91%;
-    --ring: 43 53% 54%;
+    --ring: 0 0% 100%;
 
     --radius: 0.375rem;
 
@@ -56,16 +56,16 @@
     --sidebar-foreground: 215 25% 85%;
     --sidebar-hover: 215 40% 15%;          /* #162236 */
     --sidebar-active: 215 43% 18%;         /* #1A2B42 */
-    --sidebar-primary: 43 53% 54%;
+    --sidebar-primary: 0 0% 100%;
     --sidebar-primary-foreground: 215 53% 12%;
     --sidebar-accent: 215 40% 15%;
     --sidebar-accent-foreground: 0 0% 100%;
     --sidebar-border: 215 40% 18%;
-    --sidebar-ring: 43 53% 54%;
+    --sidebar-ring: 0 0% 100%;
 
     /* Gradients & effects */
     --gradient-command: linear-gradient(135deg, hsl(215 53% 12%) 0%, hsl(215 45% 18%) 100%);
-    --gradient-gold: linear-gradient(135deg, hsl(43 53% 54%) 0%, hsl(43 60% 45%) 100%);
+    --gradient-gold: linear-gradient(135deg, hsl(0 0% 100%) 0%, hsl(0 0% 92%) 100%);
     --shadow-command: 0 4px 24px -8px hsl(215 53% 12% / 0.18);
     --shadow-elevated: 0 8px 32px -12px hsl(215 53% 12% / 0.25);
     --shadow-inset-gold: inset 4px 0 0 0 hsl(43 53% 54%);
