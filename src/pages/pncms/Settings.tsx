@@ -1,101 +1,148 @@
+import { useState, useEffect } from "react";
 import { AppShell, PageHeader } from "@/components/pncms/AppShell";
 import { Btn, Section, Field, Input, Badge } from "@/components/pncms/ui-kit";
-import { Save, AlertTriangle, ShieldCheck, Shield, Building2 } from "lucide-react";
+import { Save, ShieldCheck, Shield, Building2, User, Eye, EyeOff, Lock } from "lucide-react";
 import { useNavigate } from "react-router-dom";
-
-const audit = [
-  { time: "28-Apr-2026 09:42:11", user: "ADM-CLERK-04", action: "Submitted sanction SNC-2026-0142", target: "Muhammad Tariq Khan", ip: "10.14.22.41" },
-  { time: "28-Apr-2026 09:18:04", user: "ADM-CLERK-04", action: "Closed work log", target: "Aisha Rehman", ip: "10.14.22.41" },
-  { time: "28-Apr-2026 08:55:33", user: "FIN-OFC-02", action: "Disbursed payment batch APR-2026-B", target: "—", ip: "10.14.30.12" },
-  { time: "28-Apr-2026 08:30:09", user: "ADM-CLERK-04", action: "Opened daily muster roll", target: "—", ip: "10.14.22.41" },
-  { time: "27-Apr-2026 16:12:57", user: "ADM-CLERK-04", action: "Updated overtime hourly rate", target: "Rate: 380 → 420", ip: "10.14.22.41" },
-];
+import { toast } from "sonner";
 
 const Settings = () => {
   const navigate = useNavigate();
+  const [clerkName, setClerkName] = useState("");
+  const [secQuestion, setSecQuestion] = useState("");
+  const [secAnswer, setSecAnswer] = useState("");
+  const [adminPass, setAdminPass] = useState("");
+  
+  const [showAdminPass, setShowAdminPass] = useState(false);
+  const [showSecAnswer, setShowSecAnswer] = useState(false);
+
+  useEffect(() => {
+    setClerkName(localStorage.getItem("clerk_name") || "Wajiha Zehra");
+    setSecQuestion(localStorage.getItem("sec_question") || "What is your favorite color?");
+    setSecAnswer(localStorage.getItem("sec_answer") || "blue");
+    setAdminPass(localStorage.getItem("admin_password") || "12345qwert");
+  }, []);
+
+  const handleSave = () => {
+    localStorage.setItem("clerk_name", clerkName);
+    localStorage.setItem("sec_question", secQuestion);
+    localStorage.setItem("sec_answer", secAnswer);
+    localStorage.setItem("admin_password", adminPass);
+    toast.success("System configuration updated successfully.");
+  };
+
   return (
   <AppShell>
     <PageHeader
       title="System Settings & Control"
-      subtitle="Operational Parameters · Audit Trail"
-      actions={<Btn variant="gold"><Save className="w-4 h-4" /> Save Configuration</Btn>}
+      subtitle="Administrative Management · Security Parameters"
+      actions={<Btn variant="gold" onClick={handleSave}><Save className="w-4 h-4" /> Save Configuration</Btn>}
     />
 
-    <div className="grid grid-cols-12 gap-5">
-      <Section title="System Parameters" className="col-span-7">
-        <div className="grid grid-cols-2 gap-4">
-          <Field label="Overtime Hourly Rate (Rs.)" required><Input type="number" defaultValue={420} /></Field>
-          <Field label="Working Hours Per Day" required><Input type="number" defaultValue={8} /></Field>
-          <Field label="Working Days Per Week"><Input type="number" defaultValue={5} /></Field>
-          <Field label="LFP Credit Threshold (hrs)"><Input type="number" defaultValue={2} /></Field>
-          <Field label="Late Arrival Cutoff"><Input type="time" defaultValue="09:00" /></Field>
-          <Field label="Financial Year Start"><Input type="date" defaultValue="2026-07-01" /></Field>
-          <Field label="Approving Authority Default"><Input defaultValue="Cdr. Imtiaz Ali" /></Field>
-          <Field label="Currency"><Input defaultValue="PKR" disabled /></Field>
-        </div>
-      </Section>
+    <div className="grid grid-cols-12 gap-6">
+      <div className="col-span-8 space-y-6">
+        <Section title="Personnel Assignment">
+          <div className="p-2 bg-primary/5 border border-primary/10 rounded-sm mb-4">
+            <p className="text-xs text-primary/70 px-2 py-1">Assign the active administrator responsible for this terminal.</p>
+          </div>
+          <Field label="Active Admin Clerk Name" required>
+            <div className="relative">
+              <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+              <Input 
+                value={clerkName} 
+                onChange={(e) => setClerkName(e.target.value)} 
+                className="pl-10 w-full font-bold text-primary"
+                placeholder="Full Name" 
+              />
+            </div>
+          </Field>
+        </Section>
 
-      <div className="col-span-5 space-y-5">
-        <div className="panel border-l-4 border-l-warning p-5 bg-warning/5">
-          <div className="flex items-start gap-3">
-            <AlertTriangle className="w-6 h-6 text-warning shrink-0 mt-0.5" />
-            <div>
-              <h4 className="heading-mil text-sm text-warning tracking-wider">Authority Notice</h4>
-              <p className="text-xs text-foreground/80 mt-2 leading-relaxed">
-                Modifying core financial parameters affects all open work logs and pending payment batches. Configuration changes are recorded in the audit trail and require Authority Level L4 confirmation.
-              </p>
+        <Section title="Access Control & Security">
+          <div className="grid grid-cols-2 gap-6">
+            <Field label="System Admin Password" required>
+              <div className="relative">
+                <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                <Input 
+                  type={showAdminPass ? "text" : "password"} 
+                  value={adminPass} 
+                  onChange={(e) => setAdminPass(e.target.value)} 
+                  className="pl-10 pr-10 w-full font-mono"
+                />
+                <button 
+                  type="button"
+                  onClick={() => setShowAdminPass(!showAdminPass)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-primary"
+                >
+                  {showAdminPass ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                </button>
+              </div>
+            </Field>
+
+            <div className="col-span-2 grid grid-cols-2 gap-6 pt-4 border-t border-border/50">
+              <Field label="Recovery Security Question" required>
+                <Input value={secQuestion} onChange={(e) => setSecQuestion(e.target.value)} placeholder="e.g. Your first school name" />
+              </Field>
+              <Field label="Security Answer" required>
+                <div className="relative">
+                  <Input 
+                    type={showSecAnswer ? "text" : "password"} 
+                    value={secAnswer} 
+                    onChange={(e) => setSecAnswer(e.target.value)} 
+                    className="pr-10 w-full font-mono"
+                  />
+                  <button 
+                    type="button"
+                    onClick={() => setShowSecAnswer(!showSecAnswer)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-primary"
+                  >
+                    {showSecAnswer ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                  </button>
+                </div>
+              </Field>
             </div>
           </div>
-        </div>
+        </Section>
+      </div>
 
-        <div className="panel p-5">
-          <div className="flex items-center gap-2 mb-3">
-            <ShieldCheck className="w-5 h-5 text-success" />
-            <h4 className="heading-mil text-sm text-primary tracking-wider">Security Posture</h4>
+      <div className="col-span-4 space-y-6">
+        <Section title="Administrative Hub">
+          <div className="space-y-3">
+            <p className="text-xs text-muted-foreground mb-4">Quick access to establishment structural management.</p>
+            <Btn variant="outline" className="w-full justify-start h-12" onClick={() => navigate("/settings/departments")}>
+              <Building2 className="w-5 h-5 mr-3 text-accent" />
+              <div className="text-left">
+                <div className="text-[0.7rem] font-bold">Manage Departments</div>
+                <div className="text-[0.6rem] text-muted-foreground font-normal lowercase tracking-normal">Add/Edit Naval Units & Wings</div>
+              </div>
+            </Btn>
+            <Btn variant="outline" className="w-full justify-start h-12" onClick={() => navigate("/settings/ranks")}>
+              <ShieldCheck className="w-5 h-5 mr-3 text-accent" />
+              <div className="text-left">
+                <div className="text-[0.7rem] font-bold">Manage Rank System</div>
+                <div className="text-[0.6rem] text-muted-foreground font-normal lowercase tracking-normal">Configure Civilian BPS Levels</div>
+              </div>
+            </Btn>
           </div>
-          <div className="space-y-2 text-xs">
-            <div className="flex justify-between"><span className="label-mil">Encryption</span><Badge variant="success">AES-256 Active</Badge></div>
-            <div className="flex justify-between"><span className="label-mil">Session Lock</span><Badge variant="success">10 min idle</Badge></div>
-            <div className="flex justify-between"><span className="label-mil">Backup Cycle</span><Badge variant="info">Daily 02:00</Badge></div>
-            <div className="flex justify-between"><span className="label-mil">Last Backup</span><span className="font-mono text-[0.7rem]">28-Apr-2026 02:00</span></div>
-          </div>
-        </div>
+        </Section>
 
-        <div className="panel p-5 border-t-4 border-t-gold">
-          <div className="flex items-center gap-2 mb-4">
-            <Shield className="w-5 h-5 text-gold" />
-            <h4 className="heading-mil text-sm text-primary tracking-wider">Administrative Controls</h4>
+        <div className="panel p-5 bg-primary/5 border-dashed border-2 border-primary/20 rounded-md">
+          <div className="flex items-center gap-3 mb-3">
+            <Shield className="w-5 h-5 text-primary" />
+            <h4 className="text-sm font-bold text-primary">System Integrity</h4>
           </div>
-          <div className="grid grid-cols-1 gap-2">
-            <Btn variant="outline" className="justify-start h-10" onClick={() => navigate("/settings/departments")}>
-              <Building2 className="w-4 h-4 mr-2" /> Manage Departments
-            </Btn>
-            <Btn variant="outline" className="justify-start h-10" onClick={() => navigate("/settings/ranks")}>
-              <ShieldCheck className="w-4 h-4 mr-2" /> Manage Rank System
-            </Btn>
+          <div className="space-y-2">
+            <div className="flex justify-between items-center text-xs">
+              <span className="text-muted-foreground">Version</span>
+              <span className="font-mono font-bold">v2.4.0-STABLE</span>
+            </div>
+            <div className="flex justify-between items-center text-xs">
+              <span className="text-muted-foreground">Last Security Sync</span>
+              <span className="font-mono font-bold text-success uppercase">Active</span>
+            </div>
           </div>
         </div>
       </div>
     </div>
-
-    <Section title="Audit Trail · Last 50 Operations" className="mt-6">
-      <div className="overflow-x-auto -m-5">
-        <table className="data-table">
-          <thead><tr><th>Timestamp</th><th>Operator</th><th>Action</th><th>Target</th><th>IP Address</th></tr></thead>
-          <tbody>
-            {audit.map((a,i)=>(
-              <tr key={i}>
-                <td className="font-mono text-xs">{a.time}</td>
-                <td><Badge variant="info">{a.user}</Badge></td>
-                <td>{a.action}</td>
-                <td className="text-muted-foreground">{a.target}</td>
-                <td className="font-mono text-xs">{a.ip}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-    </Section>
   </AppShell>
   );
 };

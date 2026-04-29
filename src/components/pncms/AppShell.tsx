@@ -1,10 +1,17 @@
-import { ReactNode } from 'react';
+import { ReactNode, useState, useEffect } from 'react';
 import { Sidebar } from './Sidebar';
 import { Bell, ShieldCheck, ChevronDown } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
 export const AppShell = ({ children }: { children: ReactNode }) => {
   const navigate = useNavigate();
+  const [clerkName, setClerkName] = useState("Wajiha Zehra");
+
+  useEffect(() => {
+    const saved = localStorage.getItem("clerk_name");
+    if (saved) setClerkName(saved);
+  }, []);
+
   return (
     <div className="min-h-screen w-full flex bg-background">
       <Sidebar />
@@ -30,16 +37,16 @@ export const AppShell = ({ children }: { children: ReactNode }) => {
               </span>
             </button>
             <div className="h-6 w-px bg-border" />
-            <div className="flex items-center gap-3">
-              <div className="w-9 h-9 rounded-sm bg-gradient-command text-white flex items-center justify-center text-sm font-bold">
-                AC
+            <div className="flex items-center gap-3 cursor-pointer hover:bg-muted/30 transition-colors px-2 py-1 rounded-sm" onClick={() => navigate('/settings')}>
+              <div className="w-9 h-9 rounded-sm bg-gradient-command text-white flex items-center justify-center text-sm font-bold uppercase">
+                {clerkName.substring(0, 2)}
               </div>
               <div className="leading-tight">
                 <div className="text-sm font-semibold text-primary">
                   Admin Clerk
                 </div>
                 <div className="label-mil text-[0.6rem] flex items-center gap-1">
-                  <ShieldCheck className="w-3 h-3 text-accent" /> Authority L3
+                  <ShieldCheck className="w-3 h-3 text-accent" /> {clerkName}
                 </div>
               </div>
               <ChevronDown className="w-4 h-4 text-muted-foreground" />

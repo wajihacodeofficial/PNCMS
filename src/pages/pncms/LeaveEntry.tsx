@@ -1,11 +1,82 @@
+import { useState } from "react";
 import { AppShell, PageHeader } from "@/components/pncms/AppShell";
 import { Btn, Field, Input, Select, Section } from "@/components/pncms/ui-kit";
-import { Save, FileCheck2 } from "lucide-react";
+import { Save, FileCheck2, AlertCircle } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { personnel } from "@/data/mock";
+import { toast } from "sonner";
 
 const LeaveEntry = () => {
   const navigate = useNavigate();
+  const [selectedSvc, setSelectedSvc] = useState(personnel[0].svc);
+  const [leaveType, setLeaveType] = useState("CL");
+  const [fromDate, setFromDate] = useState("");
+  const [toDate, setToDate] = useState("");
+  const [remarks, setRemarks] = useState("");
+
+  const balances: Record<string, { used: number, max: number, label: string }> = {
+    "CL": { used: 12, max: 20, label: "Casual Leave" },
+    "RL": { used: 18, max: 30, label: "Earned Leave" },
+    "ML": { used: 6, max: 10, label: "Maternity Leave" },
+    "DL": { used: 2, max: 5, label: "Disability Leave" },
+    "LWOP": { used: 0, max: 365, label: "Leave Without Pay" },
+    "LFP": { used: 12, max: 12, label: "Late-Sitting Facility" },
+  };
+
+  const selectedPerson = personnel.find(p => p.svc === selectedSvc);
+  const isMale = selectedPerson?.gender === 'Male';
+  const isMLSelected = leaveType === 'ML';
+  const isGenderRestricted = isMLSelected && isMale;
+
+  const calculatedDays = (() => {
+    if (fromDate && toDate) {
+      const start = new Date(fromDate);
+      const end = new Date(toDate);
+      const diffTime = end.getTime() - start.getTime();
+      const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1;
+      return diffDays > 0 ? diffDays : 0;
+    }
+    return 0;
+  })();
+
+  const currentBalance = balances[leaveType];
+  const remaining = currentBalance.max - currentBalance.used;
+  const isOverLimit = calculatedDays > remaining;
+  const isBalanceEmpty = remaining <= 0;
+
+  const saveToStorage = (status: 'Draft' | 'Submitted') => {
+    const newRecord = {
+      svc: selectedSvc,
+      name: selectedPerson?.name || "Unknown",
+      type: leaveType,
+      from: fromDate,
+      to: toDate,
+      days: calculatedDays,
+      status: status,
+      timestamp: new Date().toISOString()
+    };
+    const existing = JSON.parse(localStorage.getItem('pncms_leave_records') || '[]');
+    localStorage.setItem('pncms_leave_records', JSON.stringify([...existing, newRecord]));
+  };
+
+  const handleRecordLeave = () => {
+    if (isGenderRestricted) {
+      toast.error("Maternity Leave (ML) is only applicable to female personnel");
+      return;
+    }
+    if (!fromDate || !toDate) {
+      toast.error("Please specify leave dates");
+      return;
+    }
+    if (isOverLimit) {
+      toast.error(`Cannot record leave: Exceeds available ${currentBalance.label} balance`);
+      return;
+    }
+    saveToStorage('Submitted');
+    toast.success("Leave successfully recorded and submitted");
+    navigate("/leave");
+  };
+
   return (
     <AppShell>
       <PageHeader
@@ -14,8 +85,8 @@ const LeaveEntry = () => {
         actions={
           <>
             <Btn variant="outline" onClick={() => navigate("/leave")}>Cancel</Btn>
-            <Btn variant="primary"><Save className="w-4 h-4" /> Save Draft</Btn>
-            <Btn variant="gold"><FileCheck2 className="w-4 h-4" /> Record Leave</Btn>
+            <Btn variant="primary" onClick={() => saveToStorage('Draft')} disabled={isOverLimit || isGenderRestricted}><Save className="w-4 h-4" /> Save Draft</Btn>
+            <Btn variant="gold" onClick={handleRecordLeave} disabled={isOverLimit || isGenderRestricted}><FileCheck2 className="w-4 h-4" /> Record Leave</Btn>
           </>
         }
       />
@@ -24,34 +95,70 @@ const LeaveEntry = () => {
         <Section title="Leave Particulars" className="col-span-2">
           <div className="grid grid-cols-2 gap-4">
             <Field label="Employee" required>
-              <Select>{personnel.map(p=><option key={p.svc}>{p.name} · {p.svc}</option>)}</Select>
+              <Select value={selectedSvc} onChange={(e) => setSelectedSvc(e.target.value)}>
+                {personnel.map(p=><option key={p.svc} value={p.svc}>{p.name} · {p.svc} ({p.gender})</option>)}
+              </Select>
             </Field>
             <Field label="Cadre / Department"><Input defaultValue="Clerical · Administration" disabled /></Field>
             <Field label="Leave Type" required>
-              <Select>
-                <option>Casual Leave (CL)</option>
-                <option>Earned / Recreation Leave (RL)</option>
-                <option>Medical Leave (ML)</option>
-                <option>Disability Leave (DL)</option>
-                <option>Leave Without Pay (LWOP)</option>
-                <option>Late-Sitting Facility (LFP)</option>
+              <Select value={leaveType} onChange={(e) => setLeaveType(e.target.value)}>
+                <option value="CL">Casual Leave (CL)</option>
+                <option value="RL">Earned / Recreation Leave (RL)</option>
+                <option value="ML">Maternity Leave (ML)</option>
+                <option value="DL">Disability Leave (DL)</option>
+                <option value="LWOP">Leave Without Pay (LWOP)</option>
+                <option value="LFP">Late-Sitting Facility (LFP)</option>
               </Select>
             </Field>
-            <Field label="Application Date"><Input type="date" /></Field>
-            <Field label="From Date" required><Input type="date" /></Field>
-            <Field label="To Date" required><Input type="date" /></Field>
-            <Field label="No. of Days" required><Input type="number" defaultValue="3" /></Field>
+            <Field label="Application Date"><Input type="date" defaultValue={new Date().toISOString().split('T')[0]} /></Field>
+            <Field label="From Date" required>
+              <Input type="date" value={fromDate} onChange={(e) => setFromDate(e.target.value)} />
+            </Field>
+            <Field label="To Date" required>
+              <Input type="date" value={toDate} onChange={(e) => setToDate(e.target.value)} />
+            </Field>
+            <Field label="No. of Days" required>
+              <Input type="number" value={calculatedDays} readOnly className={`font-bold ${isOverLimit ? 'text-destructive bg-destructive/10 border-destructive' : 'bg-muted/30'}`} />
+            </Field>
             <Field label="Reliever (if any)"><Input /></Field>
-            <div className="col-span-2"><Field label="Remarks / Reason"><Input placeholder="Reason for leave" /></Field></div>
+            <div className="col-span-2"><Field label="Remarks / Reason"><Input placeholder="Reason for leave" value={remarks} onChange={(e) => setRemarks(e.target.value)} /></Field></div>
           </div>
+
+          {isGenderRestricted && (
+            <div className="mt-6 p-4 bg-destructive/10 border border-destructive/20 rounded-md flex items-start gap-3">
+              <AlertCircle className="w-5 h-5 text-destructive shrink-0 mt-0.5" />
+              <div>
+                <h4 className="text-sm font-bold text-destructive">Gender Restriction</h4>
+                <p className="text-xs text-destructive/80 mt-1">Maternity Leave (ML) can only be applied for female personnel. {selectedPerson?.name} is registered as Male.</p>
+              </div>
+            </div>
+          )}
+
+          {!isGenderRestricted && (isOverLimit || isBalanceEmpty) && (
+            <div className="mt-6 p-4 bg-destructive/10 border border-destructive/20 rounded-md flex items-start gap-3">
+              <AlertCircle className="w-5 h-5 text-destructive shrink-0 mt-0.5" />
+              <div>
+                <h4 className="text-sm font-bold text-destructive">Leave Balance Exceeded</h4>
+                <p className="text-xs text-destructive/80 mt-1">
+                  {isBalanceEmpty ? `No remaining ${currentBalance.label}.` : `Requested ${calculatedDays} days exceed the remaining ${remaining} days.`}
+                </p>
+              </div>
+            </div>
+          )}
         </Section>
 
         <Section title="Current Balance">
           <div className="space-y-2.5 text-sm">
-            {[["CL",12,20],["RL",18,30],["ML",6,10],["DL",2,5],["LWOP",0,365],["LFP",4,12]].map(([k,v,m])=>(
-              <div key={k as string} className="border border-border rounded-sm p-2.5 bg-muted/30">
-                <div className="flex justify-between"><span className="label-mil">{k}</span><span className="font-mono font-bold text-primary">{v} / {m}</span></div>
-                <div className="h-1.5 mt-1.5 bg-muted rounded-sm overflow-hidden"><div className="h-full bg-accent" style={{width:`${(v as number)/(m as number)*100}%`}} /></div>
+            {Object.entries(balances).map(([k, {used, max, label}])=>(
+              <div key={k} className={`border rounded-sm p-2.5 ${k === leaveType ? 'bg-primary/5 border-primary/30' : 'bg-muted/30 border-border'}`}>
+                <div className="flex justify-between items-center mb-1">
+                  <span className="label-mil">{k}</span>
+                  <span className={`font-mono font-bold ${max - used <= 0 ? 'text-destructive' : 'text-primary'}`}>{max - used} / {max}</span>
+                </div>
+                <div className="h-1.5 bg-muted rounded-sm overflow-hidden">
+                  <div className={`h-full ${max - used <= 0 ? 'bg-destructive' : k === leaveType ? 'bg-primary' : 'bg-accent'}`} style={{width:`${((max-used)/max)*100}%`}} />
+                </div>
+                <div className="text-[0.6rem] mt-1.5 text-muted-foreground uppercase tracking-wider">{label}</div>
               </div>
             ))}
           </div>

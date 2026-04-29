@@ -88,8 +88,8 @@ export const Select = ({ children, ...props }: SelectHTMLAttributes<HTMLSelectEl
 
 /* === STAT CARD === */
 export const StatCard = ({
-  label, value, sub, icon, accent = "primary",
-}: { label: string; value: string | number; sub?: string; icon?: ReactNode; accent?: "primary" | "gold" | "success" | "warning" | "danger" | "info" }) => {
+  label, value, sub, icon, accent = "primary", onClick
+}: { label: string; value: string | number; sub?: string; icon?: ReactNode; accent?: "primary" | "gold" | "success" | "warning" | "danger" | "info"; onClick?: () => void }) => {
   const tints: Record<string, string> = {
     primary: "text-primary",
     gold: "text-accent",
@@ -99,16 +99,22 @@ export const StatCard = ({
     info: "text-info",
   };
   return (
-    <div className="panel relative overflow-hidden p-5">
-      <div className="stripe-top-gold absolute top-0 left-0" />
+    <div 
+      onClick={onClick}
+      className={cn(
+        "panel relative overflow-hidden p-5 transition-all duration-200",
+        onClick ? "cursor-pointer hover:shadow-elevated hover:-translate-y-1 group" : ""
+      )}
+    >
+      <div className={cn("stripe-top-gold absolute top-0 left-0 transition-transform duration-300", onClick ? "group-hover:scale-x-110" : "")} />
       <div className="flex items-start justify-between">
         <div>
-          <div className="label-mil">{label}</div>
+          <div className="label-mil group-hover:text-primary transition-colors">{label}</div>
           <div className={cn("mt-2 text-4xl font-heading font-extrabold italic", tints[accent])}>{value}</div>
           {sub && <div className="text-xs text-muted-foreground mt-1.5 font-body">{sub}</div>}
         </div>
         {icon && (
-          <div className="w-11 h-11 rounded-sm bg-primary/5 text-primary flex items-center justify-center">
+          <div className={cn("w-11 h-11 rounded-sm bg-primary/5 text-primary flex items-center justify-center transition-colors", onClick ? "group-hover:bg-primary group-hover:text-white" : "")}>
             {icon}
           </div>
         )}

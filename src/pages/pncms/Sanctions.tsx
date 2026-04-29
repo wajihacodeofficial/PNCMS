@@ -149,8 +149,8 @@ const Sanctions = () => {
             <div className="p-6 grid grid-cols-2 gap-4">
               <Field label="Personnel" required>
                 <Select>
-                  <option>Muhammad Tariq Khan (PN-CIV-1042)</option>
-                  <option>Aisha Rehman (PN-CIV-1043)</option>
+                  <option>Muhammad Tariq Khan (-1042)</option>
+                  <option>Aisha Rehman (-1043)</option>
                 </Select>
               </Field>
               <Field label="Department" required>
