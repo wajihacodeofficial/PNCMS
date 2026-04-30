@@ -17,7 +17,6 @@ const LeaveEntry = () => {
   const balances: Record<string, { used: number, max: number, label: string }> = {
     "CL": { used: 12, max: 20, label: "Casual Leave" },
     "RL": { used: 18, max: 30, label: "Recreational Leave" },
-    "ML": { used: 0, max: 90, label: "Maternity Leave" },
     "LWOP": { used: 0, max: 365, label: "Leave Without Pay" },
     "DL": { used: 2, max: 5, label: "Disability Leave" },
     "LFP": { used: 12, max: 12, label: "Leave on Full Pay" },
@@ -108,7 +107,6 @@ const LeaveEntry = () => {
                   options={[
                     { value: "CL", label: "Casual Leave", desc: "Short term routine leave", icon: <Calendar className="w-4 h-4" /> },
                     { value: "RL", label: "Recreational Leave", desc: "Annual recreation / Earned", icon: <Clock className="w-4 h-4" /> },
-                    { value: "ML", label: "Maternity Leave", desc: "Female personnel only", icon: <HeartPulse className="w-4 h-4" /> },
                     { value: "LWOP", label: "Leave Without Pay", desc: "Unpaid absence / Extraordinary", icon: <UserX className="w-4 h-4" /> },
                     { value: "DL", label: "Disability Leave", desc: "Medical / Injury related", icon: <HeartPulse className="w-4 h-4" /> },
                     { value: "LFP", label: "Leave on Full Pay", desc: "For regular staff only", icon: <Wallet className="w-4 h-4" /> },

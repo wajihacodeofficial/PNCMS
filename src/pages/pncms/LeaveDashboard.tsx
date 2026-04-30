@@ -69,7 +69,7 @@ const LeaveDashboard = () => {
                 <tr key={i} className="hover:bg-muted/30 transition-colors">
                   <td className="px-6 py-4 font-semibold text-base">{p.name}</td>
                   <td className="px-6 py-4">
-                    <Badge variant={p.type === "MATERNITY" ? "danger" : (p.type === "RECREATIONAL" || p.type === "EARNED") ? "success" : "info"} className="px-3 py-1 text-xs">
+                    <Badge variant={(p.type === "RECREATIONAL" || p.type === "EARNED") ? "success" : "info"} className="px-3 py-1 text-xs">
                       {p.type}
                     </Badge>
                   </td>

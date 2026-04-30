@@ -48,6 +48,7 @@ import {
 import { Switch } from '@/components/ui/switch';
 import { exportToPDF } from '@/lib/export';
 import { toast } from 'sonner';
+import { personnel, leaveRecords as globalLeaves, payments, disciplinaryActions } from '@/data/mock';
 
 const EmploymentRecordProfile = () => {
   const navigate = useNavigate();
@@ -171,10 +172,30 @@ const EmploymentRecordProfile = () => {
     },
   ]);
 
-  const [disciplines, setDisciplines] = useState<any[]>([]);
+  const profile = useMemo(() => {
+    return personnel.find(p => p.svc === id) || personnel[0];
+  }, [id]);
+
+  const personLeaves = useMemo(() => {
+    return globalLeaves.filter(l => l.svc === id).map(l => ({
+      type: l.type === 'CL' ? 'Casual Leave' : l.type === 'RL' ? 'Recreational Leave' : l.type === 'DL' ? 'Disability Leave' : 'Other Leave',
+      start: l.from,
+      end: l.to,
+      days: l.days,
+      ref: `LVE/${l.from.replace(/-/g, '/')}/${l.svc}`
+    }));
+  }, [id]);
+
+  const personDisciplines = useMemo(() => {
+    return disciplinaryActions.filter(d => d.svc === id);
+  }, [id]);
+
+  const personPayments = useMemo(() => {
+    return payments.filter(p => p.svc === id);
+  }, [id]);
 
   // NEW: State for Leave Records to sync with Attendance
-  const [leaveRecords, setLeaveRecords] = useState<any[]>([
+  const [leaveRecords, setLeaveRecords] = useState<any[]>(personLeaves.length > 0 ? personLeaves : [
     {
       type: 'Casual Leave',
       start: '2026-02-12',
@@ -340,8 +361,8 @@ const EmploymentRecordProfile = () => {
   return (
     <AppShell>
       <PageHeader
-        title="Employment Record Profile"
-        subtitle={`Service Record · ${id ?? '-1042'}`}
+        title={`${profile.name}`}
+        subtitle={`Service Record · ${profile.svc}`}
         actions={
           <>
             <Btn variant="outline" onClick={() => window.print()}>
@@ -353,7 +374,7 @@ const EmploymentRecordProfile = () => {
             <Btn
               variant="gold"
               onClick={() =>
-                navigate(`/employment-records/edit/${id ?? '-1042'}`)
+                navigate(`/employment-records/edit/${profile.svc}`)
               }
             >
               <Pencil className="w-4 h-4" /> Edit Record
@@ -369,16 +390,23 @@ const EmploymentRecordProfile = () => {
               <div className="w-32 h-40 mx-auto bg-muted rounded-sm flex items-center justify-center mb-4 shadow-inner border border-border">
                 <User className="w-16 h-16 text-muted-foreground/20" />
               </div>
-              <h2 className="text-xl font-heading font-bold text-primary">
-                Muhammad Tariq Khan
-              </h2>
-              <p className="text-xs font-mono text-muted-foreground mt-1">
-                {id ?? '-1042'}
-              </p>
+                <div className="flex flex-col">
+                  <h2 className="text-2xl font-heading font-black text-white italic tracking-tight">
+                    {profile.name}
+                  </h2>
+                  <div className="flex items-center gap-2 mt-1">
+                    <Badge variant="gold" className="text-[0.65rem] px-2 py-0.5">
+                      {profile.rank}
+                    </Badge>
+                    <Badge variant="neutral" className="text-[0.65rem] px-2 py-0.5">
+                      {profile.svc}
+                    </Badge>
+                  </div>
+                </div>
 
               <div className="mt-4 p-2 bg-muted/30 rounded-sm">
                 <div className="flex items-center justify-center gap-2 text-xs font-bold text-accent uppercase">
-                  <Anchor className="w-3.5 h-3.5" /> NHQ ISLAMABAD
+                  <Anchor className="w-3.5 h-3.5" /> {profile.unitLocation}
                 </div>
                 <div className="text-[0.65rem] text-muted-foreground mt-1 italic">
                   Tenure: {tenureStr}
@@ -386,48 +414,36 @@ const EmploymentRecordProfile = () => {
               </div>
 
               <div className="mt-4 flex flex-wrap justify-center gap-2">
-                <Badge variant="info">Assistant</Badge>
-                <Badge variant={isMinisterial ? 'info' : 'warning'}>
-                  {isMinisterial ? 'Ministerial' : 'Industrial'}
+                <Badge variant="info">{profile.rank}</Badge>
+                <Badge variant={profile.cardType === 'Ministerial' ? 'info' : 'warning'}>
+                  {profile.cardType}
                 </Badge>
               </div>
             </div>
 
             <div className="border-t border-border p-4 bg-muted/20 space-y-3">
-              <div className="flex items-center gap-3 text-xs">
-                <Building2 className="w-4 h-4 text-accent" />
-                <div className="flex flex-col">
-                  <span className="label-mil text-[0.6rem] text-muted-foreground">
-                    Department
-                  </span>
-                  <span className="font-semibold text-primary">
-                    Administration
-                  </span>
-                </div>
+              <div className="flex flex-col p-4 border-r border-border/50">
+                <span className="text-[0.6rem] label-mil mb-1">Department</span>
+                <span className="text-sm font-bold text-primary flex items-center gap-2">
+                  <Building2 className="w-3.5 h-3.5 text-accent" />
+                  {profile.dept}
+                </span>
               </div>
-              <div className="flex items-center gap-3 text-xs">
-                <MapPin className="w-4 h-4 text-accent" />
-                <div className="flex flex-col">
-                  <span className="label-mil text-[0.6rem] text-muted-foreground">
-                    Unit Location
-                  </span>
-                  <span className="text-foreground/80">NHQ Islamabad</span>
-                </div>
+              <div className="flex flex-col p-4 border-r border-border/50">
+                <span className="text-[0.6rem] label-mil mb-1">Card Type</span>
+                <span className="text-sm font-bold text-primary">
+                  {profile.cardType}
+                </span>
               </div>
-              <div className="flex items-center gap-3 text-xs">
-                <CalendarDays className="w-4 h-4 text-accent" />
-                <div className="flex flex-col">
-                  <span className="label-mil text-[0.6rem] text-muted-foreground">
-                    Joining Date (PNS Dilawar)
-                  </span>
-                  <span className="text-foreground/80 font-mono">
-                    16-May-2024
-                  </span>
-                </div>
+              <div className="flex flex-col p-4 border-r border-border/50">
+                <span className="text-[0.6rem] label-mil mb-1">BPS Scale</span>
+                <span className="text-sm font-bold text-accent">{profile.bps}</span>
               </div>
-              <div className="flex items-center gap-3 text-xs">
-                <Phone className="w-4 h-4 text-accent" />
-                <span className="text-foreground/80">+92-300-1234567</span>
+              <div className="flex flex-col p-4">
+                <span className="text-[0.6rem] label-mil mb-1">CNIC / ID</span>
+                <span className="text-sm font-mono font-bold text-primary">
+                  {profile.cnic}
+                </span>
               </div>
             </div>
 
@@ -469,7 +485,7 @@ const EmploymentRecordProfile = () => {
               />
               <TabTrigger
                 value="financial"
-                label={isMinisterial ? 'Late Sitting' : 'Overtime'}
+                label={profile.cardType === 'Ministerial' ? 'Late Sitting' : 'Overtime'}
                 icon={Clock}
               />
               <TabTrigger
@@ -491,15 +507,15 @@ const EmploymentRecordProfile = () => {
               <div className="grid grid-cols-2 gap-4">
                 <StatCard
                   label="Service Tenure"
-                  value="14 Years"
-                  sub="Joined 2012"
+                  value={tenureStr}
+                  sub={`Joined ${profile.joinDate}`}
                   accent="primary"
                   icon={<CalendarDays className="w-5 h-5" />}
                 />
                 <StatCard
                   label="BPS Grade"
-                  value="BPS-14"
-                  sub="Last Promoted 2022"
+                  value={profile.bps}
+                  sub={`Last Promoted ${profile.lastPromotion}`}
                   accent="info"
                   icon={<FileText className="w-5 h-5" />}
                 />
@@ -507,19 +523,19 @@ const EmploymentRecordProfile = () => {
 
               <Section title="Basic Personnel Details">
                 <div className="grid grid-cols-2 gap-x-12 gap-y-3 text-sm">
-                  <DataRow label="Father's Name" value="Khan Muhammad" />
-                  <DataRow label="CNIC" value="42101-1234567-1" />
-                  <DataRow label="DOB" value="08-Aug-1984" />
-                  <DataRow label="Gender" value="Male" />
-                  <DataRow label="Blood Group" value="B+" />
-                  <DataRow label="Domicile" value="Sindh / Karachi" />
+                  <DataRow label="Father's Name" value={profile.fatherName} />
+                  <DataRow label="CNIC" value={profile.cnic} />
+                  <DataRow label="DOB" value={profile.dob} />
+                  <DataRow label="Gender" value={profile.gender} />
+                  <DataRow label="Blood Group" value={profile.bloodGroup} />
+                  <DataRow label="Domicile" value={profile.domicile} />
                   <DataRow
                     label="Permanent Addr."
-                    value="House 12-B, PN Colony, Karsaz, Karachi"
+                    value={profile.permAddr}
                   />
                   <DataRow
                     label="Present Addr."
-                    value="Block 4, NHQ Staff Quarters, Islamabad"
+                    value={profile.presAddr}
                   />
                 </div>
               </Section>
@@ -527,10 +543,10 @@ const EmploymentRecordProfile = () => {
               <div className="grid grid-cols-2 gap-5">
                 <Section title="Next of Kin (NOK) Details">
                   <div className="space-y-3 text-sm">
-                    <DataRow label="NOK Name" value="Saima Begum" />
-                    <DataRow label="Relation" value="Spouse" />
-                    <DataRow label="NOK Contact" value="+92-333-9876543" />
-                    <DataRow label="NOK CNIC" value="42101-9988776-2" />
+                    <DataRow label="NOK Name" value={profile.nokName} />
+                    <DataRow label="Relation" value={profile.nokRelation} />
+                    <DataRow label="NOK Contact" value={profile.nokContact} />
+                    <DataRow label="NOK CNIC" value={profile.nokCnic} />
                   </div>
                 </Section>
 
@@ -538,13 +554,13 @@ const EmploymentRecordProfile = () => {
                   <div className="space-y-3 text-sm">
                     <DataRow
                       label="Bank Name"
-                      value="National Bank of Pakistan"
+                      value={profile.bankName}
                     />
-                    <DataRow label="Account No" value="401278219981" />
-                    <DataRow label="Branch" value="Karsaz (0412)" />
+                    <DataRow label="Account No" value={profile.bankAccount} />
+                    <DataRow label="Branch" value={profile.bankBranch} />
                     <AccountTypeRow
                       label="Account Type"
-                      value="Salary Current"
+                      value={profile.accountType}
                     />
                   </div>
                 </Section>

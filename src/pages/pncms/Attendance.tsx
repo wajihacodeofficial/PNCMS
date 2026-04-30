@@ -192,7 +192,6 @@ const Attendance = () => {
                            { value: "L", label: "Late", variant: "warning" },
                            { value: "CL", label: "Casual Leave", variant: "info" },
                            { value: "RL", label: "Recreational Leave", variant: "info" },
-                           { value: "ML", label: "Maternity Leave", variant: "info" },
                            { value: "LWOP", label: "Leave without pay", variant: "info" },
                            { value: "DL", label: "Disability Leave", variant: "info" },
                            { value: "LFP", label: "Leave on Full Pay", variant: "info" },

@@ -44,7 +44,6 @@ const Leave = () => (
                 options={[
                   { value: "CL", label: "Casual Leave", icon: <Calendar className="w-4 h-4" /> },
                   { value: "RL", label: "Recreational Leave", icon: <Clock className="w-4 h-4" /> },
-                  { value: "ML", label: "Maternity Leave", icon: <HeartPulse className="w-4 h-4" /> },
                   { value: "LWOP", label: "Leave Without Pay", icon: <UserX className="w-4 h-4" /> },
                   { value: "DL", label: "Disability Leave", icon: <HeartPulse className="w-4 h-4" /> },
                   { value: "LFP", label: "Leave on Full Pay", icon: <Wallet className="w-4 h-4" /> },

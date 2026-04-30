@@ -1,14 +1,32 @@
 export const personnel = [
-  { svc: '10420', name: 'Muhammad Tariq Khan', rank: 'Assistant', dept: 'Administration', cardType: 'Ministerial', bps: 'BPS-16', cnic: '42101-1234567-1', status: 'Active', gender: 'Male' },
-  { svc: '10430', name: 'Aisha Rehman', rank: 'UDC', dept: 'Engineering Wing', cardType: 'Ministerial', bps: 'BPS-14', cnic: '42201-2345678-2', status: 'Active', gender: 'Female' },
-  { svc: '10440', name: 'Bilal Ahmed Siddiqui', rank: 'Draftsman', dept: 'Naval Dockyard', cardType: 'Industrial', bps: 'BPS-12', cnic: '42301-3456789-3', status: 'Active', gender: 'Male' },
-  { svc: '10450', name: 'Fatima Zahra', rank: 'LDC', dept: 'Personnel Records', cardType: 'Ministerial', bps: 'BPS-11', cnic: '42401-4567890-4', status: 'Active', gender: 'Female' },
-  { svc: '10460', name: 'Imran Hussain Shah', rank: 'Stenographer', dept: 'Naval Headquarters', cardType: 'Ministerial', bps: 'BPS-16', cnic: '42501-5678901-5', status: 'Active', gender: 'Male' },
-  { svc: '10470', name: 'Saima Nawaz', rank: 'Technician', dept: 'Logistics Command', cardType: 'Industrial', bps: 'BPS-14', cnic: '42601-6789012-6', status: 'Active', gender: 'Female' },
-  { svc: '10480', name: 'Asad Mehmood Qureshi', rank: 'Driver', dept: 'Transport Pool', cardType: 'Ministerial', bps: 'BPS-07', cnic: '42701-7890123-7', status: 'Active', gender: 'Male' },
-  { svc: '10490', name: 'Nazia Akhtar', rank: 'Assistant', dept: 'Finance Directorate', cardType: 'Ministerial', bps: 'BPS-16', cnic: '42801-8901234-8', status: 'Active', gender: 'Female' },
-  { svc: '10500', name: 'Zubair Ahmed', rank: 'Foreman', dept: 'Naval Dockyard', cardType: 'Industrial', bps: 'BPS-16', cnic: '42901-9012345-9', status: 'Active', gender: 'Male' },
-  { svc: '10510', name: 'Sumera Bano', rank: 'Data Entry Op', dept: 'IT Center', cardType: 'Ministerial', bps: 'BPS-12', cnic: '42001-0123456-0', status: 'Active', gender: 'Female' },
+  { 
+    svc: '10420', name: 'Muhammad Tariq Khan', rank: 'Assistant', dept: 'Administration', cardType: 'Ministerial', bps: 'BPS-16', cnic: '42101-1234567-1', status: 'Active', gender: 'Male',
+    fatherName: 'Khan Muhammad', dob: '08-Aug-1984', bloodGroup: 'B+', domicile: 'Sindh / Karachi', permAddr: 'House 12-B, PN Colony, Karsaz, Karachi', presAddr: 'Block 4, NHQ Staff Quarters, Islamabad',
+    nokName: 'Saima Begum', nokRelation: 'Spouse', nokContact: '+92-333-9876543', nokCnic: '42101-9988776-2',
+    bankName: 'National Bank of Pakistan', bankAccount: '401278219981', bankBranch: 'Karsaz (0412)', accountType: 'Salary Current',
+    joinDate: '16-May-2024', unitLocation: 'NHQ ISLAMABAD', lastPromotion: '04-Jan-2022'
+  },
+  { 
+    svc: '10430', name: 'Aisha Rehman', rank: 'UDC', dept: 'Engineering Wing', cardType: 'Ministerial', bps: 'BPS-14', cnic: '42201-2345678-2', status: 'Active', gender: 'Female',
+    fatherName: 'Rehman Malik', dob: '15-Sep-1990', bloodGroup: 'O+', domicile: 'Punjab / Lahore', permAddr: 'Model Town, Lahore', presAddr: 'Navy Flats, Islamabad',
+    nokName: 'Malik Ahmed', nokRelation: 'Father', nokContact: '+92-321-7654321', nokCnic: '42201-1122334-3',
+    bankName: 'Habib Bank Limited', bankAccount: '112233445566', bankBranch: 'Blue Area (0101)', accountType: 'Savings',
+    joinDate: '12-Mar-2023', unitLocation: 'NAVY WING ISB', lastPromotion: '15-Aug-2023'
+  },
+  { 
+    svc: '10440', name: 'Bilal Ahmed Siddiqui', rank: 'Draftsman', dept: 'Naval Dockyard', cardType: 'Industrial', bps: 'BPS-12', cnic: '42301-3456789-3', status: 'Active', gender: 'Male',
+    fatherName: 'Ahmed Siddiqui', dob: '22-Oct-1988', bloodGroup: 'A-', domicile: 'Sindh / Sukkur', permAddr: 'Military Road, Sukkur', presAddr: 'Dockyard Quarters, Karachi',
+    nokName: 'Hira Bilal', nokRelation: 'Spouse', nokContact: '+92-300-1112223', nokCnic: '42301-5544332-1',
+    bankName: 'National Bank of Pakistan', bankAccount: '998877665544', bankBranch: 'Dockyard (0092)', accountType: 'Salary',
+    joinDate: '01-Jan-2021', unitLocation: 'NAVAL DOCKYARD', lastPromotion: '12-Dec-2022'
+  },
+  { 
+    svc: '10460', name: 'Imran Hussain Shah', rank: 'Stenographer', dept: 'Naval Headquarters', cardType: 'Ministerial', bps: 'BPS-16', cnic: '42501-5678901-5', status: 'Active', gender: 'Male',
+    fatherName: 'Hussain Shah', dob: '04-Feb-1982', bloodGroup: 'O-', domicile: 'KPK / Peshawar', permAddr: 'Hayatabad, Peshawar', presAddr: 'NHQ Staff Colony, Islamabad',
+    nokName: 'Zainab Bibi', nokRelation: 'Spouse', nokContact: '+92-345-6677889', nokCnic: '42501-0099887-5',
+    bankName: 'Meezan Bank', bankAccount: '776655443322', bankBranch: 'F-7 Branch', accountType: 'Current',
+    joinDate: '15-Aug-2015', unitLocation: 'NHQ ISLAMABAD', lastPromotion: '20-Nov-2020'
+  }
 ];
 
 export const sanctions = [
@@ -34,7 +52,7 @@ export const disciplinaryActions = [
 
 export const leaveRecords = [
   { id: 1, svc: '10440', name: 'Bilal Ahmed Siddiqui', type: 'CL', from: '2026-04-20', to: '2026-04-22', days: 3, status: 'Submitted' },
-  { id: 2, svc: '10470', name: 'Saima Nawaz', type: 'ML', from: '2026-05-01', to: '2026-07-29', days: 90, status: 'Approved' },
+  { id: 2, svc: '10470', name: 'Saima Nawaz', type: 'RL', from: '2026-05-01', to: '2026-07-29', days: 90, status: 'Approved' },
   { id: 3, svc: '10510', name: 'Sumera Bano', type: 'CL', from: '2026-04-10', to: '2026-04-10', days: 1, status: 'Submitted' },
   { id: 4, svc: '10450', name: 'Fatima Zahra', type: 'RL', from: '2026-04-15', to: '2026-04-25', days: 10, status: 'Submitted' },
 ];
