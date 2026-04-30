@@ -138,9 +138,124 @@ export const exportToPDF = (
 export const exportToExcel = async (sheetName: string, headers: string[], data: any[][], filename: string) => {
   const workbook = new ExcelJS.Workbook();
   const worksheet = workbook.addWorksheet(sheetName);
-  worksheet.addRow(headers);
-  data.forEach(row => worksheet.addRow(row));
-  worksheet.getRow(1).font = { bold: true };
+
+  // 1. Add Branding
+  // Logo
+  try {
+    const logoId = workbook.addImage({
+      base64: LOGO_BASE64.split(',')[1],
+      extension: 'png',
+    });
+    worksheet.addImage(logoId, {
+      tl: { col: 0.2, row: 0.2 },
+      ext: { width: 80, height: 80 }
+    });
+  } catch (e) {
+    console.warn("Logo add failed for Excel", e);
+  }
+
+  // Titles
+  const startCol = 3;
+  const endCol = Math.max(headers.length, 6);
+  
+  const titleCell = worksheet.getCell(1, startCol);
+  titleCell.value = 'PAKISTAN NAVY';
+  titleCell.font = { name: 'Arial', size: 18, bold: true };
+  worksheet.mergeCells(1, startCol, 1, endCol);
+  titleCell.alignment = { horizontal: 'center' };
+
+  const subTitleCell = worksheet.getCell(2, startCol);
+  subTitleCell.value = 'CIVILIAN MANAGEMENT SYSTEM · RESTRICTED';
+  subTitleCell.font = { name: 'Arial', size: 10, italic: true, color: { argb: 'FF666666' } };
+  worksheet.mergeCells(2, startCol, 2, endCol);
+  subTitleCell.alignment = { horizontal: 'center' };
+
+  const reportTitleCell = worksheet.getCell(3, startCol);
+  reportTitleCell.value = sheetName.toUpperCase();
+  reportTitleCell.font = { name: 'Arial', size: 14, bold: true, color: { argb: 'FFD4AF37' } }; // Gold
+  worksheet.mergeCells(3, startCol, 3, endCol);
+  reportTitleCell.alignment = { horizontal: 'center' };
+
+  // Date Printed
+  const dateCell = worksheet.getCell(4, endCol);
+  dateCell.value = `Generated on: ${new Date().toLocaleDateString()}`;
+  dateCell.font = { name: 'Arial', size: 8, italic: true };
+  dateCell.alignment = { horizontal: 'right' };
+
+  // 2. Add Headers (Row 6)
+  const headerRow = worksheet.addRow([]); // Spacer
+  const actualHeaderRow = worksheet.getRow(6);
+  headers.forEach((h, i) => {
+    const cell = actualHeaderRow.getCell(i + 1);
+    cell.value = h;
+    cell.font = { name: 'Arial', size: 12, bold: true, color: { argb: 'FFFFFFFF' } };
+    cell.fill = {
+      type: 'pattern',
+      pattern: 'solid',
+      fgColor: { argb: 'FF0F172A' }
+    };
+    cell.alignment = { horizontal: 'center', vertical: 'middle' };
+    cell.border = {
+      top: { style: 'thin' }, left: { style: 'thin' }, bottom: { style: 'thin' }, right: { style: 'thin' }
+    };
+  });
+  actualHeaderRow.height = 25;
+
+  // 3. Add Data (Starting at Row 7)
+  data.forEach((row, rowIndex) => {
+    const r = worksheet.addRow(row);
+    r.eachCell((cell) => {
+      cell.font = { name: 'Arial', size: 12 };
+      cell.alignment = { vertical: 'middle' };
+      cell.border = {
+        top: { style: 'thin' }, left: { style: 'thin' }, bottom: { style: 'thin' }, right: { style: 'thin' }
+      };
+      // Alternate row colors
+      if (rowIndex % 2 === 1) {
+        cell.fill = {
+          type: 'pattern',
+          pattern: 'solid',
+          fgColor: { argb: 'FFF8FAFC' }
+        };
+      }
+    });
+  });
+
+  // 4. Formulas (Total Row)
+  const lastRowIndex = worksheet.lastRow ? worksheet.lastRow.number + 1 : 7;
+  const totalRow = worksheet.getRow(lastRowIndex);
+  totalRow.getCell(1).value = 'TOTALS / SUMMARY';
+  totalRow.getCell(1).font = { name: 'Arial', size: 12, bold: true };
+  
+  // Try to sum numeric columns (heuristic: columns from index 2 onwards)
+  headers.forEach((_, i) => {
+    if (i > 0) {
+      const colLetter = worksheet.getColumn(i + 1).letter;
+      const startRow = 7;
+      const endRow = lastRowIndex - 1;
+      // We only apply formula if the column seems to contain numbers in the first data row
+      const firstDataVal = worksheet.getRow(startRow).getCell(i + 1).value;
+      if (typeof firstDataVal === 'number') {
+        totalRow.getCell(i + 1).value = {
+          formula: `SUM(${colLetter}${startRow}:${colLetter}${endRow})`,
+          result: 0
+        };
+        totalRow.getCell(i + 1).font = { name: 'Arial', size: 12, bold: true };
+      }
+    }
+  });
+
+  // 5. Auto-width columns
+  worksheet.columns.forEach(column => {
+    let maxLen = 10;
+    column.eachCell({ includeEmpty: true }, cell => {
+      const val = cell.value ? cell.value.toString() : "";
+      if (val.length > maxLen) maxLen = val.length;
+    });
+    column.width = maxLen + 5;
+  });
+
+  // Save File
   const buffer = await workbook.xlsx.writeBuffer();
   const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
   const url = window.URL.createObjectURL(blob);
@@ -148,4 +263,5 @@ export const exportToExcel = async (sheetName: string, headers: string[], data: 
   anchor.href = url;
   anchor.download = `${filename}.xlsx`;
   anchor.click();
+  window.URL.revokeObjectURL(url);
 };
