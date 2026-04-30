@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { AppShell, PageHeader } from '@/components/pncms/AppShell';
 import {
   Btn,
@@ -172,9 +172,16 @@ const EmploymentRecordProfile = () => {
     },
   ]);
 
+  const allPersonnel = useMemo(() => {
+    const imported = JSON.parse(localStorage.getItem('pncms_personnel_imports') || '[]');
+    const importedSvcs = new Set(imported.map((p: any) => p.svc));
+    const filteredMock = personnel.filter(p => !importedSvcs.has(p.svc));
+    return [...filteredMock, ...imported];
+  }, []);
+
   const profile = useMemo(() => {
-    return personnel.find(p => p.svc === id) || personnel[0];
-  }, [id]);
+    return allPersonnel.find(p => p.svc === id) || allPersonnel[0] || personnel[0];
+  }, [allPersonnel, id]);
 
   const personLeaves = useMemo(() => {
     return globalLeaves.filter(l => l.svc === id).map(l => ({
@@ -189,6 +196,13 @@ const EmploymentRecordProfile = () => {
   const personDisciplines = useMemo(() => {
     return disciplinaryActions.filter(d => d.svc === id);
   }, [id]);
+
+  const [disciplines, setDisciplines] = useState<any[]>(personDisciplines);
+
+  // Sync state if id changes
+  useEffect(() => {
+    setDisciplines(personDisciplines);
+  }, [personDisciplines]);
 
   const personPayments = useMemo(() => {
     return payments.filter(p => p.svc === id);
@@ -361,8 +375,8 @@ const EmploymentRecordProfile = () => {
   return (
     <AppShell>
       <PageHeader
-        title={`${profile.name}`}
-        subtitle={`Service Record · ${profile.svc}`}
+        title={`${profile?.name || 'Personnel Profile'}`}
+        subtitle={`Service Record · ${profile?.svc || 'N/A'}`}
         actions={
           <>
             <Btn variant="outline" onClick={() => window.print()}>
@@ -392,21 +406,21 @@ const EmploymentRecordProfile = () => {
               </div>
                 <div className="flex flex-col">
                   <h2 className="text-2xl font-heading font-black text-white italic tracking-tight">
-                    {profile.name}
+                    {profile?.name || 'Unknown Personnel'}
                   </h2>
                   <div className="flex items-center gap-2 mt-1">
-                    <Badge variant="gold" className="text-[0.65rem] px-2 py-0.5">
-                      {profile.rank}
+                    <Badge variant="warning" className="text-[0.65rem] px-2 py-0.5">
+                      {profile?.rank || 'N/A'}
                     </Badge>
                     <Badge variant="neutral" className="text-[0.65rem] px-2 py-0.5">
-                      {profile.svc}
+                      {profile?.svc || 'N/A'}
                     </Badge>
                   </div>
                 </div>
 
               <div className="mt-4 p-2 bg-muted/30 rounded-sm">
                 <div className="flex items-center justify-center gap-2 text-xs font-bold text-accent uppercase">
-                  <Anchor className="w-3.5 h-3.5" /> {profile.unitLocation}
+                  <Anchor className="w-3.5 h-3.5" /> {profile?.unitLocation || 'NO UNIT ASSIGNED'}
                 </div>
                 <div className="text-[0.65rem] text-muted-foreground mt-1 italic">
                   Tenure: {tenureStr}
@@ -426,23 +440,23 @@ const EmploymentRecordProfile = () => {
                 <span className="text-[0.6rem] label-mil mb-1">Department</span>
                 <span className="text-sm font-bold text-primary flex items-center gap-2">
                   <Building2 className="w-3.5 h-3.5 text-accent" />
-                  {profile.dept}
+                  {profile?.dept || 'Unassigned'}
                 </span>
               </div>
               <div className="flex flex-col p-4 border-r border-border/50">
                 <span className="text-[0.6rem] label-mil mb-1">Card Type</span>
                 <span className="text-sm font-bold text-primary">
-                  {profile.cardType}
+                  {profile?.cardType || 'N/A'}
                 </span>
               </div>
               <div className="flex flex-col p-4 border-r border-border/50">
                 <span className="text-[0.6rem] label-mil mb-1">BPS Scale</span>
-                <span className="text-sm font-bold text-accent">{profile.bps}</span>
+                <span className="text-sm font-bold text-accent">{profile?.bps || 'N/A'}</span>
               </div>
               <div className="flex flex-col p-4">
                 <span className="text-[0.6rem] label-mil mb-1">CNIC / ID</span>
                 <span className="text-sm font-mono font-bold text-primary">
-                  {profile.cnic}
+                  {profile?.cnic || 'N/A'}
                 </span>
               </div>
             </div>
@@ -1117,7 +1131,6 @@ const EmploymentRecordProfile = () => {
                 <div className="flex justify-end mb-4">
                   <Btn
                     variant="outline"
-                    size="sm"
                     onClick={() =>
                       openModal(
                         'Add Discipline Record',
