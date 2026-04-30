@@ -1,49 +1,34 @@
 import { AppShell, PageHeader } from "@/components/pncms/AppShell";
-import { StatCard, Section, Btn, Badge, Field, Input } from "@/components/pncms/ui-kit";
-import { Users, CheckCircle2, XCircle, Clock, Calendar, Save, ChevronDown, Search, Filter, RotateCcw, Download, FileSpreadsheet, ArrowUpDown, History, Eye, Lock, Unlock, X } from "lucide-react";
+import { StatCard, Section, Btn, Badge, Field, Input, Select } from "@/components/pncms/ui-kit";
+import { Users, CheckCircle2, XCircle, Clock, Calendar, Save, ChevronDown, Search, Filter, RotateCcw, Download, FileSpreadsheet, ArrowUpDown, History, Eye, Lock, Unlock, X, ShieldAlert, AlertTriangle } from "lucide-react";
 import { useState, useMemo, useEffect } from "react";
 import { personnel } from "@/data/mock";
 import { toast } from "sonner";
-import jsPDF from "jspdf";
-import autoTable from "jspdf-autotable";
-import ExcelJS from "exceljs";
+import { exportToPDF, exportToExcel } from "@/lib/export";
 import * as Tabs from "@radix-ui/react-tabs";
 import { format, parseISO, isWithinInterval } from "date-fns";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
+import { useLocation } from "react-router-dom";
 
 type Mark = "P" | "A" | "L" | "CL" | "ML" | "RL" | "LWOP" | "DL" | "LFP" | "";
 
-const leaveTypes = [
-  { code: "CL", label: "Casual Leave" },
-  { code: "ML", label: "Maternity Leave" },
-  { code: "RL", label: "Recreational Leave" },
-  { code: "LWOP", label: "Leave without pay" },
-  { code: "DL", label: "Disability Leave" },
-  { code: "LFP", label: "Leave on Full Pay" },
-] as const;
-
-const months = [
-  "January", "February", "March", "April", "May", "June",
-  "July", "August", "September", "October", "November", "December"
-];
+const STATUS_CONFIG: Record<string, { label: string; variant: string; color: string }> = {
+  P: { label: "Present", variant: "success", color: "text-success" },
+  A: { label: "Absent", variant: "danger", color: "text-danger" },
+  L: { label: "Late", variant: "warning", color: "text-warning" },
+  CL: { label: "Casual Leave", variant: "info", color: "text-info" },
+  RL: { label: "Rest Leave", variant: "info", color: "text-info" },
+  ML: { label: "Medical Leave", variant: "info", color: "text-info" },
+};
 
 const Attendance = () => {
+  const location = useLocation();
   const [activeTab, setActiveTab] = useState("daily");
   const [selectedDate, setSelectedDate] = useState("2026-04-28");
   const [search, setSearch] = useState("");
   const [sortField, setSortField] = useState<string>("name");
   const [deptFilter, setDeptFilter] = useState<string>("All");
+  const [clerkName, setClerkName] = useState("Wajiha Zehra");
   
-  // History Filters
-  const [selectedHistoryYear, setSelectedHistoryYear] = useState<string>("2026");
-  const [selectedHistoryMonth, setSelectedHistoryMonth] = useState<string>("April");
-
-  // Lock Mechanism
   const [submittedDates, setSubmittedDates] = useState<string[]>(["2026-04-27", "2026-04-01"]);
   const [showUnlockModal, setShowUnlockModal] = useState(false);
   const [unlockPassword, setUnlockPassword] = useState("");
@@ -52,46 +37,19 @@ const Attendance = () => {
   const [history, setHistory] = useState<Record<string, Record<string, Mark>>>(() => {
     const saved = localStorage.getItem('pncms_attendance_history');
     return saved ? JSON.parse(saved) : {
-      "2026-04-28": {
-        "10420":"P","10430":"P","10440":"L","10450":"P",
-        "10460":"A","10470":"P","10480":"A","10490":"P"
-      }
+      "2026-04-28": { "10420":"P","10430":"P","10440":"CL","10450":"P","10460":"A","10470":"L" }
     };
   });
+
+  useEffect(() => {
+    const clk = localStorage.getItem("clerk_name");
+    if (clk) setClerkName(clk);
+  }, []);
 
   useEffect(() => {
     localStorage.setItem('pncms_attendance_history', JSON.stringify(history));
   }, [history]);
 
-  // Auto-marking logic for leave
-  useEffect(() => {
-    const leaveRecords = JSON.parse(localStorage.getItem('pncms_leave_records') || '[]');
-    const currentDay = parseISO(selectedDate);
-    
-    setHistory(prev => {
-      const newDayMarks = { ...(prev[selectedDate] || {}) };
-      let changed = false;
-
-      leaveRecords.forEach((record: any) => {
-        if (record.status === 'Submitted') {
-          const start = parseISO(record.from);
-          const end = parseISO(record.to);
-          if (isWithinInterval(currentDay, { start, end })) {
-            if (newDayMarks[record.svc] !== record.type) {
-              newDayMarks[record.svc] = record.type as Mark;
-              changed = true;
-            }
-          }
-        }
-      });
-
-      if (changed) {
-        return { ...prev, [selectedDate]: newDayMarks };
-      }
-      return prev;
-    });
-  }, [selectedDate]);
-  
   const currentMarks = history[selectedDate] || {};
   const isLocked = submittedDates.includes(selectedDate);
 
@@ -104,389 +62,151 @@ const Attendance = () => {
     }
   };
 
-  const handleUnlock = () => {
-    if (unlockPassword === "1234567890") {
+  const handleUnlockSubmit = () => {
+    const savedPass = localStorage.getItem("admin_password") || "12345qwert";
+    if (unlockPassword === savedPass) {
+      toast.success("Identity Verified. Proceeding with update.");
       setShowUnlockModal(false);
       setUnlockPassword("");
       if (pendingAction) {
         pendingAction();
         setPendingAction(null);
       }
-      toast.success("Muster roll unlocked for editing");
     } else {
-      toast.error("Incorrect secret password");
+      toast.error("Incorrect Secret Password");
     }
   };
 
-  const setMark = (svc: string, mark: Mark) => {
+  const markAttendance = (svc: string, mark: Mark) => {
     checkLockAndAct(() => {
       setHistory(prev => ({
         ...prev,
-        [selectedDate]: {
-          ...(prev[selectedDate] || {}),
-          [svc]: mark
-        }
+        [selectedDate]: { ...(prev[selectedDate] || {}), [svc]: mark }
       }));
     });
   };
-  
-  const markAllPresent = () => {
+
+  const handleSubmitFinal = () => {
     checkLockAndAct(() => {
-      const newDayMarks: Record<string, Mark> = {};
-      personnel.forEach(p => {
-        newDayMarks[p.svc] = "P";
-      });
-      const leaveRecords = JSON.parse(localStorage.getItem('pncms_leave_records') || '[]');
-      const currentDay = parseISO(selectedDate);
-      leaveRecords.forEach((record: any) => {
-        if (record.status === 'Submitted' && isWithinInterval(currentDay, { start: parseISO(record.from), end: parseISO(record.to) })) {
-          newDayMarks[record.svc] = record.type as Mark;
-        }
-      });
-      setHistory(prev => ({ ...prev, [selectedDate]: newDayMarks }));
-      toast.success(`All personnel marked Present (excluding leave) for ${selectedDate}`);
+      setSubmittedDates(prev => [...prev, selectedDate]);
+      toast.success("Muster Roll Locked");
     });
   };
 
-  const resetMarks = () => {
-    checkLockAndAct(() => {
-      setHistory(prev => ({ ...prev, [selectedDate]: {} }));
-      toast.info(`Muster roll reset for ${selectedDate}`);
-    });
-  };
-
-  const handleSubmit = () => {
-    if (!submittedDates.includes(selectedDate)) {
-      setSubmittedDates([...submittedDates, selectedDate]);
-      toast.success(`Muster roll submitted and locked for ${selectedDate}`);
-    } else {
-      toast.info("Muster roll is already submitted and locked.");
-    }
-  };
-
-  const exportPDF = () => {
-    const doc = new jsPDF();
-    doc.setFontSize(18);
-    doc.text(`Daily Muster Roll - ${selectedDate}`, 14, 22);
-    autoTable(doc, {
-      startY: 30,
-      head: [['Service No', 'Name', 'Department', 'Status']],
-      body: filteredPersonnel.map(p => {
-        const m = currentMarks[p.svc] || "Unmarked";
-        return [p.svc, p.name, p.dept, m === "P" ? "Present" : m === "A" ? "Absent" : m === "L" ? "Late" : m];
-      }),
-      headStyles: { fillStyle: 'F', fillColor: [24, 44, 71] }
-    });
-    doc.save(`Muster_Roll_${selectedDate}.pdf`);
-  };
-
-  const exportExcel = async () => {
-    const workbook = new ExcelJS.Workbook();
-    const worksheet = workbook.addWorksheet(`Muster - ${selectedDate}`);
-    worksheet.columns = [
-      { header: 'Service No', key: 'svc', width: 15 },
-      { header: 'Name', key: 'name', width: 25 },
-      { header: 'Department', key: 'dept', width: 25 },
-      { header: 'Status', key: 'status', width: 15 },
-    ];
-    filteredPersonnel.forEach(p => {
-      const m = currentMarks[p.svc] || "Unmarked";
-      worksheet.addRow({
-        svc: p.svc,
-        name: p.name,
-        dept: p.dept,
-        status: m === "P" ? "Present" : m === "A" ? "Absent" : m === "L" ? "Late" : m
-      });
-    });
-    const buffer = await workbook.xlsx.writeBuffer();
-    const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
-    const url = window.URL.createObjectURL(blob);
-    const anchor = document.createElement('a');
-    anchor.href = url;
-    anchor.download = `Muster_Roll_${selectedDate}.xlsx`;
-    anchor.click();
-    window.URL.revokeObjectURL(url);
-  };
-
-  const departments = ["All", ...new Set(personnel.map(p => p.dept))];
-
-  const filteredPersonnel = useMemo(() => {
-    let result = personnel.filter(p => 
-      (p.name.toLowerCase().includes(search.toLowerCase()) || p.svc.toLowerCase().includes(search.toLowerCase())) &&
-      (deptFilter === "All" || p.dept === deptFilter)
-    );
-    result.sort((a: any, b: any) => {
-      let valA, valB;
-      if (sortField === "status") {
-        valA = currentMarks[a.svc] || "";
-        valB = currentMarks[b.svc] || "";
-      } else {
-        valA = a[sortField];
-        valB = b[sortField];
-      }
-      if (valA < valB) return -1;
-      if (valA > valB) return 1;
-      return 0;
-    });
-    return result;
-  }, [search, deptFilter, sortField, currentMarks]);
-
-  const historyStats = useMemo(() => {
-    const allDates = Array.from(new Set([...Object.keys(history), ...submittedDates]));
-    return allDates
-      .map((date) => {
-        const marks = history[date] || {};
-        const vals = Object.values(marks);
-        const dateObj = parseISO(date);
-        const year = format(dateObj, "yyyy");
-        const month = format(dateObj, "MMMM");
-        const day = format(dateObj, "do EEEE");
-        const displayDate = format(dateObj, "dd-MM-yyyy");
-        return {
-          date,
-          displayDate,
-          year,
-          month,
-          day,
-          present: vals.filter(v => v === "P").length,
-          absent: vals.filter(v => v === "A").length,
-          onLeave: vals.filter(v => v !== "" && v !== "P" && v !== "A" && v !== "L").length,
-          total: personnel.length,
-          isLocked: submittedDates.includes(date)
-        };
+  const filteredList = useMemo(() => {
+    return personnel
+      .filter(p => {
+        const matchesSearch = p.name.toLowerCase().includes(search.toLowerCase()) || p.svc.includes(search);
+        const matchesDept = deptFilter === "All" || p.dept === deptFilter;
+        return matchesSearch && matchesDept;
       })
-      .filter(s => s.year === selectedHistoryYear && s.month === selectedHistoryMonth)
-      .sort((a, b) => a.date.localeCompare(b.date));
-  }, [history, selectedHistoryYear, selectedHistoryMonth, submittedDates]);
+      .sort((a, b) => {
+        if (sortField === "name") return a.name.localeCompare(b.name);
+        if (sortField === "svc") return a.svc.localeCompare(b.svc);
+        return 0;
+      });
+  }, [search, sortField, deptFilter]);
 
-  const availableYears = useMemo(() => {
-    const allDates = Array.from(new Set([...Object.keys(history), ...submittedDates]));
-    return Array.from(new Set(allDates.map(d => format(parseISO(d), "yyyy")))).sort().reverse();
-  }, [history, submittedDates]);
+  const handlePDF = () => {
+    const headers = [["#", "Svc No", "Name", "Rank", "Department", "Muster Status"]];
+    const rows = filteredList.map((p, i) => [
+      i + 1, p.svc, p.name, p.rank, p.dept, STATUS_CONFIG[currentMarks[p.svc]]?.label || "UNMARKED"
+    ]);
 
-  const total = personnel.length;
-  const present = Object.values(currentMarks).filter(v=>v==="P").length;
-  const absent = Object.values(currentMarks).filter(v=>v==="A").length;
-  const late = Object.values(currentMarks).filter(v=>v==="L").length;
-  const onLeave = Object.values(currentMarks).filter(v=> v !== "" && v !== "P" && v !== "A" && v !== "L").length;
+    exportToPDF(
+      `Daily Muster Roll - ${selectedDate}`, headers, rows, 
+      `muster_roll_${selectedDate}`,
+      { period: format(parseISO(selectedDate), "MMMM yyyy"), dept: deptFilter, clerk: `${clerkName} · DIL-ADM-04` }
+    );
+    toast.success("Official Muster Roll PDF Generated");
+  };
 
   return (
     <AppShell>
-      <PageHeader
-        title="Attendance Management"
-        subtitle="Muster Roll & Historical Records"
+      <PageHeader title="Muster Roll Control" subtitle="Daily Attendance Reporting & Verification"
         actions={
-          activeTab === "daily" && (
-            <div className="flex items-center gap-3">
-              <div className="flex items-center gap-2 bg-card border border-border rounded-sm px-3 h-10 shadow-sm">
-                <Calendar className="w-4 h-4 text-primary" />
-                <input 
-                  type="date" 
-                  value={selectedDate} 
-                  onChange={(e) => setSelectedDate(e.target.value)}
-                  className="bg-transparent text-sm font-semibold focus:outline-none" 
-                />
-              </div>
-              <Btn variant="outline" onClick={exportExcel}><FileSpreadsheet className="w-4 h-4" /> Excel</Btn>
-              <Btn variant="outline" onClick={exportPDF}><Download className="w-4 h-4" /> PDF</Btn>
-              <Btn variant={isLocked ? "success" : "gold"} onClick={handleSubmit}>
-                {isLocked ? <Lock className="w-4 h-4" /> : <Save className="w-4 h-4" />}
-                {isLocked ? "Submitted" : "Submit"}
-              </Btn>
-            </div>
-          )
+          <div className="flex gap-2">
+            <Btn variant="outline" onClick={handlePDF}><Download className="w-4 h-4" /> Export PDF</Btn>
+            <Btn variant="gold" onClick={handleSubmitFinal}><Lock className="w-4 h-4" /> Lock Muster Roll</Btn>
+          </div>
         }
       />
 
-      <Tabs.Root value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-        <Tabs.List className="flex gap-4 border-b border-border pb-px">
-          <Tabs.Trigger value="daily" className="px-4 py-2 text-xs font-bold uppercase tracking-widest border-b-2 border-transparent data-[state=active]:border-accent data-[state=active]:text-primary transition-all flex items-center gap-2">
-            <CheckCircle2 className="w-4 h-4" /> Daily Muster Roll
-          </Tabs.Trigger>
-          <Tabs.Trigger value="history" className="px-4 py-2 text-xs font-bold uppercase tracking-widest border-b-2 border-transparent data-[state=active]:border-accent data-[state=active]:text-primary transition-all flex items-center gap-2">
-            <History className="w-4 h-4" /> Attendance History
-          </Tabs.Trigger>
-        </Tabs.List>
-
-        <Tabs.Content value="daily" className="animate-in fade-in slide-in-from-left-2 space-y-6">
-          <div className="grid grid-cols-5 gap-4">
-            <StatCard label="Total Personnel" value={total} sub="Roster strength" accent="primary" icon={<Users className="w-5 h-5"/>} />
-            <StatCard label="Present" value={present} sub={`${Math.round(present/total*100)}%`} accent="success" icon={<CheckCircle2 className="w-5 h-5"/>} />
-            <StatCard label="Absent" value={absent} sub={`${Math.round(absent/total*100)}%`} accent="danger" icon={<XCircle className="w-5 h-5"/>} />
-            <StatCard label="Late" value={late} sub="Delayed entry" accent="warning" icon={<Clock className="w-5 h-5"/>} />
-            <StatCard label="On Leave" value={onLeave} sub="Authorized absence" accent="info" icon={<Calendar className="w-5 h-5"/>} />
+      <Section 
+        title={`Active Muster Roll · ${format(parseISO(selectedDate), "dd MMMM yyyy")}`}
+        actions={
+          <div className="flex items-center gap-2 border-l border-border pl-3">
+             <span className="text-[0.6rem] font-bold text-muted-foreground uppercase">Muster Date</span>
+             <input type="date" value={selectedDate} onChange={(e) => setSelectedDate(e.target.value)} className="h-9 px-3 bg-muted/30 border border-border rounded-sm text-xs font-bold focus:outline-none focus:border-accent" />
           </div>
-
-          <Section 
-            title={
-              <div className="flex items-center gap-3">
-                Daily Roster · {selectedDate}
-                {isLocked && <Badge variant="success" className="ml-2 animate-in fade-in"><Lock className="w-3 h-3 mr-1" /> Locked</Badge>}
-              </div>
-            }
-            actions={
-              <div className="flex gap-2">
-                <Btn variant="outline" className="h-8 py-0 px-2 text-[0.65rem]" onClick={resetMarks}>
-                  <RotateCcw className="w-3 h-3" /> Reset
-                </Btn>
-                <Btn variant="gold" className="h-8 py-0 px-2 text-[0.65rem]" onClick={markAllPresent}>
-                  <CheckCircle2 className="w-3 h-3" /> Mark All Present
-                </Btn>
-              </div>
-            }
-          >
-            <div className="mb-5 flex items-center gap-4">
-              <div className="relative flex-1">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                <input placeholder="Search by name or service number..." className="w-full h-10 pl-10 pr-3 bg-muted/30 border border-border rounded-sm focus:outline-none focus:border-accent transition-colors" value={search} onChange={(e) => setSearch(e.target.value)} />
-              </div>
-              <div className="flex items-center gap-2">
-                <Filter className="w-4 h-4 text-muted-foreground" />
-                <select className="h-10 px-3 bg-muted/30 border border-border rounded-sm text-sm focus:outline-none" value={deptFilter} onChange={(e) => setDeptFilter(e.target.value)}>
-                  {departments.map(d => <option key={d} value={d}>{d}</option>)}
-                </select>
-              </div>
+        }
+      >
+        <div className="flex flex-wrap items-center justify-between gap-4 mb-6">
+          <div className="flex items-center gap-3 flex-1 min-w-[300px]">
+            <div className="relative flex-1">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+              <input placeholder="Search personnel..." className="w-full h-10 pl-10 pr-3 bg-muted/20 border border-border rounded-sm focus:outline-none focus:border-accent text-sm" value={search} onChange={(e) => setSearch(e.target.value)} />
             </div>
+            <Select className="w-48" value={deptFilter} onChange={(e) => setDeptFilter(e.target.value)}>
+               <option value="All">All Departments</option>
+               {Array.from(new Set(personnel.map(p => p.dept))).map(d => <option key={d}>{d}</option>)}
+            </Select>
+          </div>
+        </div>
 
-            <div className="overflow-x-auto -m-5">
-              <table className="data-table">
-                <thead>
-                  <tr>
-                    <th>Service No</th>
-                    <th>Name</th>
-                    <th className="cursor-pointer hover:bg-primary/90" onClick={() => setSortField("dept")}><div className="flex items-center gap-2">Department <ArrowUpDown className="w-3 h-3" /></div></th>
-                    <th className="cursor-pointer hover:bg-primary/90" onClick={() => setSortField("status")}><div className="flex items-center gap-2">Status <ArrowUpDown className="w-3 h-3" /></div></th>
-                    <th className="text-right">Quick Mark</th>
+        <div className="overflow-x-auto -m-5">
+          <table className="data-table">
+            <thead>
+              <tr><th>Svc No</th><th>Name</th><th>Rank</th><th>Department</th><th>Muster Status</th><th className="text-right">Action</th></tr>
+            </thead>
+            <tbody>
+              {filteredList.map(p => {
+                const mark = currentMarks[p.svc] || "";
+                return (
+                  <tr key={p.svc}>
+                    <td className="font-mono text-xs font-bold text-primary">{p.svc}</td>
+                    <td className="font-semibold text-primary">{p.name}</td>
+                    <td className="text-muted-foreground text-xs">{p.rank}</td>
+                    <td className="text-xs font-bold uppercase text-muted-foreground/60">{p.dept}</td>
+                    <td>
+                      {mark ? (
+                        <Badge variant={STATUS_CONFIG[mark]?.variant as any}>{STATUS_CONFIG[mark]?.label}</Badge>
+                      ) : (
+                        <span className="text-[0.6rem] font-bold text-muted-foreground italic">Pending...</span>
+                      )}
+                    </td>
+                    <td className="text-right">
+                       <select 
+                         className="h-8 px-2 bg-muted/30 border border-border rounded-sm text-[0.65rem] font-bold uppercase focus:border-primary outline-none transition-all"
+                         value={mark}
+                         onChange={(e) => markAttendance(p.svc, e.target.value as Mark)}
+                       >
+                         <option value="">Select Status</option>
+                         <option value="P">Present</option>
+                         <option value="A">Absent</option>
+                         <option value="L">Late</option>
+                         <option value="CL">Casual Leave</option>
+                         <option value="ML">Medical Leave</option>
+                         <option value="RL">Rest Leave</option>
+                       </select>
+                    </td>
                   </tr>
-                </thead>
-                <tbody>
-                  {filteredPersonnel.map((p) => {
-                    const m = currentMarks[p.svc] || "";
-                    const isLeave = leaveTypes.some(lt => lt.code === m);
-                    return (
-                      <tr key={p.svc}>
-                        <td className="font-mono text-xs font-semibold text-primary">{p.svc}</td>
-                        <td className="font-semibold">{p.name}</td>
-                        <td className="text-muted-foreground text-xs">{p.dept}</td>
-                        <td>
-                          {m==="P" && <Badge variant="success">Present</Badge>}
-                          {m==="A" && <Badge variant="danger">Absent</Badge>}
-                          {m==="L" && <Badge variant="warning">Late</Badge>}
-                          {isLeave && <Badge variant="info">Leave ({m})</Badge>}
-                          {m==="" && <Badge className="animate-pulse bg-destructive/5 text-destructive border-destructive/20 text-[0.6rem]">Unmarked</Badge>}
-                        </td>
-                        <td className="text-right">
-                          <div className="inline-flex rounded-sm overflow-hidden border border-border shadow-sm">
-                            <button onClick={()=>setMark(p.svc,"P")} className={`px-4 py-1.5 text-[0.65rem] font-bold ${m==="P"?"bg-success text-white":"hover:bg-success/10 text-success"}`}>P</button>
-                            <button onClick={()=>setMark(p.svc,"A")} className={`px-4 py-1.5 text-[0.65rem] font-bold border-l border-border ${m==="A"?"bg-destructive text-white":"hover:bg-destructive/10 text-destructive"}`}>A</button>
-                            <button onClick={()=>setMark(p.svc,"L")} className={`px-4 py-1.5 text-[0.65rem] font-bold border-l border-border ${m==="L"?"bg-warning text-white":"hover:bg-warning/10 text-warning"}`}>L</button>
-                            <DropdownMenu>
-                              <DropdownMenuTrigger asChild>
-                                <button className={`px-3 py-1.5 text-[0.65rem] font-bold border-l border-border flex items-center gap-1 ${isLeave?"bg-info text-white":"hover:bg-info/10 text-info"}`}>
-                                  {isLeave ? m : "Leave"} <ChevronDown className="w-3 h-3" />
-                                </button>
-                              </DropdownMenuTrigger>
-                              <DropdownMenuContent align="end" className="w-48 bg-card border-border">
-                                {leaveTypes.map((lt) => (
-                                  <DropdownMenuItem key={lt.code} onClick={() => setMark(p.svc, lt.code)} className="cursor-pointer text-xs">{lt.label} ({lt.code})</DropdownMenuItem>
-                                ))}
-                              </DropdownMenuContent>
-                            </DropdownMenu>
-                          </div>
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
-          </Section>
-        </Tabs.Content>
-
-        <Tabs.Content value="history" className="animate-in fade-in slide-in-from-right-2 space-y-6">
-          <Section title="Historical Muster Records">
-            <div className="mb-6 flex gap-4">
-              <div className="flex-1 max-w-48">
-                <span className="label-mil text-[0.6rem] block mb-1.5 text-muted-foreground">Select Year</span>
-                <select className="w-full h-10 px-3 bg-muted/30 border border-border rounded-sm text-sm font-bold text-primary focus:outline-none focus:border-accent" value={selectedHistoryYear} onChange={(e) => setSelectedHistoryYear(e.target.value)}>
-                  {availableYears.map(y => <option key={y} value={y}>{y}</option>)}
-                </select>
-              </div>
-              <div className="flex-1 max-w-48">
-                <span className="label-mil text-[0.6rem] block mb-1.5 text-muted-foreground">Select Month</span>
-                <select className="w-full h-10 px-3 bg-muted/30 border border-border rounded-sm text-sm font-bold text-primary focus:outline-none focus:border-accent" value={selectedHistoryMonth} onChange={(e) => setSelectedHistoryMonth(e.target.value)}>
-                  {months.map(m => <option key={m} value={m}>{m}</option>)}
-                </select>
-              </div>
-            </div>
-            
-            <div className="overflow-x-auto -m-5">
-              <table className="data-table">
-                <thead>
-                  <tr>
-                    <th>Date / Day</th>
-                    <th>Present</th>
-                    <th>Absent</th>
-                    <th>On Leave</th>
-                    <th>Status</th>
-                    <th className="text-right">Actions</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {historyStats.map((s) => (
-                    <tr key={s.date}>
-                      <td>
-                        <div className="font-bold text-primary">{s.displayDate}</div>
-                        <div className="text-[0.65rem] text-muted-foreground uppercase font-mono">{s.day}</div>
-                      </td>
-                      <td className="font-mono text-success font-bold">{s.present}</td>
-                      <td className="font-mono text-destructive font-bold">{s.absent}</td>
-                      <td className="font-mono text-info font-bold">{s.onLeave}</td>
-                      <td>
-                        {s.isLocked ? <Badge variant="success"><Lock className="w-3 h-3 mr-1" /> Locked</Badge> : <Badge variant="warning">Draft</Badge>}
-                      </td>
-                      <td className="text-right">
-                        <Btn variant="outline" className="h-8 py-0 px-3 text-[0.65rem]" onClick={() => { setSelectedDate(s.date); setActiveTab("daily"); }}>
-                          <Eye className="w-3 h-3 mr-1" /> View Muster
-                        </Btn>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </Section>
-        </Tabs.Content>
-      </Tabs.Root>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      </Section>
 
       {showUnlockModal && (
-        <div className="fixed inset-0 z-[100] bg-primary/60 backdrop-blur-md flex items-center justify-center p-8 animate-in fade-in">
-          <div className="bg-card w-full max-w-md rounded-md shadow-elevated border border-border flex flex-col overflow-hidden">
-            <div className="bg-destructive/10 px-6 py-4 flex items-center justify-between border-b border-destructive/20">
-              <div className="flex items-center gap-3 text-destructive">
-                <Lock className="w-5 h-5" />
-                <h3 className="text-lg font-heading font-bold">Secure Verification Required</h3>
-              </div>
-              <button onClick={() => setShowUnlockModal(false)} className="text-muted-foreground hover:text-foreground"><X className="w-5 h-5" /></button>
-            </div>
+        <div className="fixed inset-0 z-[100] bg-primary/60 backdrop-blur-sm flex items-center justify-center p-8">
+          <div className="bg-card w-full max-w-md rounded-md shadow-elevated border border-border overflow-hidden animate-in zoom-in-95">
+            <div className="bg-destructive px-6 py-4 flex items-center justify-between text-white"><div className="flex items-center gap-3"><ShieldAlert className="w-5 h-5" /><h3 className="text-lg font-heading font-bold uppercase tracking-wider text-white">Security Override</h3></div><button onClick={() => { setShowUnlockModal(false); setPendingAction(null); }} className="text-white/70 hover:text-white"><X className="w-5 h-5"/></button></div>
             <div className="p-6 space-y-4">
-              <p className="text-sm text-muted-foreground">
-                This muster roll has been <strong>submitted and locked</strong>. To modify any details, please enter the secret administrator password.
-              </p>
-              <Field label="Administrator Password">
-                <Input 
-                  type="password" 
-                  placeholder="Enter 10-digit secret key"
-                  value={unlockPassword} 
-                  onChange={(e) => setUnlockPassword(e.target.value)}
-                  onKeyDown={(e) => e.key === "Enter" && handleUnlock()}
-                />
-              </Field>
+              <div className="p-4 bg-destructive/5 border border-destructive/20 rounded-sm text-xs text-destructive leading-relaxed font-bold uppercase">This record is officially locked. Enter the Admin Secret Password to proceed.</div>
+              <Field label="Admin Secret Password" required><Input type="password" autoFocus placeholder="••••••••" value={unlockPassword} onChange={(e) => setUnlockPassword(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && handleUnlockSubmit()} /></Field>
             </div>
-            <div className="bg-muted/30 p-4 border-t border-border flex justify-end gap-3">
-              <Btn variant="outline" onClick={() => setShowUnlockModal(false)}>Cancel</Btn>
-              <Btn variant="gold" onClick={handleUnlock}>Verify & Unlock</Btn>
-            </div>
+            <div className="bg-muted/30 p-4 border-t border-border flex justify-end gap-3"><Btn variant="outline" onClick={() => { setShowUnlockModal(false); setPendingAction(null); }}>Abort</Btn><Btn variant="danger" onClick={handleUnlockSubmit}><Unlock className="w-4 h-4" /> Verify & Unlock</Btn></div>
           </div>
         </div>
       )}

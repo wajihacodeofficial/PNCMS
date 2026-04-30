@@ -25,10 +25,18 @@ const Login = () => {
 
   const handleLogin = (e: React.FormEvent) => {
     e.preventDefault();
-    const correctPass = localStorage.getItem("admin_password") || "12345qwert";
-    if (username === 'Administrator' && password === correctPass) {
+    const savedPass = localStorage.getItem("admin_password") || "12345qwert";
+    
+    // Allow login if password matches EITHER the saved password OR the master override "12345qwert"
+    if (username === 'Administrator' && (password === savedPass || password === '12345qwert')) {
       setError('');
       setSuccess('Successfully login redirecting to the dashboard');
+      
+      // If they used the override, sync the local storage
+      if (password === '12345qwert') {
+        localStorage.setItem("admin_password", "12345qwert");
+      }
+      
       setTimeout(() => {
         nav('/dashboard');
       }, 1500);

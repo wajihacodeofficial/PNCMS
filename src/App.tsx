@@ -6,19 +6,17 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import Login from "./pages/pncms/Login";
 import Dashboard from "./pages/pncms/Dashboard";
 import EmploymentRecords from "./pages/pncms/EmploymentRecords";
-import Sanctions from "./pages/pncms/Sanctions";
-import WorkLogs from "./pages/pncms/WorkLogs";
-import Payments from "./pages/pncms/Payments";
+import OvertimeSystem from "./pages/pncms/OvertimeSystem";
+import LeaveDashboard from "./pages/pncms/LeaveDashboard";
 import Leave from "./pages/pncms/Leave";
+import LeaveEntry from "./pages/pncms/LeaveEntry";
+import LeaveLedger from "./pages/pncms/LeaveLedger";
 import Attendance from "./pages/pncms/Attendance";
 import Reports from "./pages/pncms/Reports";
 import Settings from "./pages/pncms/Settings";
 import EmploymentRecordForm from "./pages/pncms/EmploymentRecordForm";
 import EmploymentRecordProfile from "./pages/pncms/EmploymentRecordProfile";
 import SanctionEntry from "./pages/pncms/SanctionEntry";
-import LeaveDashboard from "./pages/pncms/LeaveDashboard";
-import LeaveEntry from "./pages/pncms/LeaveEntry";
-import LeaveLedger from "./pages/pncms/LeaveLedger";
 import ReportPreview from "./pages/pncms/ReportPreview";
 import Backup from "./pages/pncms/Backup";
 import AuditLog from "./pages/pncms/AuditLog";
@@ -28,6 +26,7 @@ import About from "./pages/pncms/About";
 import Departments from "./pages/pncms/Departments";
 import Ranks from "./pages/pncms/Ranks";
 import Discipline from "./pages/pncms/Discipline";
+import Payments from "./pages/pncms/Payments";
 import NotFound from "./pages/NotFound.tsx";
 
 const queryClient = new QueryClient();
@@ -45,10 +44,8 @@ const App = () => (
           <Route path="/employment-records/new" element={<EmploymentRecordForm />} />
           <Route path="/employment-records/edit/:id" element={<EmploymentRecordForm />} />
           <Route path="/employment-records/:id" element={<EmploymentRecordProfile />} />
-          <Route path="/sanctions" element={<Sanctions />} />
+          <Route path="/overtime" element={<OvertimeSystem />} />
           <Route path="/sanctions/new" element={<SanctionEntry />} />
-          <Route path="/work-logs" element={<WorkLogs />} />
-          <Route path="/payments" element={<Payments />} />
           <Route path="/leave" element={<LeaveDashboard />} />
           <Route path="/leave/balances" element={<Leave />} />
           <Route path="/leave/new" element={<LeaveEntry />} />
@@ -60,6 +57,7 @@ const App = () => (
           <Route path="/settings/departments" element={<Departments />} />
           <Route path="/settings/ranks" element={<Ranks />} />
           <Route path="/discipline" element={<Discipline />} />
+          <Route path="/payments" element={<Payments />} />
           <Route path="/backup" element={<Backup />} />
           <Route path="/audit" element={<AuditLog />} />
           <Route path="/notifications" element={<Notifications />} />

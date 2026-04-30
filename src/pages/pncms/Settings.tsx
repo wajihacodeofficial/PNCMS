@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { AppShell, PageHeader } from "@/components/pncms/AppShell";
-import { Btn, Section, Field, Input, Badge } from "@/components/pncms/ui-kit";
-import { Save, ShieldCheck, Shield, Building2, User, Eye, EyeOff, Lock } from "lucide-react";
+import { Btn, Section, Field, Input, Badge, Select } from "@/components/pncms/ui-kit";
+import { Save, ShieldCheck, Shield, Building2, User, Eye, EyeOff, Lock, Landmark, History } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 
@@ -12,6 +12,10 @@ const Settings = () => {
   const [secAnswer, setSecAnswer] = useState("");
   const [adminPass, setAdminPass] = useState("");
   
+  // Allowance Rates
+  const [minRate, setMinRate] = useState("380");
+  const [indRate, setIndRate] = useState("420");
+
   const [showAdminPass, setShowAdminPass] = useState(false);
   const [showSecAnswer, setShowSecAnswer] = useState(false);
 
@@ -20,6 +24,8 @@ const Settings = () => {
     setSecQuestion(localStorage.getItem("sec_question") || "What is your favorite color?");
     setSecAnswer(localStorage.getItem("sec_answer") || "blue");
     setAdminPass(localStorage.getItem("admin_password") || "12345qwert");
+    setMinRate(localStorage.getItem("rate_ministerial") || "380");
+    setIndRate(localStorage.getItem("rate_industrial") || "420");
   }, []);
 
   const handleSave = () => {
@@ -27,6 +33,8 @@ const Settings = () => {
     localStorage.setItem("sec_question", secQuestion);
     localStorage.setItem("sec_answer", secAnswer);
     localStorage.setItem("admin_password", adminPass);
+    localStorage.setItem("rate_ministerial", minRate);
+    localStorage.setItem("rate_industrial", indRate);
     toast.success("System configuration updated successfully.");
   };
 
@@ -40,10 +48,40 @@ const Settings = () => {
 
     <div className="grid grid-cols-12 gap-6">
       <div className="col-span-8 space-y-6">
-        <Section title="Personnel Assignment">
-          <div className="p-2 bg-primary/5 border border-primary/10 rounded-sm mb-4">
-            <p className="text-xs text-primary/70 px-2 py-1">Assign the active administrator responsible for this terminal.</p>
+        <Section title="Allowance Disbursement Rates">
+          <div className="p-4 bg-accent/5 border border-accent/20 rounded-sm mb-6 flex items-center gap-3">
+             <Landmark className="w-6 h-6 text-accent" />
+             <p className="text-xs text-primary font-bold uppercase tracking-tight">Financial parameters for automated overtime & late-sitting calculations.</p>
           </div>
+          <div className="grid grid-cols-2 gap-6">
+            <Field label="Ministerial (Late-Sitting) Rate" required>
+               <div className="relative">
+                 <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[0.6rem] font-bold text-muted-foreground uppercase">Rs.</span>
+                 <Input 
+                   type="number" 
+                   value={minRate} 
+                   onChange={(e) => setMinRate(e.target.value)} 
+                   className="pl-10 font-mono font-bold"
+                 />
+                 <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[0.6rem] font-bold text-muted-foreground uppercase">/ HR</span>
+               </div>
+            </Field>
+            <Field label="Industrial (Overtime) Rate" required>
+               <div className="relative">
+                 <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[0.6rem] font-bold text-muted-foreground uppercase">Rs.</span>
+                 <Input 
+                   type="number" 
+                   value={indRate} 
+                   onChange={(e) => setIndRate(e.target.value)} 
+                   className="pl-10 font-mono font-bold"
+                 />
+                 <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[0.6rem] font-bold text-muted-foreground uppercase">/ HR</span>
+               </div>
+            </Field>
+          </div>
+        </Section>
+
+        <Section title="Personnel Assignment">
           <Field label="Active Admin Clerk Name" required>
             <div className="relative">
               <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
@@ -105,42 +143,24 @@ const Settings = () => {
       </div>
 
       <div className="col-span-4 space-y-6">
-        <Section title="Administrative Hub">
+        <Section title="Structural Controls">
           <div className="space-y-3">
-            <p className="text-xs text-muted-foreground mb-4">Quick access to establishment structural management.</p>
             <Btn variant="outline" className="w-full justify-start h-12" onClick={() => navigate("/settings/departments")}>
               <Building2 className="w-5 h-5 mr-3 text-accent" />
               <div className="text-left">
-                <div className="text-[0.7rem] font-bold">Manage Departments</div>
-                <div className="text-[0.6rem] text-muted-foreground font-normal lowercase tracking-normal">Add/Edit Naval Units & Wings</div>
+                <div className="text-[0.7rem] font-bold uppercase">Manage Departments</div>
+                <div className="text-[0.6rem] text-muted-foreground font-normal lowercase tracking-normal">Naval Units & Wings</div>
               </div>
             </Btn>
             <Btn variant="outline" className="w-full justify-start h-12" onClick={() => navigate("/settings/ranks")}>
               <ShieldCheck className="w-5 h-5 mr-3 text-accent" />
               <div className="text-left">
-                <div className="text-[0.7rem] font-bold">Manage Rank System</div>
-                <div className="text-[0.6rem] text-muted-foreground font-normal lowercase tracking-normal">Configure Civilian BPS Levels</div>
+                <div className="text-[0.7rem] font-bold uppercase">Manage Rank System</div>
+                <div className="text-[0.6rem] text-muted-foreground font-normal lowercase tracking-normal">Civilian BPS Levels</div>
               </div>
             </Btn>
           </div>
         </Section>
-
-        <div className="panel p-5 bg-primary/5 border-dashed border-2 border-primary/20 rounded-md">
-          <div className="flex items-center gap-3 mb-3">
-            <Shield className="w-5 h-5 text-primary" />
-            <h4 className="text-sm font-bold text-primary">System Integrity</h4>
-          </div>
-          <div className="space-y-2">
-            <div className="flex justify-between items-center text-xs">
-              <span className="text-muted-foreground">Version</span>
-              <span className="font-mono font-bold">v2.4.0-STABLE</span>
-            </div>
-            <div className="flex justify-between items-center text-xs">
-              <span className="text-muted-foreground">Last Security Sync</span>
-              <span className="font-mono font-bold text-success uppercase">Active</span>
-            </div>
-          </div>
-        </div>
       </div>
     </div>
   </AppShell>

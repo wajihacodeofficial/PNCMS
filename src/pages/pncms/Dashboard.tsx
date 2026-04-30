@@ -1,7 +1,7 @@
 import { useNavigate } from "react-router-dom";
 import { AppShell, PageHeader } from "@/components/pncms/AppShell";
 import { StatCard, Section, Btn } from "@/components/pncms/ui-kit";
-import { Users, ClipboardList, Wallet, CalendarDays, Plus, FileBarChart2, UserPlus, FileDown, Clock, Gavel } from "lucide-react";
+import { Users, ClipboardList, Wallet, CalendarDays, Plus, FileBarChart2, UserPlus, Clock, Gavel } from "lucide-react";
 import { activity } from "@/data/mock";
 import { exportToPDF } from "@/lib/export";
 import { useState, useEffect } from "react";
@@ -36,6 +36,30 @@ const Dashboard = () => {
       ["Pending Payments", "Rs. 1.84M", "9 batches awaiting release"],
     ];
     exportToPDF("PNCMS Operational Brief", headers, data, "pncms_brief");
+  };
+
+  const handleViewLog = (log: any) => {
+    switch (log.tag) {
+      case 'LEAVE':
+        navigate('/leave');
+        break;
+      case 'SANCTION':
+        navigate('/sanctions');
+        break;
+      case 'WORK LOG':
+        navigate('/work-logs');
+        break;
+      case 'ATTENDANCE':
+        // For attendance, we try to extract the date or use the log's context
+        // In our mock, "Daily muster roll opened" usually refers to today's date
+        navigate('/attendance', { state: { date: '2026-04-28' } });
+        break;
+      case 'PAYMENT':
+        navigate('/payments');
+        break;
+      default:
+        navigate('/dashboard');
+    }
   };
 
   return (
@@ -108,7 +132,7 @@ const Dashboard = () => {
                   <p className="text-[0.65rem] text-muted-foreground mt-1 uppercase font-bold tracking-wider">{a.tag} · {a.time}</p>
                 </div>
               </div>
-              <Btn variant="ghost" className="h-8 px-2 text-[0.6rem]" onClick={() => navigate(a.tag === 'LEAVE' ? '/leave' : a.tag === 'SANCTION' ? '/sanctions' : '/work-logs')}>View Log</Btn>
+              <Btn variant="ghost" className="h-8 px-2 text-[0.6rem]" onClick={() => handleViewLog(a)}>View Log</Btn>
             </div>
           ))}
         </div>

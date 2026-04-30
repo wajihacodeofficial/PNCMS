@@ -2,7 +2,8 @@ import { NavLink, useNavigate } from "react-router-dom";
 import {
   LayoutDashboard, Users, FileWarning, ClipboardList, Wallet,
   CalendarDays, CheckSquare, FileBarChart2, Settings, LogOut,
-  DatabaseBackup, ShieldAlert, Building2, ShieldCheck, Gavel
+  DatabaseBackup, ShieldAlert, Building2, ShieldCheck, Gavel,
+  History, FileSignature, Receipt
 } from "lucide-react";
 import crest from "@/assets/navy-crest.png";
 
@@ -18,10 +19,9 @@ const groups: { heading: string; items: { to: string; label: string; icon: React
   { heading: "Leave", items: [
     { to: "/leave", label: "Leave Accounts", icon: CalendarDays },
   ]},
-  { heading: "Overtime & Pay", items: [
-    { to: "/sanctions", label: "Sanctions", icon: FileWarning },
-    { to: "/work-logs", label: "Work Logs", icon: ClipboardList },
-    { to: "/payments", label: "Payments", icon: Wallet },
+  { heading: "Allowance Control", items: [
+    { to: "/overtime", label: "Sanction", icon: FileSignature },
+    { to: "/payments", label: "Payments", icon: Receipt },
   ]},
   { heading: "Establishment", items: [
     { to: "/settings/departments", label: "Departments", icon: Building2 },
