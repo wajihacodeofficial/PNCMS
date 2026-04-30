@@ -156,8 +156,8 @@ const Dashboard = () => {
           </div>
         </Section>
 
-        <div className="panel p-5 border-l-4 border-accent bg-accent/5">
-          <h4 className="text-xs font-bold text-accent uppercase tracking-widest mb-2">Command Alert</h4>
+        <div className="panel p-5 border-l-4 border-primary bg-primary/5">
+          <h4 className="text-xs font-bold text-primary uppercase tracking-widest mb-2">Command Alert</h4>
           <p className="text-xs text-foreground/80 leading-relaxed">
             Muster roll for 29-Apr-2026 is currently open. 42 personnel remaining to be marked.
           </p>
