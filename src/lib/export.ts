@@ -139,6 +139,20 @@ export const exportToExcel = async (sheetName: string, headers: string[], data: 
   const workbook = new ExcelJS.Workbook();
   const worksheet = workbook.addWorksheet(sheetName);
 
+  // Set Page Setup to A4 and Fit to Width
+  worksheet.pageSetup = {
+    paperSize: 9, // A4
+    orientation: headers.length > 7 ? 'landscape' : 'portrait',
+    fitToPage: true,
+    fitToWidth: 1,
+    fitToHeight: 0, // dynamic
+    margins: {
+      left: 0.5, right: 0.5,
+      top: 0.5, bottom: 0.5,
+      header: 0.3, footer: 0.3
+    }
+  };
+
   // 1. Add Branding
   // Logo
   try {
