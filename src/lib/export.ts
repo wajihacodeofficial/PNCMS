@@ -1,6 +1,7 @@
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
-import ExcelJS from 'exceljs';
+import { LOGO_BASE64 } from './logo-base64';
+import * as ExcelJS from 'exceljs';
 
 export const exportToPDF = (
   title: string, 
@@ -14,17 +15,24 @@ export const exportToPDF = (
   const pageWidth = doc.internal.pageSize.width;
 
   // 1. Header Section
-  doc.setFontSize(18);
+  // Add Logo in top left
+  try {
+    doc.addImage(LOGO_BASE64, 'PNG', 15, 10, 20, 20);
+  } catch (e) {
+    console.error("Failed to add logo to PDF", e);
+  }
+
+  doc.setFontSize(22);
   doc.setFont("helvetica", "bold");
-  doc.text("PAKISTAN NAVY", pageWidth / 2, 20, { align: 'center' });
+  doc.text("PAKISTAN NAVY", pageWidth / 2, 22, { align: 'center' });
   
-  doc.setFontSize(9);
+  doc.setFontSize(10);
   doc.setFont("helvetica", "normal");
-  doc.text("CIVILIAN MANAGEMENT SYSTEM · RESTRICTED", pageWidth / 2, 27, { align: 'center' });
+  doc.text("CIVILIAN MANAGEMENT SYSTEM · RESTRICTED", pageWidth / 2, 30, { align: 'center' });
   
-  doc.setFontSize(12);
+  doc.setFontSize(14);
   doc.setFont("helvetica", "bold");
-  doc.text(title || "Payment Bill", pageWidth / 2, 35, { align: 'center' });
+  doc.text(title || "Payment Bill", pageWidth / 2, 42, { align: 'center' });
 
   // Ref & Date
   doc.setFontSize(8);
@@ -34,10 +42,10 @@ export const exportToPDF = (
   doc.text(`Date: ${today}`, pageWidth - 15, 20, { align: 'right' });
 
   doc.setLineWidth(0.5);
-  doc.line(15, 42, pageWidth - 15, 42);
+  doc.line(15, 48, pageWidth - 15, 48);
 
   // 2. Metadata Section
-  let currentY = 52;
+  let currentY = 58;
   if (metadata) {
     doc.setFontSize(8);
     doc.setFont("helvetica", "bold");
