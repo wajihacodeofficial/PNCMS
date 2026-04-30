@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { AppShell, PageHeader } from "@/components/pncms/AppShell";
-import { Btn, Field, Input, Select, Section } from "@/components/pncms/ui-kit";
-import { Save, FileCheck2, AlertCircle } from "lucide-react";
+import { Btn, Field, Input, Select, Section, RadioGroup } from "@/components/pncms/ui-kit";
+import { Save, FileCheck2, AlertCircle, Calendar, Clock, HeartPulse, UserX, Wallet } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { personnel } from "@/data/mock";
 import { toast } from "sonner";
@@ -16,11 +16,11 @@ const LeaveEntry = () => {
 
   const balances: Record<string, { used: number, max: number, label: string }> = {
     "CL": { used: 12, max: 20, label: "Casual Leave" },
-    "RL": { used: 18, max: 30, label: "Earned Leave" },
-    "ML": { used: 6, max: 10, label: "Maternity Leave" },
-    "DL": { used: 2, max: 5, label: "Disability Leave" },
+    "RL": { used: 18, max: 30, label: "Recreational Leave" },
+    "ML": { used: 0, max: 90, label: "Maternity Leave" },
     "LWOP": { used: 0, max: 365, label: "Leave Without Pay" },
-    "LFP": { used: 12, max: 12, label: "Late-Sitting Facility" },
+    "DL": { used: 2, max: 5, label: "Disability Leave" },
+    "LFP": { used: 12, max: 12, label: "Leave on Full Pay" },
   };
 
   const selectedPerson = personnel.find(p => p.svc === selectedSvc);
@@ -100,16 +100,22 @@ const LeaveEntry = () => {
               </Select>
             </Field>
             <Field label="Cadre / Department"><Input defaultValue="Clerical · Administration" disabled /></Field>
-            <Field label="Leave Type" required>
-              <Select value={leaveType} onChange={(e) => setLeaveType(e.target.value)}>
-                <option value="CL">Casual Leave (CL)</option>
-                <option value="RL">Earned / Recreation Leave (RL)</option>
-                <option value="ML">Maternity Leave (ML)</option>
-                <option value="DL">Disability Leave (DL)</option>
-                <option value="LWOP">Leave Without Pay (LWOP)</option>
-                <option value="LFP">Late-Sitting Facility (LFP)</option>
-              </Select>
-            </Field>
+            <div className="col-span-2">
+              <Field label="Leave Type Selection" required>
+                <RadioGroup 
+                  value={leaveType} 
+                  onChange={setLeaveType}
+                  options={[
+                    { value: "CL", label: "Casual Leave", desc: "Short term routine leave", icon: <Calendar className="w-4 h-4" /> },
+                    { value: "RL", label: "Recreational Leave", desc: "Annual recreation / Earned", icon: <Clock className="w-4 h-4" /> },
+                    { value: "ML", label: "Maternity Leave", desc: "Female personnel only", icon: <HeartPulse className="w-4 h-4" /> },
+                    { value: "LWOP", label: "Leave Without Pay", desc: "Unpaid absence / Extraordinary", icon: <UserX className="w-4 h-4" /> },
+                    { value: "DL", label: "Disability Leave", desc: "Medical / Injury related", icon: <HeartPulse className="w-4 h-4" /> },
+                    { value: "LFP", label: "Leave on Full Pay", desc: "For regular staff only", icon: <Wallet className="w-4 h-4" /> },
+                  ]}
+                />
+              </Field>
+            </div>
             <Field label="Application Date"><Input type="date" defaultValue={new Date().toISOString().split('T')[0]} /></Field>
             <Field label="From Date" required>
               <Input type="date" value={fromDate} onChange={(e) => setFromDate(e.target.value)} />

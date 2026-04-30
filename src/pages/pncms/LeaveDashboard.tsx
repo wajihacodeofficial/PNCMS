@@ -19,7 +19,7 @@ const LeaveDashboard = () => {
   const currentOnLeave = [
     { name: "Bilal Ahmed Siddiqui", type: "CASUAL", from: "20-Apr-26", days: 3 },
     { name: "Saima Nawaz", type: "EARNED", from: "18-Apr-26", days: 7 },
-    { name: "Imran Hussain Shah", type: "MATERNITY", from: "22-Apr-26", days: 2 },
+    { name: "Imran Hussain Shah", type: "RECREATIONAL", from: "22-Apr-26", days: 2 },
     { name: "Nazia Akhtar", type: "CASUAL", from: "25-Apr-26", days: 1 },
     ...localLeave
       .filter(l => l.status === 'Submitted' && isWithinInterval(today, { start: parseISO(l.from), end: parseISO(l.to) }))
@@ -69,7 +69,7 @@ const LeaveDashboard = () => {
                 <tr key={i} className="hover:bg-muted/30 transition-colors">
                   <td className="px-6 py-4 font-semibold text-base">{p.name}</td>
                   <td className="px-6 py-4">
-                    <Badge variant={p.type === "MATERNITY" ? "danger" : p.type === "EARNED" ? "success" : "info"} className="px-3 py-1 text-xs">
+                    <Badge variant={p.type === "MATERNITY" ? "danger" : (p.type === "RECREATIONAL" || p.type === "EARNED") ? "success" : "info"} className="px-3 py-1 text-xs">
                       {p.type}
                     </Badge>
                   </td>

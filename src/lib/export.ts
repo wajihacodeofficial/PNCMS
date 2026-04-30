@@ -74,29 +74,55 @@ export const exportToPDF = (
     body: data,
     startY: currentY,
     theme: 'grid',
-    styles: { fontSize: 8, cellPadding: 3 },
+    styles: { fontSize: 8, cellPadding: 3, font: "helvetica" },
     headStyles: { fillColor: [15, 23, 42], textColor: 255, fontStyle: 'bold' },
     alternateRowStyles: { fillColor: [248, 250, 252] },
-    margin: { left: 15, right: 15 },
-    didDrawPage: (data) => {
-      const pageCount = doc.internal.getNumberOfPages();
-      if (data.pageNumber === pageCount) {
-        const finalY = (doc as any).lastAutoTable.finalY + 30;
-        const sigWidth = 50;
-        const p1 = 15;
-        const p2 = (pageWidth / 2) - (sigWidth / 2);
-        const p3 = pageWidth - 15 - sigWidth;
-        doc.setLineWidth(0.5);
-        doc.line(p1, finalY, p1 + sigWidth, finalY);
-        doc.setFontSize(8); doc.setFont("helvetica", "bold");
-        doc.text("PREPARED BY", p1 + sigWidth / 2, finalY + 5, { align: 'center' });
-        doc.line(p2, finalY, p2 + sigWidth, finalY);
-        doc.text("VERIFIED BY", p2 + sigWidth / 2, finalY + 5, { align: 'center' });
-        doc.line(p3, finalY, p3 + sigWidth, finalY);
-        doc.text("APPROVED BY", p3 + sigWidth / 2, finalY + 5, { align: 'center' });
-      }
-    }
+    margin: { left: 15, right: 15, bottom: 20 },
   });
+
+  // 5. Signatures Section
+  let finalY = (doc as any).lastAutoTable.finalY + 25;
+  const pageHeight = doc.internal.pageSize.height;
+
+  // Check if we need a new page for signatures
+  if (finalY + 30 > pageHeight) {
+    doc.addPage();
+    finalY = 30;
+  }
+
+  const sigWidth = 45;
+  const p1 = 15;
+  const p2 = (pageWidth / 2) - (sigWidth / 2);
+  const p3 = pageWidth - 15 - sigWidth;
+
+  doc.setDrawColor(0, 0, 0);
+  doc.setLineWidth(0.5);
+  
+  // Prep By
+  doc.line(p1, finalY, p1 + sigWidth, finalY);
+  doc.setFontSize(7); doc.setFont("helvetica", "bold");
+  doc.text("PREPARED BY", p1 + sigWidth / 2, finalY + 5, { align: 'center' });
+  doc.setFontSize(6); doc.setFont("helvetica", "normal");
+  doc.text("(System Generated)", p1 + sigWidth / 2, finalY + 8, { align: 'center' });
+
+  // Ver By
+  doc.line(p2, finalY, p2 + sigWidth, finalY);
+  doc.setFontSize(7); doc.setFont("helvetica", "bold");
+  doc.text("VERIFIED BY", p2 + sigWidth / 2, finalY + 5, { align: 'center' });
+  doc.setFontSize(6); doc.setFont("helvetica", "normal");
+  doc.text("Admin Officer", p2 + sigWidth / 2, finalY + 8, { align: 'center' });
+
+  // Appr By
+  doc.line(p3, finalY, p3 + sigWidth, finalY);
+  doc.setFontSize(7); doc.setFont("helvetica", "bold");
+  doc.text("APPROVED BY", p3 + sigWidth / 2, finalY + 5, { align: 'center' });
+  doc.setFontSize(6); doc.setFont("helvetica", "normal");
+  doc.text("Commanding Officer", p3 + sigWidth / 2, finalY + 8, { align: 'center' });
+
+  // Footer
+  doc.setFontSize(7);
+  doc.setTextColor(150);
+  doc.text(`Printed on: ${new Date().toLocaleString()} · Page 1 of 1`, pageWidth / 2, pageHeight - 10, { align: 'center' });
 
   doc.save(`${filename}.pdf`);
 };

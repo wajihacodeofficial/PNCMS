@@ -46,6 +46,8 @@ import {
   parse,
 } from 'date-fns';
 import { Switch } from '@/components/ui/switch';
+import { exportToPDF } from '@/lib/export';
+import { toast } from 'sonner';
 
 const EmploymentRecordProfile = () => {
   const navigate = useNavigate();
@@ -316,6 +318,25 @@ const EmploymentRecordProfile = () => {
     { key: 'ref', label: 'Ref Letter' },
   ];
 
+  const handlePDF = () => {
+    const headers = [["Service Event", "Date", "Unit/Location", "Reference", "Remarks"]];
+    const rows = [
+      ...transfers.map(t => [t.event, t.date, t.unit || t.toUnit || t.fromUnit, t.ref, t.remarks]),
+      ...attachments.map(a => [`Attachment: ${a.event}`, a.date, a.attachedTo, a.ref, ""]),
+      ...promotions.map(p => [`Promotion: ${p.promoted}`, p.date, "", p.ref, `From ${p.prev}`])
+    ];
+    
+    exportToPDF(`Service Record Summary - Muhammad Tariq Khan`, headers, rows, `service_record_${id ?? '1042'}`, 
+      { period: "Career History", dept: "Administration", clerk: "Wajiha Zehra · DIL-ADM-04" },
+      [
+        { label: "SVC NO", value: id ?? "1042" },
+        { label: "NAME", value: "Muhammad Tariq Khan" },
+        { label: "RANK", value: "Assistant" }
+      ]
+    );
+    toast.success("Service Record PDF Generated");
+  };
+
   return (
     <AppShell>
       <PageHeader
@@ -323,10 +344,10 @@ const EmploymentRecordProfile = () => {
         subtitle={`Service Record · ${id ?? '-1042'}`}
         actions={
           <>
-            <Btn variant="outline">
+            <Btn variant="outline" onClick={() => window.print()}>
               <Printer className="w-4 h-4" /> Print Profile
             </Btn>
-            <Btn variant="outline">
+            <Btn variant="outline" onClick={handlePDF}>
               <Download className="w-4 h-4" /> Export PDF
             </Btn>
             <Btn

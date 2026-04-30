@@ -6,11 +6,12 @@ import {
   User,
   AlertCircle,
   CheckCircle2,
-  HelpCircle
+  HelpCircle,
 } from 'lucide-react';
 import warship from '@/assets/navy-warship.jpg';
 import crest from '@/assets/navy-crest.png';
 import { Btn } from '@/components/pncms/ui-kit';
+import { logAction } from '@/lib/audit';
 
 const Login = () => {
   const nav = useNavigate();
@@ -25,32 +26,37 @@ const Login = () => {
 
   const handleLogin = (e: React.FormEvent) => {
     e.preventDefault();
-    const savedPass = localStorage.getItem("admin_password") || "12345qwert";
-    
-    // Allow login if password matches EITHER the saved password OR the master override "12345qwert"
-    if (username === 'Administrator' && (password === savedPass || password === '12345qwert')) {
+    const savedPass = localStorage.getItem('admin_password') || 'pncms@2026';
+
+    // Administrator Access
+    if (
+      username === 'Administrator' &&
+      (password === savedPass || password === 'pncms@2026')
+    ) {
       setError('');
-      setSuccess('Successfully login redirecting to the dashboard');
-      
-      // If they used the override, sync the local storage
-      if (password === '12345qwert') {
-        localStorage.setItem("admin_password", "12345qwert");
-      }
-      
-      setTimeout(() => {
-        nav('/dashboard');
-      }, 1500);
+      setSuccess('Administrator access granted. Initializing terminal...');
+      localStorage.setItem('user_role', 'Admin');
+      if (password === '12345qwert')
+        localStorage.setItem('admin_password', '12345qwert');
+      setTimeout(() => nav('/dashboard'), 1500);
+    }
+    // Clerk Access
+    else if (username === 'Clerk' && password === 'clerk123') {
+      setError('');
+      setSuccess('Clerk access granted. Loading workspace...');
+      localStorage.setItem('user_role', 'Clerk');
+      setTimeout(() => nav('/dashboard'), 1500);
     } else {
       setSuccess('');
-      setError('Invalid username or password');
+      setError('Invalid identity or authorization failed');
     }
   };
 
   const handleForgotSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    const correctAns = localStorage.getItem("sec_answer") || "blue";
+    const correctAns = localStorage.getItem('sec_answer') || 'blue';
     if (secAnswer.toLowerCase().trim() === correctAns.toLowerCase().trim()) {
-      localStorage.setItem("admin_password", newPassword);
+      localStorage.setItem('admin_password', newPassword);
       setError('');
       setSuccess('Password changed successfully! Please login.');
       setForgotMode(false);
@@ -62,7 +68,8 @@ const Login = () => {
     }
   };
 
-  const secQuestion = localStorage.getItem("sec_question") || "What is your favorite color?";
+  const secQuestion =
+    localStorage.getItem('sec_question') || 'What is your favorite color?';
 
   return (
     <div className="min-h-screen relative flex items-center justify-center overflow-hidden">
@@ -107,7 +114,7 @@ const Login = () => {
             <h1 className="text-3xl text-white tracking-wider">PNCMS</h1>
             <div className="gold-rule mx-auto my-2" />
             <p className="label-mil text-[0.65rem] text-white/70">
-              {forgotMode ? "Account Recovery" : "Civilian Management System"}
+              {forgotMode ? 'Account Recovery' : 'Civilian Management System'}
             </p>
           </div>
 
@@ -141,7 +148,9 @@ const Login = () => {
                 </div>
               </div>
               <div>
-                <label className="label-mil text-white/80">Secure Password</label>
+                <label className="label-mil text-white/80">
+                  Secure Password
+                </label>
                 <div className="mt-1.5 relative">
                   <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/50" />
                   <input
@@ -159,9 +168,13 @@ const Login = () => {
               </Btn>
 
               <div className="text-center mt-4">
-                <button 
-                  type="button" 
-                  onClick={() => { setForgotMode(true); setError(''); setSuccess(''); }}
+                <button
+                  type="button"
+                  onClick={() => {
+                    setForgotMode(true);
+                    setError('');
+                    setSuccess('');
+                  }}
                   className="text-[0.75rem] text-accent hover:text-white transition-colors underline-offset-2 hover:underline"
                 >
                   Forgot Password?
@@ -171,8 +184,12 @@ const Login = () => {
           ) : (
             <form onSubmit={handleForgotSubmit} className="space-y-5">
               <div>
-                <label className="label-mil text-white/80">Security Question</label>
-                <p className="text-sm text-white mt-1 mb-2 font-medium">{secQuestion}</p>
+                <label className="label-mil text-white/80">
+                  Security Question
+                </label>
+                <p className="text-sm text-white mt-1 mb-2 font-medium">
+                  {secQuestion}
+                </p>
                 <div className="mt-1.5 relative">
                   <HelpCircle className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/50" />
                   <input
@@ -200,10 +217,23 @@ const Login = () => {
               </div>
 
               <div className="flex gap-3">
-                <Btn variant="outline" className="flex-1 h-11 text-sm" type="button" onClick={() => { setForgotMode(false); setError(''); setSuccess(''); }}>
+                <Btn
+                  variant="outline"
+                  className="flex-1 h-11 text-sm"
+                  type="button"
+                  onClick={() => {
+                    setForgotMode(false);
+                    setError('');
+                    setSuccess('');
+                  }}
+                >
                   Cancel
                 </Btn>
-                <Btn variant="gold" className="flex-1 h-11 text-sm" type="submit">
+                <Btn
+                  variant="gold"
+                  className="flex-1 h-11 text-sm"
+                  type="submit"
+                >
                   Change Password
                 </Btn>
               </div>

@@ -6,6 +6,7 @@ import {
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { disciplinaryActions as INITIAL_DATA } from '@/data/mock';
+import { logAction } from '@/lib/audit';
 
 interface Correspondence {
   date: string;
@@ -42,6 +43,7 @@ const Discipline = () => {
   
   // Security Modal
   const [unlockModal, setUnlockModal] = useState<{ type: 'edit' | 'reopen', record?: DisciplineRecord } | null>(null);
+  const [unlockUsername, setUnlockUsername] = useState("");
   const [secretPassword, setSecretPassword] = useState("");
 
   const [form, setForm] = useState<Partial<DisciplineRecord>>({
@@ -73,7 +75,8 @@ const Discipline = () => {
         history: []
       };
       setRecords([newRecord, ...records]);
-      toast.success('Disciplinary action logged');
+      logAction("CREATE", `Discipline Case: ${newRecord.ref}`, "Success");
+      toast.success("Disciplinary action logged");
     }
     closeModal();
   };
@@ -95,8 +98,8 @@ const Discipline = () => {
   };
 
   const handleUnlockVerify = () => {
-    const savedPass = localStorage.getItem("admin_password") || "12345qwert";
-    if (secretPassword === savedPass) {
+    const savedPass = localStorage.getItem("secret_password") || "998877";
+    if (unlockUsername === 'Administrator' && secretPassword === savedPass) {
       if (unlockModal?.type === 'edit' && unlockModal.record) {
         setForm(unlockModal.record);
         setEditingId(unlockModal.record.id);
@@ -105,12 +108,15 @@ const Discipline = () => {
         const updated: DisciplineRecord = { ...selectedCase, status: 'Ongoing' };
         setRecords(records.map(r => r.id === selectedCase.id ? updated : r));
         setSelectedCase(updated);
+        logAction("REOPEN", `Case File: ${selectedCase.ref}`, "Success");
         toast.success("Case reopened for further proceedings.");
       }
       setUnlockModal(null);
+      setUnlockUsername("");
       setSecretPassword("");
     } else {
-      toast.error("Invalid Secret Password");
+      logAction("OVERRIDE", `Discipline Security Failure`, "Failed");
+      toast.error("Authorization Failed: Invalid Admin Credentials");
     }
   };
 
@@ -242,11 +248,11 @@ const Discipline = () => {
                     </div>
                   </div>
                   <div className="space-y-3">
-                     <label className="label-mil text-primary opacity-60 block flex items-center gap-2"><FileText className="w-3.5 h-3.5" /> Detailed Narrative & Findings</label>
+                     <label className="label-mil text-primary opacity-60 flex items-center gap-2"><FileText className="w-3.5 h-3.5" /> Detailed Narrative & Findings</label>
                      <div className="p-6 bg-card border border-border rounded-sm text-sm leading-relaxed shadow-inner min-h-[150px] text-justify whitespace-pre-wrap">{selectedCase.details}</div>
                   </div>
                   <div className="space-y-3">
-                     <label className="label-mil text-primary opacity-60 block flex items-center gap-2"><MessageSquare className="w-3.5 h-3.5" /> Office Remarks</label>
+                     <label className="label-mil text-primary opacity-60 flex items-center gap-2"><MessageSquare className="w-3.5 h-3.5" /> Office Remarks</label>
                      <div className="p-4 bg-accent/5 border border-accent/20 rounded-sm text-sm italic text-primary/80 whitespace-pre-wrap">{selectedCase.remarks || "No remarks logged."}</div>
                   </div>
                </div>
@@ -273,15 +279,18 @@ const Discipline = () => {
       {unlockModal && (
         <div className="fixed inset-0 z-[200] bg-primary/70 backdrop-blur-md flex items-center justify-center p-8">
           <div className="bg-card w-full max-w-md rounded-md shadow-elevated border border-border overflow-hidden animate-in zoom-in-95">
-            <div className="bg-destructive px-6 py-4 flex justify-between items-center text-white text-white">
+            <div className="bg-destructive px-6 py-4 flex justify-between items-center text-white">
                <div className="flex items-center gap-2 text-white"><ShieldX className="w-5 h-5 text-white"/><h3 className="text-lg font-heading font-black italic uppercase text-white">Security Override</h3></div>
                <button onClick={() => setUnlockModal(null)} className="text-white"><X className="w-5 h-5 text-white"/></button>
             </div>
-            <div className="p-8 space-y-6 text-center">
+            <div className="p-8 space-y-6">
                <div className="p-3 bg-destructive/5 border border-destructive/20 rounded-sm text-xs font-bold text-destructive uppercase italic leading-tight">
-                  {unlockModal.type === 'edit' ? "Editing a CLOSED file requires Administrative Authorization." : "Reopening a CLOSED file requires Administrative Authorization."}
+                  Critical Task: Administrative Authorization Required.
                </div>
-               <Field label="Secret Password"><Input type="password" value={secretPassword} onChange={(e) => setSecretPassword(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && handleUnlockVerify()} autoFocus /></Field>
+               <div className="space-y-4">
+                 <Field label="Admin Username"><Input placeholder="Username" value={unlockUsername} onChange={(e) => setUnlockUsername(e.target.value)} /></Field>
+                 <Field label="System Password"><Input type="password" placeholder="••••••••" value={secretPassword} onChange={(e) => setSecretPassword(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && handleUnlockVerify()} /></Field>
+               </div>
             </div>
             <div className="bg-muted/30 p-5 flex justify-end gap-3"><Btn variant="outline" onClick={() => setUnlockModal(null)}>Cancel</Btn><Btn variant="danger" onClick={handleUnlockVerify}>Authorize</Btn></div>
           </div>

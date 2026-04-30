@@ -1,10 +1,11 @@
 import { AppShell, PageHeader } from "@/components/pncms/AppShell";
-import { StatCard, Section, Btn, Badge, Field, Input, Select } from "@/components/pncms/ui-kit";
+import { StatCard, Section, Btn, Badge, Field, Input, Select, CompactToggle } from "@/components/pncms/ui-kit";
 import { Users, CheckCircle2, XCircle, Clock, Calendar, Save, ChevronDown, Search, Filter, RotateCcw, Download, FileSpreadsheet, ArrowUpDown, History, Eye, Lock, Unlock, X, ShieldAlert, AlertTriangle } from "lucide-react";
 import { useState, useMemo, useEffect } from "react";
 import { personnel } from "@/data/mock";
 import { toast } from "sonner";
 import { exportToPDF, exportToExcel } from "@/lib/export";
+import { logAction } from "@/lib/audit";
 import * as Tabs from "@radix-ui/react-tabs";
 import { format, parseISO, isWithinInterval } from "date-fns";
 import { useLocation } from "react-router-dom";
@@ -16,8 +17,10 @@ const STATUS_CONFIG: Record<string, { label: string; variant: string; color: str
   A: { label: "Absent", variant: "danger", color: "text-danger" },
   L: { label: "Late", variant: "warning", color: "text-warning" },
   CL: { label: "Casual Leave", variant: "info", color: "text-info" },
-  RL: { label: "Rest Leave", variant: "info", color: "text-info" },
-  ML: { label: "Medical Leave", variant: "info", color: "text-info" },
+  RL: { label: "Recreational Leave", variant: "info", color: "text-info" },
+  LWOP: { label: "Leave without pay", variant: "info", color: "text-info" },
+  DL: { label: "Disability Leave", variant: "info", color: "text-info" },
+  LFP: { label: "Leave on Full Pay", variant: "info", color: "text-info" },
 };
 
 const Attendance = () => {
@@ -31,6 +34,7 @@ const Attendance = () => {
   
   const [submittedDates, setSubmittedDates] = useState<string[]>(["2026-04-27", "2026-04-01"]);
   const [showUnlockModal, setShowUnlockModal] = useState(false);
+  const [unlockUsername, setUnlockUsername] = useState("");
   const [unlockPassword, setUnlockPassword] = useState("");
   const [pendingAction, setPendingAction] = useState<(() => void) | null>(null);
 
@@ -63,17 +67,19 @@ const Attendance = () => {
   };
 
   const handleUnlockSubmit = () => {
-    const savedPass = localStorage.getItem("admin_password") || "12345qwert";
-    if (unlockPassword === savedPass) {
-      toast.success("Identity Verified. Proceeding with update.");
+    const savedPass = localStorage.getItem("secret_password") || "998877";
+    if (unlockUsername === 'Administrator' && unlockPassword === savedPass) {
+      toast.success("Administrative Authority Verified.");
       setShowUnlockModal(false);
+      setUnlockUsername("");
       setUnlockPassword("");
       if (pendingAction) {
+        logAction("OVERRIDE", "Muster Roll Security Bypass", "Success");
         pendingAction();
         setPendingAction(null);
       }
     } else {
-      toast.error("Incorrect Secret Password");
+      toast.error("Authorization Failed: Invalid Admin Credentials");
     }
   };
 
@@ -89,6 +95,7 @@ const Attendance = () => {
   const handleSubmitFinal = () => {
     checkLockAndAct(() => {
       setSubmittedDates(prev => [...prev, selectedDate]);
+      logAction("LOCK", `Muster Roll: ${selectedDate}`, "Success");
       toast.success("Muster Roll Locked");
     });
   };
@@ -175,20 +182,22 @@ const Attendance = () => {
                         <span className="text-[0.6rem] font-bold text-muted-foreground italic">Pending...</span>
                       )}
                     </td>
-                    <td className="text-right">
-                       <select 
-                         className="h-8 px-2 bg-muted/30 border border-border rounded-sm text-[0.65rem] font-bold uppercase focus:border-primary outline-none transition-all"
+                    <td className="text-right flex justify-end">
+                       <CompactToggle
                          value={mark}
-                         onChange={(e) => markAttendance(p.svc, e.target.value as Mark)}
-                       >
-                         <option value="">Select Status</option>
-                         <option value="P">Present</option>
-                         <option value="A">Absent</option>
-                         <option value="L">Late</option>
-                         <option value="CL">Casual Leave</option>
-                         <option value="ML">Medical Leave</option>
-                         <option value="RL">Rest Leave</option>
-                       </select>
+                         onChange={(val) => markAttendance(p.svc, val as Mark)}
+                         options={[
+                           { value: "P", label: "Present", variant: "success" },
+                           { value: "A", label: "Absent", variant: "danger" },
+                           { value: "L", label: "Late", variant: "warning" },
+                           { value: "CL", label: "Casual Leave", variant: "info" },
+                           { value: "RL", label: "Recreational Leave", variant: "info" },
+                           { value: "ML", label: "Maternity Leave", variant: "info" },
+                           { value: "LWOP", label: "Leave without pay", variant: "info" },
+                           { value: "DL", label: "Disability Leave", variant: "info" },
+                           { value: "LFP", label: "Leave on Full Pay", variant: "info" },
+                         ]}
+                       />
                     </td>
                   </tr>
                 );
@@ -203,8 +212,11 @@ const Attendance = () => {
           <div className="bg-card w-full max-w-md rounded-md shadow-elevated border border-border overflow-hidden animate-in zoom-in-95">
             <div className="bg-destructive px-6 py-4 flex items-center justify-between text-white"><div className="flex items-center gap-3"><ShieldAlert className="w-5 h-5" /><h3 className="text-lg font-heading font-bold uppercase tracking-wider text-white">Security Override</h3></div><button onClick={() => { setShowUnlockModal(false); setPendingAction(null); }} className="text-white/70 hover:text-white"><X className="w-5 h-5"/></button></div>
             <div className="p-6 space-y-4">
-              <div className="p-4 bg-destructive/5 border border-destructive/20 rounded-sm text-xs text-destructive leading-relaxed font-bold uppercase">This record is officially locked. Enter the Admin Secret Password to proceed.</div>
-              <Field label="Admin Secret Password" required><Input type="password" autoFocus placeholder="••••••••" value={unlockPassword} onChange={(e) => setUnlockPassword(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && handleUnlockSubmit()} /></Field>
+              <div className="p-4 bg-destructive/5 border border-destructive/20 rounded-sm text-xs text-destructive leading-relaxed font-bold uppercase">Critical Task: Administrative Authorization Required.</div>
+              <div className="space-y-4">
+                <Field label="Admin Username" required><Input placeholder="Username" value={unlockUsername} onChange={(e) => setUnlockUsername(e.target.value)} /></Field>
+                <Field label="System Password" required><Input type="password" placeholder="••••••••" value={unlockPassword} onChange={(e) => setUnlockPassword(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && handleUnlockSubmit()} /></Field>
+              </div>
             </div>
             <div className="bg-muted/30 p-4 border-t border-border flex justify-end gap-3"><Btn variant="outline" onClick={() => { setShowUnlockModal(false); setPendingAction(null); }}>Abort</Btn><Btn variant="danger" onClick={handleUnlockSubmit}><Unlock className="w-4 h-4" /> Verify & Unlock</Btn></div>
           </div>

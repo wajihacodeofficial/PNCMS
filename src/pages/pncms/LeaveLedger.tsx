@@ -4,6 +4,8 @@ import { FileDown, FileSpreadsheet, Search, Filter, Printer, Zap, XCircle, Arrow
 import { personnel } from "@/data/mock";
 import { useState, useMemo } from "react";
 import { format, parseISO, subMonths } from "date-fns";
+import { exportToPDF, exportToExcel } from "@/lib/export";
+import { toast } from "sonner";
 
 const LeaveLedger = () => {
   const [selectedMonth, setSelectedMonth] = useState("April 2026");
@@ -57,6 +59,26 @@ const LeaveLedger = () => {
     });
   }, [attendanceHistory, selectedMonth]);
 
+  const handlePDF = () => {
+    const headers = [["Personnel", "Svc No", "CL", "RL", "DL", "LWOP", "Att. Days", "LFP Balance"]];
+    const rows = ledgerData.map((p, i) => [
+      p.name, p.svc, `${12 - (i % 5)}/20`, `${8 - (i % 6)}/15`, `${5 - (i % 3)}/5`, i % 2, p.presentDays, p.newBalance
+    ]);
+    exportToPDF(`Leave Ledger - ${selectedMonth}`, headers, rows, `leave_ledger_${selectedMonth.replace(' ', '_')}`, 
+      { period: selectedMonth, dept: "All Departments", clerk: "Wajiha Zehra · DIL-ADM-04" }
+    );
+    toast.success("Leave Ledger PDF Generated");
+  };
+
+  const handleExcel = async () => {
+    const headers = ["Name", "Service No", "CL Used", "RL Used", "DL Used", "LWOP", "Present Days", "LFP Balance"];
+    const rows = ledgerData.map((p, i) => [
+      p.name, p.svc, 12 - (i % 5), 8 - (i % 6), 5 - (i % 3), i % 2, p.presentDays, p.newBalance
+    ]);
+    await exportToExcel(`Leave Ledger ${selectedMonth}`, headers, rows, `leave_ledger_${selectedMonth.replace(' ', '_')}`);
+    toast.success("Leave Ledger Excel Exported");
+  };
+
   return (
     <AppShell>
       <PageHeader 
@@ -64,9 +86,9 @@ const LeaveLedger = () => {
         subtitle="Annual Leave Accounting & Accruals"
         actions={
           <div className="flex gap-2">
-            <Btn variant="outline"><Printer className="w-4 h-4" /> Print Ledger</Btn>
-            <Btn variant="outline"><FileSpreadsheet className="w-4 h-4" /> Export Excel</Btn>
-            <Btn variant="primary"><FileDown className="w-4 h-4" /> Download PDF</Btn>
+            <Btn variant="outline" onClick={() => window.print()}><Printer className="w-4 h-4" /> Print Ledger</Btn>
+            <Btn variant="outline" onClick={handleExcel}><FileSpreadsheet className="w-4 h-4" /> Export Excel</Btn>
+            <Btn variant="primary" onClick={handlePDF}><FileDown className="w-4 h-4" /> Download PDF</Btn>
           </div>
         }
       />

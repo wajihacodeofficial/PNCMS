@@ -66,6 +66,7 @@ const OvertimeSystem = () => {
 
   // Security
   const [unlockModal, setUnlockModal] = useState<{ id: string; targetStatus: 'Approved' | 'Rejected' | 'Pending' } | null>(null);
+  const [unlockUsername, setUnlockUsername] = useState("");
   const [secretPassword, setSecretPassword] = useState("");
 
   const handleCadreSelect = (c: 'Ministerial' | 'Industrial') => {
@@ -108,16 +109,17 @@ const OvertimeSystem = () => {
   };
 
   const handleUnlockVerify = () => {
-    const savedPass = localStorage.getItem("admin_password") || "12345qwert";
-    if (secretPassword === savedPass) {
+    const savedPass = localStorage.getItem("secret_password") || "998877";
+    if (unlockUsername === 'Administrator' && secretPassword === savedPass) {
       if (unlockModal) {
         setLocalSanctions((prev: any) => prev.map((s: any) => s.id === unlockModal.id ? { ...s, status: unlockModal.targetStatus } : s));
-        toast.success(`Identity Verified. Status updated.`);
+        toast.success(`Sanction ${unlockModal.targetStatus.toUpperCase()} officially.`);
       }
       setUnlockModal(null);
+      setUnlockUsername("");
       setSecretPassword("");
     } else {
-      toast.error("Incorrect Secret Password");
+      toast.error("Authorization Failed: Invalid Admin Credentials");
     }
   };
 
@@ -306,7 +308,6 @@ const OvertimeSystem = () => {
         </Tabs.Content>
       </Tabs.Root>
 
-      {/* Security Modals & Overlays truncated for brevity but remain intact */}
       {isAddingSanction && (
         <div className="fixed inset-0 z-50 bg-primary/60 backdrop-blur-sm flex items-center justify-center p-8">
           <div className="bg-card w-full max-w-2xl rounded-md shadow-elevated border border-border overflow-hidden animate-in zoom-in-95">
@@ -335,7 +336,13 @@ const OvertimeSystem = () => {
           <div className="bg-card w-full max-w-md rounded-md shadow-elevated border border-border overflow-hidden animate-in zoom-in-95">
             <div className="bg-destructive px-6 py-4 flex justify-between items-center text-white"><div className="flex items-center gap-2"><ShieldX className="w-5 h-5"/><h3 className="text-lg font-heading font-black italic uppercase">Verify Access</h3></div><button onClick={() => setUnlockModal(null)}><X className="w-5 h-5"/></button></div>
             <div className="p-8 space-y-6">
-               <Field label="Secret Password"><Input type="password" value={secretPassword} onChange={(e) => setSecretPassword(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && handleUnlockVerify()}/></Field>
+               <div className="p-3 bg-destructive/5 border border-destructive/20 rounded-sm text-xs font-bold text-destructive uppercase italic leading-tight">
+                  Critical Task: Administrative Authorization Required.
+               </div>
+               <div className="space-y-4">
+                 <Field label="Admin Username"><Input placeholder="Username" value={unlockUsername} onChange={(e) => setUnlockUsername(e.target.value)} /></Field>
+                 <Field label="System Password"><Input type="password" placeholder="••••••••" value={secretPassword} onChange={(e) => setSecretPassword(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && handleUnlockVerify()} /></Field>
+               </div>
             </div>
             <div className="bg-muted/30 p-5 flex justify-end gap-3"><Btn variant="outline" onClick={() => setUnlockModal(null)}>Abort</Btn><Btn variant="danger" onClick={handleUnlockVerify}>Verify</Btn></div>
           </div>

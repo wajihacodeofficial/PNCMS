@@ -6,8 +6,9 @@ import {
   Input,
   Select,
   Badge,
+  RadioGroup,
 } from '@/components/pncms/ui-kit';
-import { Save, Calendar } from 'lucide-react';
+import { Save, Calendar, Clock, HeartPulse, UserX, Wallet } from 'lucide-react';
 
 const balances = [
   { name: 'Muhammad Tariq Khan', casual: 8, earned: 22, sick: 10, lfp: 6 },
@@ -35,14 +36,22 @@ const Leave = () => (
             </Select>
           </Field>
           <div className="grid grid-cols-2 gap-3">
+          <div className="col-span-12">
             <Field label="Leave Type" required>
-              <Select>
-                <option>Casual Leave</option>
-                <option>Earned Leave</option>
-                <option>Sick Leave</option>
-                <option>LFP Adjustment</option>
-              </Select>
+              <RadioGroup
+                value="CL"
+                onChange={() => {}}
+                options={[
+                  { value: "CL", label: "Casual Leave", icon: <Calendar className="w-4 h-4" /> },
+                  { value: "RL", label: "Recreational Leave", icon: <Clock className="w-4 h-4" /> },
+                  { value: "ML", label: "Maternity Leave", icon: <HeartPulse className="w-4 h-4" /> },
+                  { value: "LWOP", label: "Leave Without Pay", icon: <UserX className="w-4 h-4" /> },
+                  { value: "DL", label: "Disability Leave", icon: <HeartPulse className="w-4 h-4" /> },
+                  { value: "LFP", label: "Leave on Full Pay", icon: <Wallet className="w-4 h-4" /> },
+                ]}
+              />
             </Field>
+          </div>
             <Field label="Days" required>
               <Input type="number" defaultValue={3} />
             </Field>

@@ -11,7 +11,10 @@ import {
   Trash2,
   X,
   ArrowLeft,
+  Download,
 } from 'lucide-react';
+import { exportToPDF } from '@/lib/export';
+import { toast } from 'sonner';
 
 interface Department {
   id: string;
@@ -234,8 +237,27 @@ const Departments = () => {
   };
 
   const handleDelete = (id: string, e: React.MouseEvent) => {
-    e.stopPropagation();
     setDepts(depts.filter((d) => d.id !== id));
+  };
+
+  const handleDeptPDF = () => {
+    const headers = [["Department", "Location", "Navcom", "HOD", "Born", "Sanctioned"]];
+    const rows = depts.map(d => [d.name, d.location, d.navcom, d.hod, d.born, d.sanctioned]);
+    exportToPDF("Department Establishment Roster", headers, rows, "departments_roster", 
+      { period: "April 2026", dept: "All Units", clerk: "Wajiha Zehra · DIL-ADM-04" }
+    );
+    toast.success("Departments PDF Exported");
+  };
+
+  const handlePersonnelPDF = () => {
+    if (!viewingDept) return;
+    const deptIndividuals = individuals.filter(ind => ind.departmentId === viewingDept.id);
+    const headers = [["Svc No", "Name", "Rank", "Cadre", "Phone"]];
+    const rows = deptIndividuals.map(ind => [ind.serviceNo, ind.name, ind.rank, ind.cadre, ind.phone]);
+    exportToPDF(`Personnel Roster - ${viewingDept.name}`, headers, rows, `personnel_${viewingDept.name}`, 
+      { period: "April 2026", dept: viewingDept.name, clerk: "Wajiha Zehra · DIL-ADM-04" }
+    );
+    toast.success("Personnel PDF Exported");
   };
 
   if (viewingDept) {
@@ -252,6 +274,9 @@ const Departments = () => {
             <div className="flex gap-2">
               <Btn variant="gold" onClick={() => handleOpenIndModal()}>
                 <Plus className="w-4 h-4 mr-1" /> Add Personnel
+              </Btn>
+              <Btn variant="outline" onClick={handlePersonnelPDF}>
+                <Download className="w-4 h-4 mr-2" /> Export PDF
               </Btn>
               <Btn variant="outline" onClick={() => setViewingDept(null)}>
                 <ArrowLeft className="w-4 h-4 mr-2" /> Back to Departments
@@ -328,9 +353,14 @@ const Departments = () => {
         title="Department Management"
         subtitle="Manage Establishments · Units · Strength Control"
         actions={
-          <Btn variant="gold" onClick={() => handleOpenModal()}>
-            <Plus className="w-4 h-4" /> Add Department
-          </Btn>
+          <div className="flex gap-2">
+            <Btn variant="outline" onClick={handleDeptPDF}>
+              <Download className="w-4 h-4 mr-2" /> Export Roster
+            </Btn>
+            <Btn variant="gold" onClick={() => handleOpenModal()}>
+              <Plus className="w-4 h-4" /> Add Department
+            </Btn>
+          </div>
         }
       />
 

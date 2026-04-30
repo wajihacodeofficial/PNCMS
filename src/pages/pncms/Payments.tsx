@@ -40,6 +40,7 @@ const Payments = () => {
   const [rates, setRates] = useState({ Ministerial: 380, Industrial: 420 });
   const [selectedPerson, setSelectedPerson] = useState<any | null>(null);
   const [clerkName, setClerkName] = useState("Wajiha Zehra");
+  const [unlockUsername, setUnlockUsername] = useState("");
   const [secretPassword, setSecretPassword] = useState("");
 
   const [paymentStatuses, setPaymentStatuses] = useState<Record<string, string>>(() => {
@@ -91,16 +92,17 @@ const Payments = () => {
   };
 
   const handleUnlockVerify = () => {
-    const savedPass = localStorage.getItem("admin_password") || "12345qwert";
-    if (secretPassword === savedPass) {
+    const savedPass = localStorage.getItem("secret_password") || "998877";
+    if (unlockUsername === 'Administrator' && secretPassword === savedPass) {
       if (unlockModal) {
         setPaymentStatuses(prev => ({ ...prev, [unlockModal.id]: unlockModal.targetStatus }));
-        toast.success(`Security Verified. Status updated.`);
+        toast.success(`Payment Status officially updated.`);
       }
       setUnlockModal(null);
+      setUnlockUsername("");
       setSecretPassword("");
     } else {
-      toast.error("Invalid Secret Password");
+      toast.error("Authorization Failed: Invalid Admin Credentials");
     }
   };
 
@@ -205,10 +207,15 @@ const Payments = () => {
       {unlockModal && (
         <div className="fixed inset-0 z-[200] bg-primary/70 backdrop-blur-md flex items-center justify-center p-8">
           <div className="bg-card w-full max-w-md rounded-md shadow-elevated border border-border overflow-hidden animate-in zoom-in-95">
-            <div className="bg-destructive px-6 py-4 flex justify-between items-center text-white text-white"><div className="flex items-center gap-2 text-white"><ShieldX className="w-5 h-5 text-white"/><h3 className="text-lg font-heading font-black italic uppercase text-white">Security Override</h3></div><button onClick={() => setUnlockModal(null)} className="text-white"><X className="w-5 h-5 text-white"/></button></div>
+            <div className="bg-destructive px-6 py-4 flex justify-between items-center text-white"><div className="flex items-center gap-2 text-white"><ShieldX className="w-5 h-5 text-white"/><h3 className="text-lg font-heading font-black italic uppercase text-white">Security Override</h3></div><button onClick={() => setUnlockModal(null)} className="text-white"><X className="w-5 h-5 text-white"/></button></div>
             <div className="p-8 space-y-6">
-               <div className="p-3 bg-destructive/5 border border-destructive/20 rounded-sm text-xs font-bold text-destructive uppercase italic leading-tight">Administrative Authorization Required.</div>
-               <Field label="Secret Password"><Input type="password" value={secretPassword} onChange={(e) => setSecretPassword(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && handleUnlockVerify()}/></Field>
+               <div className="p-3 bg-destructive/5 border border-destructive/20 rounded-sm text-xs font-bold text-destructive uppercase italic leading-tight">
+                  Critical Task: Administrative Authorization Required.
+               </div>
+               <div className="space-y-4">
+                 <Field label="Admin Username"><Input placeholder="Username" value={unlockUsername} onChange={(e) => setUnlockUsername(e.target.value)} /></Field>
+                 <Field label="System Password"><Input type="password" placeholder="••••••••" value={secretPassword} onChange={(e) => setSecretPassword(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && handleUnlockVerify()} /></Field>
+               </div>
             </div>
             <div className="bg-muted/30 p-5 flex justify-end gap-3"><Btn variant="outline" onClick={() => setUnlockModal(null)}>Cancel</Btn><Btn variant="danger" onClick={handleUnlockVerify}>Authorize</Btn></div>
           </div>

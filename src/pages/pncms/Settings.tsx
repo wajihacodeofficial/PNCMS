@@ -4,6 +4,7 @@ import { Btn, Section, Field, Input, Badge, Select } from "@/components/pncms/ui
 import { Save, ShieldCheck, Shield, Building2, User, Eye, EyeOff, Lock, Landmark, History } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
+import { logAction } from "@/lib/audit";
 
 const Settings = () => {
   const navigate = useNavigate();
@@ -11,12 +12,14 @@ const Settings = () => {
   const [secQuestion, setSecQuestion] = useState("");
   const [secAnswer, setSecAnswer] = useState("");
   const [adminPass, setAdminPass] = useState("");
+  const [secretPass, setSecretPass] = useState("");
   
   // Allowance Rates
   const [minRate, setMinRate] = useState("380");
   const [indRate, setIndRate] = useState("420");
 
   const [showAdminPass, setShowAdminPass] = useState(false);
+  const [showSecretPass, setShowSecretPass] = useState(false);
   const [showSecAnswer, setShowSecAnswer] = useState(false);
 
   useEffect(() => {
@@ -24,6 +27,7 @@ const Settings = () => {
     setSecQuestion(localStorage.getItem("sec_question") || "What is your favorite color?");
     setSecAnswer(localStorage.getItem("sec_answer") || "blue");
     setAdminPass(localStorage.getItem("admin_password") || "12345qwert");
+    setSecretPass(localStorage.getItem("secret_password") || "998877");
     setMinRate(localStorage.getItem("rate_ministerial") || "380");
     setIndRate(localStorage.getItem("rate_industrial") || "420");
   }, []);
@@ -33,8 +37,10 @@ const Settings = () => {
     localStorage.setItem("sec_question", secQuestion);
     localStorage.setItem("sec_answer", secAnswer);
     localStorage.setItem("admin_password", adminPass);
+    localStorage.setItem("secret_password", secretPass);
     localStorage.setItem("rate_ministerial", minRate);
     localStorage.setItem("rate_industrial", indRate);
+    logAction("UPDATE", "System Configuration", "Success");
     toast.success("System configuration updated successfully.");
   };
 
@@ -97,7 +103,7 @@ const Settings = () => {
 
         <Section title="Access Control & Security">
           <div className="grid grid-cols-2 gap-6">
-            <Field label="System Admin Password" required>
+            <Field label="System Password" required>
               <div className="relative">
                 <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                 <Input 
@@ -112,6 +118,25 @@ const Settings = () => {
                   className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-primary"
                 >
                   {showAdminPass ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                </button>
+              </div>
+            </Field>
+
+            <Field label="Secret System Password" required>
+              <div className="relative">
+                <Shield className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-accent" />
+                <Input 
+                  type={showSecretPass ? "text" : "password"} 
+                  value={secretPass} 
+                  onChange={(e) => setSecretPass(e.target.value)} 
+                  className="pl-10 pr-10 w-full font-mono border-accent/30"
+                />
+                <button 
+                  type="button"
+                  onClick={() => setShowSecretPass(!showSecretPass)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-primary"
+                >
+                  {showSecretPass ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                 </button>
               </div>
             </Field>

@@ -133,3 +133,95 @@ export const Section = ({ title, actions, children, className }: { title: string
     <div className="p-5">{children}</div>
   </section>
 );
+
+/* === RADIO GROUP === */
+export const RadioGroup = <T extends string>({ 
+  options, 
+  value, 
+  onChange, 
+  className 
+}: { 
+  options: { value: T; label: string; desc?: string; icon?: ReactNode }[]; 
+  value: T; 
+  onChange: (val: T) => void;
+  className?: string;
+}) => (
+  <div className={cn("grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3", className)}>
+    {options.map((opt) => (
+      <div
+        key={opt.value}
+        onClick={() => onChange(opt.value)}
+        className={cn(
+          "cursor-pointer relative overflow-hidden p-4 border rounded-sm transition-all duration-200 group",
+          value === opt.value 
+            ? "border-accent bg-accent/5 ring-1 ring-accent" 
+            : "border-border bg-card hover:border-primary/50 hover:bg-muted/30"
+        )}
+      >
+        <div className="flex items-center justify-between gap-3">
+          <div className="flex items-center gap-3">
+            <div className={cn(
+              "w-8 h-8 rounded-full flex items-center justify-center text-[0.6rem] font-bold border-2 transition-colors",
+              value === opt.value ? "bg-accent border-accent text-accent-foreground" : "bg-muted border-border text-muted-foreground group-hover:border-primary/30"
+            )}>
+              {opt.icon || opt.value}
+            </div>
+            <div>
+              <div className={cn("text-xs font-bold uppercase tracking-wide transition-colors", value === opt.value ? "text-accent" : "text-primary")}>
+                {opt.label}
+              </div>
+              {opt.desc && <div className="text-[0.65rem] text-muted-foreground mt-0.5 leading-tight">{opt.desc}</div>}
+            </div>
+          </div>
+          <div className={cn(
+            "w-4 h-4 rounded-full border-2 flex items-center justify-center transition-all",
+            value === opt.value ? "border-accent scale-110" : "border-border scale-100"
+          )}>
+            {value === opt.value && <div className="w-2 h-2 rounded-full bg-accent animate-in fade-in zoom-in" />}
+          </div>
+        </div>
+      </div>
+    ))}
+  </div>
+);
+
+/* === COMPACT TOGGLE === */
+export const CompactToggle = <T extends string>({ 
+  options, 
+  value, 
+  onChange, 
+  className 
+}: { 
+  options: { value: T; label: string; variant?: "success" | "danger" | "warning" | "info" | "primary" }[]; 
+  value: T; 
+  onChange: (val: T) => void;
+  className?: string;
+}) => {
+  const selectedMap: Record<string, string> = {
+    success: "bg-success text-success-foreground",
+    danger:  "bg-destructive text-destructive-foreground",
+    warning: "bg-warning text-warning-foreground",
+    info:    "bg-info text-info-foreground",
+    primary: "bg-primary text-primary-foreground",
+  };
+
+  return (
+    <div className={cn("flex items-center gap-1 bg-muted/40 p-1 rounded-sm border border-border w-fit", className)}>
+      {options.map((opt) => (
+        <button
+          key={opt.value}
+          onClick={() => onChange(opt.value)}
+          className={cn(
+            "px-2 py-1 text-[0.6rem] font-bold uppercase transition-all rounded-[1px] min-w-[32px] text-center",
+            value === opt.value 
+              ? cn(selectedMap[opt.variant || "primary"], "shadow-command scale-105 z-10") 
+              : "text-muted-foreground hover:text-foreground hover:bg-muted"
+          )}
+          title={opt.label}
+        >
+          {opt.value}
+        </button>
+      ))}
+    </div>
+  );
+};
