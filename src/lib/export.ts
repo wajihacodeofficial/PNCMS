@@ -216,48 +216,70 @@ export const exportToExcel = async (sheetName: string, headers: string[], data: 
   actualHeaderRow.height = 25;
 
   // 3. Add Data (Starting at Row 7)
+  let hasNumericData = false;
   data.forEach((row, rowIndex) => {
-    const r = worksheet.addRow(row);
+    // Process row to convert numeric strings to numbers for formulas
+    const processedRow = row.map(val => {
+      if (typeof val === 'string') {
+        const cleanVal = val.replace(/[Rs.,]/g, '').trim();
+        if (cleanVal !== '' && !isNaN(Number(cleanVal)) && cleanVal.length < 15) {
+          hasNumericData = true;
+          return Number(cleanVal);
+        }
+      } else if (typeof val === 'number') {
+        hasNumericData = true;
+      }
+      return val;
+    });
+
+    const r = worksheet.addRow(processedRow);
     r.eachCell((cell) => {
       cell.font = { name: 'Arial', size: 12 };
       cell.alignment = { vertical: 'middle' };
       cell.border = {
         top: { style: 'thin' }, left: { style: 'thin' }, bottom: { style: 'thin' }, right: { style: 'thin' }
       };
-      // Alternate row colors
       if (rowIndex % 2 === 1) {
         cell.fill = {
-          type: 'pattern',
-          pattern: 'solid',
-          fgColor: { argb: 'FFF8FAFC' }
+          type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF8FAFC' }
         };
       }
     });
   });
 
-  // 4. Formulas (Total Row)
-  const lastRowIndex = worksheet.lastRow ? worksheet.lastRow.number + 1 : 7;
-  const totalRow = worksheet.getRow(lastRowIndex);
-  totalRow.getCell(1).value = 'TOTALS / SUMMARY';
-  totalRow.getCell(1).font = { name: 'Arial', size: 12, bold: true };
-  
-  // Try to sum numeric columns (heuristic: columns from index 2 onwards)
-  headers.forEach((_, i) => {
-    if (i > 0) {
-      const colLetter = worksheet.getColumn(i + 1).letter;
-      const startRow = 7;
-      const endRow = lastRowIndex - 1;
-      // We only apply formula if the column seems to contain numbers in the first data row
-      const firstDataVal = worksheet.getRow(startRow).getCell(i + 1).value;
-      if (typeof firstDataVal === 'number') {
-        totalRow.getCell(i + 1).value = {
-          formula: `SUM(${colLetter}${startRow}:${colLetter}${endRow})`,
-          result: 0
-        };
-        totalRow.getCell(i + 1).font = { name: 'Arial', size: 12, bold: true };
+  // 4. Formulas (Summary Row - only if needed)
+  if (hasNumericData || data.length > 0) {
+    const lastRowIndex = worksheet.lastRow ? worksheet.lastRow.number + 1 : 7;
+    const totalRow = worksheet.getRow(lastRowIndex);
+    const startRow = 7;
+    const endRow = lastRowIndex - 1;
+
+    // First column: Total Records Count
+    totalRow.getCell(1).value = {
+      formula: `\"TOTAL RECORDS: \" & COUNTA(A${startRow}:A${endRow})`,
+      result: `TOTAL RECORDS: ${data.length}`
+    };
+    totalRow.getCell(1).font = { name: 'Arial', size: 12, bold: true };
+    worksheet.mergeCells(lastRowIndex, 1, lastRowIndex, 2);
+
+    // Sum numeric columns
+    headers.forEach((_, i) => {
+      if (i > 1) { // Skip first two columns (merged)
+        const colLetter = worksheet.getColumn(i + 1).letter;
+        const firstVal = worksheet.getRow(startRow).getCell(i + 1).value;
+        if (typeof firstVal === 'number') {
+          totalRow.getCell(i + 1).value = {
+            formula: `SUM(${colLetter}${startRow}:${colLetter}${endRow})`,
+            result: 0
+          };
+          totalRow.getCell(i + 1).font = { name: 'Arial', size: 12, bold: true };
+          totalRow.getCell(i + 1).fill = {
+            type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF1F5F9' }
+          };
+        }
       }
-    }
-  });
+    });
+  }
 
   // 5. Auto-width columns
   worksheet.columns.forEach(column => {
