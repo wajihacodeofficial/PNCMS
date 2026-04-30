@@ -59,23 +59,90 @@ const EmploymentRecords = () => {
   
   const navigate = useNavigate();
 
-  const handleImport = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleImport = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
     setIsImporting(true);
-    // Simulate parsing delay
-    setTimeout(() => {
-      setIsImporting(false);
-      toast.success(`Successfully imported 24 new personnel from ${file.name}`, {
-        description: "Records have been merged with the existing command database.",
+    try {
+      const ExcelJS = await import('exceljs');
+      const workbook = new ExcelJS.Workbook();
+      const buffer = await file.arrayBuffer();
+      await workbook.xlsx.load(buffer);
+      const worksheet = workbook.getWorksheet(1);
+      
+      if (!worksheet) throw new Error("Worksheet not found");
+
+      const jsonData: any[] = [];
+      const headers: string[] = [];
+      
+      worksheet.getRow(1).eachCell((cell, colNumber) => {
+        headers[colNumber] = cell.text.trim().toLowerCase();
       });
-    }, 1500);
+
+      const mapping: Record<string, string> = {
+        'service no': 'svc',
+        'svc no': 'svc',
+        'svc': 'svc',
+        'p.no': 'svc',
+        'pno': 'svc',
+        'name': 'name',
+        'full name': 'name',
+        'rank': 'rank',
+        'designation': 'rank',
+        'department': 'dept',
+        'dept': 'dept',
+        'bps': 'bps',
+        'grade': 'bps',
+        'status': 'status',
+        'card type': 'cardType',
+        'cadre': 'cardType',
+        'gender': 'gender',
+        'cnic': 'cnic'
+      };
+
+      worksheet.eachRow((row, rowNumber) => {
+        if (rowNumber === 1) return;
+        const entry: any = { status: 'Active', gender: 'Male', cardType: 'Ministerial' };
+        row.eachCell((cell, colNumber) => {
+          const header = headers[colNumber];
+          const field = mapping[header];
+          if (field) {
+            entry[field] = cell.text;
+          }
+        });
+        if (entry.svc && entry.name) {
+          jsonData.push(entry);
+        }
+      });
+
+      const existing = JSON.parse(localStorage.getItem('pncms_personnel_imports') || '[]');
+      // Deduplicate by svc
+      const newMap = new Map();
+      [...existing, ...jsonData].forEach(p => newMap.set(p.svc, p));
+      localStorage.setItem('pncms_personnel_imports', JSON.stringify(Array.from(newMap.values())));
+      
+      toast.success(`Successfully imported ${jsonData.length} personnel`, {
+        description: "Records have been merged based on field headers.",
+      });
+      setTimeout(() => window.location.reload(), 1000);
+    } catch (err) {
+      toast.error("Import Failed", { description: "Please ensure the Excel file has valid headers." });
+    } finally {
+      setIsImporting(false);
+    }
   };
+
+  const allPersonnel = useMemo(() => {
+    const imported = JSON.parse(localStorage.getItem('pncms_personnel_imports') || '[]');
+    const importedSvcs = new Set(imported.map((p: any) => p.svc));
+    const filteredMock = personnel.filter(p => !importedSvcs.has(p.svc));
+    return [...filteredMock, ...imported];
+  }, []);
 
   // Optimized filtering logic
   const filteredPersonnel = useMemo(() => {
-    return personnel.filter(p => {
+    return allPersonnel.filter(p => {
       const q = search.toLowerCase();
       const matchesSearch = search === "" || 
         p.name.toLowerCase().includes(q) || 
@@ -88,7 +155,7 @@ const EmploymentRecords = () => {
       
       return matchesSearch && matchesRank && matchesDept && matchesCard && matchesStatus;
     });
-  }, [search, rankFilter, deptFilter, cardFilter, statusFilter]);
+  }, [allPersonnel, search, rankFilter, deptFilter, cardFilter, statusFilter]);
 
   const handleExportPDF = () => {
     const headers = [["Service No", "Rank", "Name", "Department", "BPS", "Status"]];
