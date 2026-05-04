@@ -85,8 +85,7 @@ const About = () => (
               ['Quality Assurance', 'CVS QA Cell · ISO 9001'],
               ['Support Window', '08:00 – 22:00 PST · Mon–Sat'],
               ['Helpdesk', '+92-21-9920-1234'],
-              ['Email', 'contact@codevertex.pk
-'],
+              ['Email', 'contact@codevertex.pk'],
             ].map(([k, v]) => (
               <div
                 key={k}
