@@ -13,7 +13,13 @@ import {
   Clock,
   Gavel,
 } from 'lucide-react';
-import { activity } from '@/data/mock';
+import {
+  activity,
+  personnel,
+  leaveRecords,
+  sanctions,
+  payments,
+} from '@/data/mock';
 import { exportToPDF } from '@/lib/export';
 import { useState, useEffect } from 'react';
 import { isWithinInterval, parseISO } from 'date-fns';
@@ -26,31 +32,67 @@ import {
 
 const Dashboard = () => {
   const navigate = useNavigate();
-  const [onLeaveCount, setOnLeaveCount] = useState(4);
+  const [stats, setStats] = useState({
+    total: 412,
+    onLeave: 0,
+    openLogs: 27,
+    pendingAmt: 'Rs. 1.8M',
+    rawPendingAmt: 1800000,
+  });
 
   useEffect(() => {
-    const stored = JSON.parse(
+    // 1. Total Personnel
+    const imported = JSON.parse(
+      localStorage.getItem('pncms_personnel_imports') || '[]'
+    );
+    const total = personnel.length + imported.length;
+
+    // 2. Currently on Leave
+    const storedLeaves = JSON.parse(
       localStorage.getItem('pncms_leave_records') || '[]'
     );
+    const allLeaves = [...leaveRecords, ...storedLeaves];
     const today = new Date();
-    const active = stored.filter(
-      (l: any) =>
-        l.status === 'Submitted' &&
-        isWithinInterval(today, {
+    const onLeave = allLeaves.filter((l) => {
+      try {
+        return isWithinInterval(today, {
           start: parseISO(l.from),
           end: parseISO(l.to),
-        })
-    ).length;
-    setOnLeaveCount(4 + active);
+        });
+      } catch (e) {
+        return false;
+      }
+    }).length;
+
+    // 3. Open Work Logs (Pending Sanctions)
+    const openLogs = sanctions.filter((s) => s.status === 'Pending').length;
+
+    // 4. Pending Payments
+    const pendingTotal = payments
+      .filter((p) => p.status === 'Pending' || p.status === 'Processed')
+      .reduce((sum, p) => sum + p.amount, 0);
+
+    const formattedAmt =
+      pendingTotal >= 100000
+        ? `Rs. ${(pendingTotal / 1000000).toFixed(1)}M`
+        : `Rs. ${(pendingTotal / 1000).toFixed(0)}K`;
+
+    setStats({
+      total,
+      onLeave,
+      openLogs,
+      pendingAmt: formattedAmt,
+      rawPendingAmt: pendingTotal,
+    });
   }, []);
 
   const handleExportPDF = () => {
     const headers = [['Metric', 'Value', 'Subtitle']];
     const data = [
-      ['Total Personnel', '412', 'Active across 11 directorates'],
-      ['Currently on Leave', onLeaveCount.toString(), 'Personnel away today'],
-      ['Open Work Logs', '27', 'In current cycle'],
-      ['Pending Payments', 'Rs. 1.84M', '9 batches awaiting release'],
+      ['Total Personnel', stats.total.toString(), 'Active across directorates'],
+      ['Currently on Leave', stats.onLeave.toString(), 'Personnel away today'],
+      ['Open Work Logs', stats.openLogs.toString(), 'In current cycle'],
+      ['Pending Payments', stats.pendingAmt, 'Awaiting release'],
     ];
     exportToPDF('PNCMS Operational Brief', headers, data, 'pncms_brief');
   };
@@ -108,15 +150,15 @@ const Dashboard = () => {
       <div className="grid grid-cols-4 gap-5">
         <StatCard
           label="Total Personnel"
-          value="412"
-          sub="Directorate Strength"
+          value={stats.total}
+          sub="Unit Strength"
           icon={<Users className="w-5 h-5" />}
           accent="primary"
           onClick={() => navigate('/employment-records')}
         />
         <StatCard
           label="Currently on Leave"
-          value={onLeaveCount}
+          value={stats.onLeave}
           sub="Absent today"
           icon={<CalendarDays className="w-5 h-5" />}
           accent="danger"
@@ -124,7 +166,7 @@ const Dashboard = () => {
         />
         <StatCard
           label="Open Work Logs"
-          value="27"
+          value={stats.openLogs}
           sub="Active Overtime"
           icon={<ClipboardList className="w-5 h-5" />}
           accent="info"
@@ -132,7 +174,7 @@ const Dashboard = () => {
         />
         <StatCard
           label="Pending Payments"
-          value="Rs. 1.8M"
+          value={stats.pendingAmt}
           sub="Unpaid Batches"
           icon={<Wallet className="w-5 h-5" />}
           accent="gold"
