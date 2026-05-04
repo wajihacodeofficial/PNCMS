@@ -137,14 +137,14 @@ const Help = () => {
             <Phone className="w-5 h-5 text-primary" />
             <div>
               <div className="label-mil">Helpdesk</div>
-              <div className="font-semibold">+92-21-9920-1234 ext. 4421</div>
+              <div className="font-semibold">+92-3177-760505 ext. 4421</div>
             </div>
           </div>
           <div className="flex items-center gap-3">
             <Mail className="w-5 h-5 text-primary" />
             <div>
               <div className="label-mil">Email</div>
-              <div className="font-semibold">contact@codevertex.pk</div>
+              <div className="font-semibold">contact@codevertex.solutions</div>
             </div>
           </div>
           <div>

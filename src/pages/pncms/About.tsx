@@ -80,12 +80,12 @@ const About = () => (
           </div>
           <dl className="text-sm space-y-2.5">
             {[
-              ['Project Code', 'CVS--2025-001'],
+              ['Project Code', 'CVS--2026-001'],
               ['Lead Architect', 'Sr. Defense UX Architect'],
               ['Quality Assurance', 'CVS QA Cell · ISO 9001'],
               ['Support Window', '08:00 – 22:00 PST · Mon–Sat'],
-              ['Helpdesk', '+92-21-9920-1234'],
-              ['Email', 'contact@codevertex.pk'],
+              ['Helpdesk', '+92-3177-760505'],
+              ['Email', 'contact@codevertex.solutions'],
             ].map(([k, v]) => (
               <div
                 key={k}
