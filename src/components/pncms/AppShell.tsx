@@ -16,20 +16,9 @@ export const useCadre = () => useContext(CadreContext);
 export const AppShell = ({ children }: { children: ReactNode }) => {
   const navigate = useNavigate();
   const [clerkName, setClerkName] = useState("Wajiha Zehra");
-  const [globalSearch, setGlobalSearch] = useState("");
-  const [showResults, setShowResults] = useState(false);
   const [cadre, setCadreState] = useState<Cadre>(() => {
     return (localStorage.getItem("active_cadre") as Cadre) || 'Ministerial';
   });
-
-  const searchResults = useMemo(() => {
-    if (!globalSearch) return [];
-    const searchLower = globalSearch.toLowerCase();
-    return personnel.filter(p => 
-      p.name.toLowerCase().includes(searchLower) || 
-      p.svc.includes(searchLower)
-    ).slice(0, 6);
-  }, [globalSearch]);
 
   const setCadre = (c: Cadre) => {
     setCadreState(c);
@@ -66,61 +55,6 @@ export const AppShell = ({ children }: { children: ReactNode }) => {
               </div>
             </div>
 
-            <div className="flex-1 max-w-xl px-12 relative group">
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground group-focus-within:text-accent transition-colors" />
-                <input 
-                  type="text" 
-                  placeholder="Global Personnel Search..." 
-                  className="w-full h-10 pl-10 pr-12 bg-muted/30 border border-border rounded-sm text-sm focus:outline-none focus:border-accent focus:bg-card transition-all font-medium"
-                  value={globalSearch}
-                  onChange={(e) => {
-                    setGlobalSearch(e.target.value);
-                    setShowResults(true);
-                  }}
-                  onFocus={() => setShowResults(true)}
-                />
-                <div className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center gap-1 px-1.5 py-0.5 border border-border rounded bg-muted/50 text-[0.6rem] text-muted-foreground font-bold uppercase tracking-tighter">
-                  <Command className="w-2.5 h-2.5" /> K
-                </div>
-              </div>
-
-              {showResults && globalSearch && (
-                <div className="absolute top-full left-12 right-12 mt-1 bg-card border border-border rounded-sm shadow-elevated z-50 overflow-hidden animate-in fade-in slide-in-from-top-2">
-                  <div className="p-2 border-b border-border bg-muted/20 text-[0.6rem] font-bold text-muted-foreground uppercase tracking-wider flex justify-between items-center">
-                    Search Results
-                    <button onClick={() => setShowResults(false)} className="hover:text-primary">Close</button>
-                  </div>
-                  <div className="max-h-72 overflow-y-auto">
-                    {searchResults.length > 0 ? searchResults.map(p => (
-                      <button
-                        key={p.svc}
-                        onClick={() => {
-                          navigate(`/personnel/${p.svc}`);
-                          setGlobalSearch("");
-                          setShowResults(false);
-                        }}
-                        className="w-full flex items-center justify-between p-3 hover:bg-muted/50 transition-colors border-b border-border/50 last:border-0 group/item"
-                      >
-                        <div className="flex items-center gap-3">
-                          <div className="w-8 h-8 rounded-sm bg-accent/10 flex items-center justify-center text-accent">
-                            <User className="w-4 h-4" />
-                          </div>
-                          <div className="text-left">
-                            <div className="text-sm font-bold text-primary group-hover/item:text-accent transition-colors">{p.name}</div>
-                            <div className="text-[0.65rem] text-muted-foreground uppercase">{p.rank} · {p.dept}</div>
-                          </div>
-                        </div>
-                        <div className="text-xs font-mono font-bold text-accent">{p.svc}</div>
-                      </button>
-                    )) : (
-                      <div className="p-8 text-center text-muted-foreground italic text-xs">No personnel matches found for "{globalSearch}"</div>
-                    )}
-                  </div>
-                </div>
-              )}
-            </div>
-            
             <div className="flex items-center gap-5">
               <button
                 onClick={() => navigate('/notifications')}

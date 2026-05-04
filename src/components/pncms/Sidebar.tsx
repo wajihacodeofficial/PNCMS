@@ -3,7 +3,7 @@ import {
   LayoutDashboard, Users, FileWarning, ClipboardList, Wallet,
   CalendarDays, CheckSquare, FileBarChart2, Settings, LogOut,
   DatabaseBackup, ShieldAlert, Building2, ShieldCheck, Gavel,
-  History, FileSignature, Receipt
+  History, FileSignature, Receipt, Info
 } from "lucide-react";
 import crest from "@/assets/navy-crest.png";
 
@@ -31,6 +31,7 @@ const groups: { heading: string; items: { to: string; label: string; icon: React
     { to: "/reports", label: "Reports Hub", icon: FileBarChart2 },
     { to: "/audit", label: "Audit Trail", icon: ShieldAlert },
     { to: "/backup", label: "Backup & Restore", icon: DatabaseBackup },
+    { to: "/about", label: "About", icon: Info },
     { to: "/settings", label: "System Settings", icon: Settings },
   ]},
 ];
