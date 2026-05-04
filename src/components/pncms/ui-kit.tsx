@@ -27,9 +27,11 @@ export const Badge = ({ children, variant = "neutral", className }: { children: 
 
 /* === BUTTON === */
 type BtnVariant = "primary" | "gold" | "outline" | "ghost" | "danger" | "success";
-export const Btn = forwardRef<HTMLButtonElement, ButtonHTMLAttributes<HTMLButtonElement> & { variant?: BtnVariant }>(
-  ({ children, variant = "primary", className, ...rest }, ref) => {
-    const map: Record<BtnVariant, string> = {
+type BtnSize = "sm" | "md" | "lg";
+
+export const Btn = forwardRef<HTMLButtonElement, ButtonHTMLAttributes<HTMLButtonElement> & { variant?: BtnVariant; size?: BtnSize }>(
+  ({ children, variant = "primary", size = "md", className, ...rest }, ref) => {
+    const variantMap: Record<BtnVariant, string> = {
       primary: "bg-primary text-primary-foreground hover:bg-primary/90",
       gold:    "bg-accent text-accent-foreground hover:brightness-105 shadow-command",
       outline: "border border-primary/30 text-primary hover:bg-primary/5",
@@ -37,12 +39,20 @@ export const Btn = forwardRef<HTMLButtonElement, ButtonHTMLAttributes<HTMLButton
       danger:  "bg-destructive text-destructive-foreground hover:bg-destructive/90",
       success: "bg-success text-success-foreground hover:bg-success/90",
     };
+
+    const sizeMap: Record<BtnSize, string> = {
+      sm: "px-2.5 py-1.5 text-[0.65rem]",
+      md: "px-4 py-2.5 text-xs",
+      lg: "px-6 py-3.5 text-sm",
+    };
+
     return (
       <button
         ref={ref}
         className={cn(
-          "inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-sm text-xs font-semibold uppercase tracking-wider transition-all",
-          map[variant],
+          "inline-flex items-center justify-center gap-2 rounded-sm font-semibold uppercase tracking-wider transition-all",
+          variantMap[variant],
+          sizeMap[size],
           className
         )}
         {...rest}

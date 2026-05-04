@@ -34,6 +34,7 @@ import {
   Plus,
   Trash2,
   X,
+  Search,
 } from 'lucide-react';
 import { useNavigate, useParams } from 'react-router-dom';
 import * as Tabs from '@radix-ui/react-tabs';
@@ -283,6 +284,41 @@ const EmploymentRecordProfile = () => {
     });
   }, [leaveRecords]);
 
+  const [attendanceSearch, setAttendanceSearch] = useState('');
+  const [attendanceDateFilter, setAttendanceDateFilter] = useState('');
+  const [attendanceStatusFilter, setAttendanceStatusFilter] = useState('All');
+
+  const groupedAttendance = useMemo(() => {
+    const filtered = initialAttendance.filter((a) => {
+      let matchesDate = true;
+      if (attendanceDateFilter) {
+        const target = format(parseISO(attendanceDateFilter), 'dd-MMM-yyyy');
+        matchesDate = a.d === target;
+      }
+      
+      let matchesStatus = true;
+      if (attendanceStatusFilter !== 'All') {
+        if (attendanceStatusFilter === 'Leave') {
+          matchesStatus = !['Present', 'Weekend'].includes(a.s);
+        } else {
+          matchesStatus = a.s === attendanceStatusFilter;
+        }
+      }
+
+      const matchesSearch = !attendanceSearch || a.d.toLowerCase().includes(attendanceSearch.toLowerCase());
+      
+      return matchesDate && matchesStatus && matchesSearch;
+    });
+
+    const groups: Record<string, typeof initialAttendance> = {};
+    filtered.forEach((a) => {
+      const month = format(parse(a.d, 'dd-MMM-yyyy', new Date()), 'MMMM yyyy');
+      if (!groups[month]) groups[month] = [];
+      groups[month].push(a);
+    });
+    return groups;
+  }, [initialAttendance, attendanceSearch, attendanceDateFilter, attendanceStatusFilter]);
+
   const [modal, setModal] = useState<{
     isOpen: boolean;
     title: string;
@@ -370,6 +406,32 @@ const EmploymentRecordProfile = () => {
       ]
     );
     toast.success("Service Record PDF Generated");
+  };
+
+  const handleExportAttendance = () => {
+    const headers = [["Date", "Status", "Remarks"]];
+    const rows: string[][] = [];
+    
+    Object.entries(groupedAttendance).forEach(([month, records]) => {
+      rows.push([[month.toUpperCase(), "", ""] as any]); // Month header
+      records.forEach(a => {
+        rows.push([a.d, a.s, ""]);
+      });
+    });
+
+    exportToPDF(
+      `Attendance Statement - ${profile?.name}`, 
+      headers, 
+      rows, 
+      `attendance_${profile?.svc}`,
+      { period: "Historical Record", dept: profile?.dept, clerk: "Wajiha Zehra · DIL-ADM-04" },
+      [
+        { label: "SVC NO", value: profile?.svc },
+        { label: "NAME", value: profile?.name },
+        { label: "UNIT", value: profile?.unitLocation }
+      ]
+    );
+    toast.success("Attendance Report Generated");
   };
 
   return (
@@ -1057,27 +1119,77 @@ const EmploymentRecordProfile = () => {
               className="space-y-5 animate-in fade-in slide-in-from-right-2"
             >
               <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-                <Section title="Attendance History (Since Joining PNS Dilawar)">
-                  <div className="space-y-2 max-h-[500px] overflow-y-auto pr-2">
-                    {initialAttendance.map((a) => (
-                      <div
-                        key={a.id}
-                        className="flex items-center justify-between p-2 border-b border-border text-xs"
+                <Section 
+                  title="Attendance History (Since Joining PNS Dilawar)"
+                  actions={
+                    <div className="flex items-center gap-3">
+                      <div className="relative">
+                        <Calendar className="absolute left-2 top-1/2 -translate-y-1/2 w-3 h-3 text-accent" />
+                        <input 
+                          type="date" 
+                          className="h-8 pl-7 pr-2 bg-muted/20 border border-border rounded-sm text-[0.65rem] focus:outline-none focus:border-accent font-bold"
+                          value={attendanceDateFilter}
+                          onChange={(e) => setAttendanceDateFilter(e.target.value)}
+                        />
+                      </div>
+                      <Select 
+                        className="h-8 text-[0.65rem] w-32" 
+                        value={attendanceStatusFilter}
+                        onChange={(e) => setAttendanceStatusFilter(e.target.value)}
                       >
-                        <span className="font-mono font-bold">{a.d}</span>
-                        <Badge
-                          variant={
-                            a.s === 'Present'
-                              ? 'success'
-                              : a.s === 'Weekend'
-                                ? 'neutral'
-                                : 'warning'
-                          }
-                        >
-                          {a.s}
-                        </Badge>
+                        <option value="All">All Status</option>
+                        <option value="Present">Present Only</option>
+                        <option value="Weekend">Weekends</option>
+                        <option value="Leave">All Leaves</option>
+                        <option value="Casual Leave">Casual Leave</option>
+                        <option value="Recreation Leave">Recreation Leave</option>
+                      </Select>
+                      <Btn variant="outline" size="sm" className="h-8 px-2" onClick={handleExportAttendance}>
+                        <Download className="w-3 h-3 mr-1" /> Export
+                      </Btn>
+                    </div>
+                  }
+                >
+                  <div className="space-y-4 max-h-[500px] overflow-y-auto pr-2">
+                    {Object.entries(groupedAttendance).map(([month, records]) => (
+                      <div key={month} className="space-y-2">
+                        <div className="text-[0.6rem] font-bold text-accent uppercase tracking-widest border-b border-border/50 pb-1 mb-2 sticky top-0 bg-card z-10 py-1 flex justify-between items-center">
+                          {month}
+                          <Badge variant="neutral" className="text-[0.5rem]">{records.length} Records</Badge>
+                        </div>
+                        {records.map((a) => (
+                          <div
+                            key={a.id}
+                            className="flex items-center justify-between p-2 border-b border-border/50 text-xs hover:bg-muted/10 transition-colors"
+                          >
+                            <span className="font-mono font-bold">{a.d}</span>
+                            <Badge
+                              variant={
+                                a.s === 'Present'
+                                  ? 'success'
+                                  : a.s === 'Weekend'
+                                    ? 'neutral'
+                                    : 'warning'
+                              }
+                            >
+                              {a.s}
+                            </Badge>
+                          </div>
+                        ))}
                       </div>
                     ))}
+                    {Object.keys(groupedAttendance).length === 0 && (
+                      <div className="text-center py-12 bg-muted/10 border-2 border-dashed border-border rounded-sm">
+                        <Search className="w-8 h-8 text-muted-foreground/30 mx-auto mb-2" />
+                        <p className="text-xs font-bold text-muted-foreground uppercase">No Records Found</p>
+                        <p className="text-[0.6rem] text-muted-foreground mt-1">Try adjusting your filters or date range.</p>
+                        {(attendanceDateFilter || attendanceStatusFilter !== 'All') && (
+                          <Btn variant="ghost" size="sm" className="mt-4 h-7 text-[0.6rem]" onClick={() => { setAttendanceDateFilter(''); setAttendanceStatusFilter('All'); }}>
+                            Clear All Filters
+                          </Btn>
+                        )}
+                      </div>
+                    )}
                   </div>
                 </Section>
                 <div className="space-y-5">

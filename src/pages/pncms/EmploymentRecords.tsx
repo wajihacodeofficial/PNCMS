@@ -154,7 +154,7 @@ const EmploymentRecords = () => {
       const matchesStatus = statusFilter === "All Status" || p.status === statusFilter;
       
       return matchesSearch && matchesRank && matchesDept && matchesCard && matchesStatus;
-    });
+    }).sort((a, b) => a.svc.localeCompare(b.svc));
   }, [allPersonnel, search, rankFilter, deptFilter, cardFilter, statusFilter]);
 
   const handleExportPDF = () => {

@@ -12,6 +12,7 @@ interface Correspondence {
   date: string;
   ref: string;
   subject: string;
+  type: string;
 }
 
 interface DisciplineRecord {
@@ -39,7 +40,7 @@ const Discipline = () => {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [search, setSearch] = useState('');
   const [selectedCase, setSelectedCase] = useState<DisciplineRecord | null>(null);
-  const [newCorr, setNewCorr] = useState({ date: '', ref: '', subject: '' });
+  const [newCorr, setNewCorr] = useState({ date: '', ref: '', subject: '', type: 'Letter' });
   
   // Security Modal
   const [unlockModal, setUnlockModal] = useState<{ type: 'edit' | 'reopen', record?: DisciplineRecord } | null>(null);
@@ -129,7 +130,7 @@ const Discipline = () => {
       const updated = { ...selectedCase, history: [...(selectedCase.history || []), newCorr] };
       setRecords(records.map(r => r.id === selectedCase.id ? updated : r));
       setSelectedCase(updated);
-      setNewCorr({ date: '', ref: '', subject: '' });
+      setNewCorr({ date: '', ref: '', subject: '', type: 'Letter' });
       toast.success('Correspondence added to case file');
     }
   };
@@ -144,11 +145,13 @@ const Discipline = () => {
   };
 
   const filteredRecords = useMemo(() => {
-    return records.filter(r => 
-      r.name.toLowerCase().includes(search.toLowerCase()) ||
-      r.svc.toLowerCase().includes(search.toLowerCase()) ||
-      r.ref.toLowerCase().includes(search.toLowerCase())
-    );
+    return records
+      .filter(r => 
+        r.name.toLowerCase().includes(search.toLowerCase()) ||
+        r.svc.toLowerCase().includes(search.toLowerCase()) ||
+        r.ref.toLowerCase().includes(search.toLowerCase())
+      )
+      .sort((a, b) => a.date.localeCompare(b.date));
   }, [search, records]);
 
   return (
@@ -215,18 +218,32 @@ const Discipline = () => {
                      <div className="space-y-3">
                         {(selectedCase.history || []).map((c, i) => (
                            <div key={i} className="text-xs p-3 bg-card border border-border rounded-sm shadow-sm animate-in slide-in-from-left-2">
-                              <div className="flex justify-between font-mono text-[0.6rem] text-accent font-bold mb-1"><span>{c.date}</span><span>{c.ref}</span></div>
+                              <div className="flex justify-between font-mono text-[0.6rem] text-accent font-bold mb-1">
+                                <span>{c.date}</span>
+                                <Badge variant="neutral" className="text-[0.5rem] px-1 py-0">{c.type}</Badge>
+                                <span>{c.ref}</span>
+                              </div>
                               <div className="font-bold text-primary leading-tight uppercase">{c.subject}</div>
                            </div>
                         ))}
                      </div>
                      {selectedCase.status !== 'Closed' ? (
                         <div className="p-4 bg-accent/5 border border-accent/20 rounded-sm space-y-3 mt-4">
-                           <div className="text-[0.6rem] font-bold text-accent uppercase mb-1">Log New Correspondence</div>
-                           <input type="date" className="w-full text-[0.7rem] p-2 bg-card border border-border rounded-sm focus:border-accent outline-none" value={newCorr.date} onChange={e => setNewCorr({...newCorr, date: e.target.value})} />
-                           <input placeholder="Letter Ref No..." className="w-full text-[0.7rem] p-2 bg-card border border-border rounded-sm focus:border-accent outline-none" value={newCorr.ref} onChange={e => setNewCorr({...newCorr, ref: e.target.value})} />
-                           <textarea placeholder="Subject/Detail of letter..." className="w-full text-[0.7rem] p-2 bg-card border border-border rounded-sm min-h-[60px] focus:border-accent outline-none" value={newCorr.subject} onChange={e => setNewCorr({...newCorr, subject: e.target.value})} />
-                           <Btn variant="gold" className="w-full h-8 text-xs font-bold" onClick={addCorrespondence}><Send className="w-3.5 h-3.5 mr-2" /> Log Correspondence</Btn>
+                            <div className="text-[0.6rem] font-bold text-accent uppercase mb-1">Log New Correspondence</div>
+                            <div className="grid grid-cols-2 gap-2">
+                              <input type="date" className="w-full text-[0.7rem] p-2 bg-card border border-border rounded-sm focus:border-accent outline-none" value={newCorr.date} onChange={e => setNewCorr({...newCorr, date: e.target.value})} />
+                              <Select className="w-full h-8 text-[0.7rem]" value={newCorr.type} onChange={e => setNewCorr({...newCorr, type: e.target.value})}>
+                                <option>Letter</option>
+                                <option>Show Cause</option>
+                                <option>Explanation</option>
+                                <option>Warning</option>
+                                <option>Hearing Notice</option>
+                                <option>Email</option>
+                              </Select>
+                            </div>
+                            <input placeholder="Letter Ref No..." className="w-full text-[0.7rem] p-2 bg-card border border-border rounded-sm focus:border-accent outline-none" value={newCorr.ref} onChange={e => setNewCorr({...newCorr, ref: e.target.value})} />
+                            <textarea placeholder="Subject/Detail of letter..." className="w-full text-[0.7rem] p-2 bg-card border border-border rounded-sm min-h-[60px] focus:border-accent outline-none" value={newCorr.subject} onChange={e => setNewCorr({...newCorr, subject: e.target.value})} />
+                            <Btn variant="gold" className="w-full h-8 text-xs font-bold" onClick={addCorrespondence}><Send className="w-3.5 h-3.5 mr-2" /> Log Correspondence</Btn>
                         </div>
                      ) : (
                         <div className="p-4 bg-success/5 border border-success/20 rounded-sm text-center">
@@ -308,8 +325,8 @@ const Discipline = () => {
                 <Field label="Name" required><Input value={form.name} onChange={e => setForm({...form, name: e.target.value})} /></Field>
               </div>
               <div className="grid grid-cols-2 gap-4">
-                <Field label="Offense"><Select value={form.offense} onChange={e => setForm({...form, offense: e.target.value})}><option>Unauthorized Absence</option><option>Misconduct</option><option>Professional Negligence</option><option>Insubordination</option></Select></Field>
-                <Field label="Action"><Select value={form.action} onChange={e => setForm({...form, action: e.target.value})}><option>Written Warning</option><option>Suspension</option><option>Fine</option><option>Termination</option></Select></Field>
+                <Field label="Offense"><Select value={form.offense} onChange={e => setForm({...form, offense: e.target.value})}><option>Unauthorized Absence</option><option>Misconduct</option><option>Professional Negligence</option><option>Insubordination</option><option>Theft/Damage to Property</option><option>Breach of Security</option><option>Tardiness</option><option>Moral Turpitude</option></Select></Field>
+                <Field label="Action"><Select value={form.action} onChange={e => setForm({...form, action: e.target.value})}><option>Verbal Warning</option><option>Written Warning</option><option>Explanation Call</option><option>Show Cause Notice</option><option>Censure</option><option>Fine</option><option>Suspension</option><option>Demotion</option><option>Termination</option></Select></Field>
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <Field label="Date" required><Input type="date" value={form.date} onChange={e => setForm({...form, date: e.target.value})} /></Field>
