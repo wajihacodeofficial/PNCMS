@@ -103,7 +103,7 @@ const Ranks = () => {
       startY: 40,
       head: [['Service No', 'Name', 'Department', 'Contact']],
       body: rankInds.map(ind => [ind.serviceNo, ind.name, ind.department, ind.phone]),
-      headStyles: { fillStyle: 'F', fillColor: [24, 44, 71] },
+      headStyles: { fillColor: [24, 44, 71] },
       styles: { fontSize: 9 }
     });
     

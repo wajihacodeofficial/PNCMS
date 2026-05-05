@@ -47,7 +47,11 @@ const LeaveDashboard = () => {
   const handleExportCurrent = () => {
     const headers = [["Svc No", "Employee", "Type", "From", "Days"]];
     const rows = currentOnLeave.map(p => [p.svc, p.name, p.type, p.from, p.days]);
-    exportToPDF("Currently On-Leave Personnel", headers, rows, "current_leaves", { period: format(today, "dd MMM yyyy") });
+    exportToPDF("Currently On-Leave Personnel", headers, rows, "current_leaves", { 
+      period: format(today, "dd MMM yyyy"),
+      dept: "All Departments",
+      clerk: "Admin Staff"
+    });
     toast.success("Current Leave List Exported");
   };
 

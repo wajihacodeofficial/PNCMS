@@ -267,7 +267,8 @@ const OvertimeSystem = () => {
         </Tabs.Content>
 
         <Tabs.Content value="approved" className="animate-in fade-in duration-300">
-           <Section title="Active Authorizations" subtitle="Personnel currently authorized to perform extra duties.">
+           <Section title="Active Authorizations">
+              <p className="text-xs text-muted-foreground mb-4 italic px-5 -mt-2">Personnel currently authorized to perform extra duties.</p>
               <div className="grid grid-cols-2 gap-4">
                 {approvedSanctions.map((s: any) => (
                   <div key={s.id} className="panel p-5 border-l-4 border-l-success flex items-center justify-between group hover:shadow-md transition-all">
