@@ -199,17 +199,20 @@ const Discipline = () => {
   };
   return (
     <AppShell>
+      <input 
+        type="file" 
+        ref={fileInputRef} 
+        className="hidden" 
+        accept=".xlsx,.xls" 
+        onChange={handleImport} 
+      />
       <PageHeader title="Disciplinary Actions" subtitle="Manage Conduct · Warnings · Personnel Proceedings"
         actions={
           <div className="flex gap-2">
-            <input 
-              type="file" 
-              ref={fileInputRef} 
-              className="hidden" 
-              accept=".xlsx,.xls" 
-              onChange={handleImport} 
-            />
-            <Btn variant="outline" onClick={() => fileInputRef.current?.click()}>
+            <Btn variant="outline" onClick={() => {
+              console.log("Import button clicked");
+              fileInputRef.current?.click();
+            }}>
               <Upload className="w-4 h-4" /> Import Data
             </Btn>
             <Btn variant="danger" onClick={() => setIsAdding(true)}>
