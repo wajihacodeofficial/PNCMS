@@ -147,7 +147,7 @@ const Dashboard = () => {
         }
       />
 
-      <div className="grid grid-cols-4 gap-5">
+      <div className="grid grid-cols-3 gap-5">
         <StatCard
           label="Total Personnel"
           value={stats.total}
@@ -170,15 +170,7 @@ const Dashboard = () => {
           sub="Active Overtime"
           icon={<ClipboardList className="w-5 h-5" />}
           accent="info"
-          onClick={() => navigate('/work-logs')}
-        />
-        <StatCard
-          label="Pending Payments"
-          value={stats.pendingAmt}
-          sub="Unpaid Batches"
-          icon={<Wallet className="w-5 h-5" />}
-          accent="gold"
-          onClick={() => navigate('/payments')}
+          onClick={() => navigate('/overtime')}
         />
       </div>
 
@@ -209,8 +201,8 @@ const Dashboard = () => {
                       a.tag === 'LEAVE'
                         ? '/leave'
                         : a.tag === 'SANCTION'
-                          ? '/sanctions'
-                          : '/work-logs'
+                          ? '/overtime'
+                          : '/overtime'
                     )
                   }
                 >

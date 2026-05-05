@@ -1,8 +1,8 @@
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo, useEffect, useRef } from 'react';
 import { AppShell, PageHeader } from '@/components/pncms/AppShell';
 import { Btn, Badge, Section, Field, Input, Select } from '@/components/pncms/ui-kit';
 import {
-  Plus, ShieldAlert, Gavel, Search, Trash2, X, Eye, FileText, Printer, MessageSquare, Edit3, CheckCircle, Clock, History, Send, Lock, Unlock, ShieldX
+  Plus, ShieldAlert, Gavel, Search, Trash2, X, Eye, FileText, Printer, MessageSquare, Edit3, CheckCircle, Clock, History, Send, Lock, Unlock, ShieldX, Upload
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { disciplinaryActions as INITIAL_DATA } from '@/data/mock';
@@ -30,6 +30,8 @@ interface DisciplineRecord {
   history?: Correspondence[];
 }
 
+import * as ExcelJS from 'exceljs';
+
 const Discipline = () => {
   const [records, setRecords] = useState<DisciplineRecord[]>(() => {
     const saved = localStorage.getItem('pncms_discipline_records');
@@ -41,6 +43,7 @@ const Discipline = () => {
   const [search, setSearch] = useState('');
   const [selectedCase, setSelectedCase] = useState<DisciplineRecord | null>(null);
   const [newCorr, setNewCorr] = useState({ date: '', ref: '', subject: '', type: 'Letter' });
+  const fileInputRef = useRef<HTMLInputElement>(null);
   
   // Security Modal
   const [unlockModal, setUnlockModal] = useState<{ type: 'edit' | 'reopen', record?: DisciplineRecord } | null>(null);
@@ -153,11 +156,67 @@ const Discipline = () => {
       )
       .sort((a, b) => a.date.localeCompare(b.date));
   }, [search, records]);
+  const handleImport = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
 
+    try {
+      const workbook = new ExcelJS.Workbook();
+      const arrayBuffer = await file.arrayBuffer();
+      await workbook.xlsx.load(arrayBuffer);
+      const worksheet = workbook.getWorksheet(1);
+      
+      const newRecords: DisciplineRecord[] = [];
+      worksheet?.eachRow((row, rowNumber) => {
+        if (rowNumber > 1) { // Skip headers
+          const record: DisciplineRecord = {
+            id: Math.random().toString(36).substr(2, 9),
+            svc: row.getCell(1).text || "Unknown",
+            name: row.getCell(2).text || "Unknown",
+            offense: row.getCell(3).text || "Unauthorized Absence",
+            action: row.getCell(4).text || "Written Warning",
+            date: row.getCell(5).text || new Date().toISOString().split('T')[0],
+            ref: row.getCell(6).text || `IMP-${Date.now()}`,
+            status: (row.getCell(7).text as any) || 'Ongoing',
+            details: row.getCell(8).text || '',
+            remarks: row.getCell(9).text || '',
+            authority: row.getCell(10).text || 'Commanding Officer',
+            history: []
+          };
+          newRecords.push(record);
+        }
+      });
+
+      if (newRecords.length > 0) {
+        setRecords([...newRecords, ...records]);
+        toast.success(`Successfully imported ${newRecords.length} records`);
+        logAction("IMPORT", `${newRecords.length} Discipline Records`, "Success");
+      }
+    } catch (error) {
+      console.error("Import failed", error);
+      toast.error("Failed to import data. Ensure valid Excel format.");
+    }
+  };
   return (
     <AppShell>
       <PageHeader title="Disciplinary Actions" subtitle="Manage Conduct · Warnings · Personnel Proceedings"
-        actions={<Btn variant="danger" onClick={() => setIsAdding(true)}><Plus className="w-4 h-4" /> Log Proceeding</Btn>}
+        actions={
+          <div className="flex gap-2">
+            <input 
+              type="file" 
+              ref={fileInputRef} 
+              className="hidden" 
+              accept=".xlsx,.xls" 
+              onChange={handleImport} 
+            />
+            <Btn variant="outline" onClick={() => fileInputRef.current?.click()}>
+              <Upload className="w-4 h-4" /> Import Data
+            </Btn>
+            <Btn variant="danger" onClick={() => setIsAdding(true)}>
+              <Plus className="w-4 h-4" /> Log Proceeding
+            </Btn>
+          </div>
+        }
       />
 
       <Section title={`Discipline Log · ${filteredRecords.length} Records`}>
