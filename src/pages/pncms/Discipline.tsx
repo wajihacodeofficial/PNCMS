@@ -31,8 +31,6 @@ interface DisciplineRecord {
   history?: Correspondence[];
 }
 
-
-
 const Discipline = () => {
   const [records, setRecords] = useState<DisciplineRecord[]>(() => {
     const saved = localStorage.getItem('pncms_discipline_records');
@@ -157,6 +155,7 @@ const Discipline = () => {
       )
       .sort((a, b) => a.date.localeCompare(b.date));
   }, [search, records]);
+
   const handleImport = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -198,6 +197,7 @@ const Discipline = () => {
       toast.error("Failed to import data. Ensure valid Excel format.");
     }
   };
+
   return (
     <AppShell>
       <input 
@@ -210,10 +210,7 @@ const Discipline = () => {
       <PageHeader title="Disciplinary Actions" subtitle="Manage Conduct · Warnings · Personnel Proceedings"
         actions={
           <div className="flex gap-2">
-            <Btn variant="outline" onClick={() => {
-              console.log("Import button clicked");
-              fileInputRef.current?.click();
-            }}>
+            <Btn variant="outline" onClick={() => fileInputRef.current?.click()}>
               <Upload className="w-4 h-4" /> Import Data
             </Btn>
             <Btn variant="danger" onClick={() => setIsAdding(true)}>
