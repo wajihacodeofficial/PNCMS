@@ -7,6 +7,7 @@ import {
 import { toast } from 'sonner';
 import { disciplinaryActions as INITIAL_DATA } from '@/data/mock';
 import { logAction } from '@/lib/audit';
+import * as ExcelJS from 'exceljs';
 
 interface Correspondence {
   date: string;
@@ -30,7 +31,7 @@ interface DisciplineRecord {
   history?: Correspondence[];
 }
 
-import * as ExcelJS from 'exceljs';
+
 
 const Discipline = () => {
   const [records, setRecords] = useState<DisciplineRecord[]>(() => {
