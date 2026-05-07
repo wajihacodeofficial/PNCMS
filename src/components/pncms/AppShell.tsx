@@ -2,7 +2,7 @@ import { ReactNode, useState, useEffect, useMemo, createContext, useContext } fr
 import { Sidebar } from './Sidebar';
 import { Bell, ShieldCheck, ChevronDown, ArrowLeft, ArrowRight, RotateCcw, Search, User, Command } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
-import { personnel } from '@/data/mock';
+import { useSettings } from '@/hooks/use-api';
 
 type Cadre = 'Ministerial' | 'Industrial';
 
@@ -15,6 +15,7 @@ export const useCadre = () => useContext(CadreContext);
 
 export const AppShell = ({ children }: { children: ReactNode }) => {
   const navigate = useNavigate();
+  const { data: settings } = useSettings();
   const [clerkName, setClerkName] = useState("Wajiha Zehra");
   const [cadre, setCadreState] = useState<Cadre>(() => {
     return (localStorage.getItem("active_cadre") as Cadre) || 'Ministerial';
@@ -26,9 +27,13 @@ export const AppShell = ({ children }: { children: ReactNode }) => {
   };
 
   useEffect(() => {
-    const saved = localStorage.getItem("clerk_name");
-    if (saved) setClerkName(saved);
-  }, []);
+    if (settings) {
+      if (settings.clerk_name) setClerkName(settings.clerk_name);
+      Object.entries(settings).forEach(([key, value]) => {
+        localStorage.setItem(key, value as string);
+      });
+    }
+  }, [settings]);
 
   return (
     <CadreContext.Provider value={{ cadre, setCadre }}>

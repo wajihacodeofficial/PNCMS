@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { AppShell, PageHeader, useCadre } from '@/components/pncms/AppShell';
 import {
@@ -10,14 +10,20 @@ import {
   Select,
 } from '@/components/pncms/ui-kit';
 import { Plus, AlertTriangle, Eye, Check, X, Search, FileText } from 'lucide-react';
-import { sanctions } from '@/data/mock';
+import { useSanctions, usePersonnel } from '@/hooks/use-api';
+import { format, parseISO } from 'date-fns';
 
 const Sanctions = () => {
   const { cadre } = useCadre();
   const [open, setOpen] = useState(false);
   const navigate = useNavigate();
+  const { data: sanctions = [], isLoading } = useSanctions();
+  const { data: personnel = [] } = usePersonnel();
   
-  const filteredSanctions = sanctions.filter(s => s.cadre === cadre);
+  const filteredSanctions = useMemo(() => {
+    return (sanctions as any[]).filter(s => s.employee?.cardType === cadre);
+  }, [sanctions, cadre]);
+
   const pending = filteredSanctions.filter((s) => s.status === 'Pending').length;
 
   const typeLabel = cadre === 'Ministerial' ? 'Late-Sitting' : 'Overtime';
@@ -103,17 +109,21 @@ const Sanctions = () => {
               </tr>
             </thead>
             <tbody>
-              {filteredSanctions.map((s) => (
+              {isLoading ? (
+                <tr><td colSpan={8} className="text-center py-10 text-muted-foreground italic">Fetching official authorizations...</td></tr>
+              ) : filteredSanctions.length === 0 ? (
+                <tr><td colSpan={8} className="text-center py-10 text-muted-foreground italic">No sanctions found for this cadre.</td></tr>
+              ) : filteredSanctions.map((s: any) => (
                 <tr key={s.id} className="group hover:bg-muted/10 transition-colors">
-                  <td className="font-mono text-xs font-semibold text-primary">{s.id}</td>
-                  <td className="font-semibold">{s.emp}</td>
-                  <td className="text-muted-foreground">{s.dept}</td>
+                  <td className="font-mono text-xs font-semibold text-primary">{s.sanctionId}</td>
+                  <td className="font-semibold">{s.employee?.name}</td>
+                  <td className="text-muted-foreground">{s.employee?.department?.name}</td>
                   <td>
                     <span className="font-bold text-primary">{s.hours}</span>{' '}
                     <span className="label-mil">hrs</span>
                   </td>
                   <td>{s.period}</td>
-                  <td className="font-mono text-xs">{s.date}</td>
+                  <td className="font-mono text-xs">{s.date || format(parseISO(s.createdAt), 'dd-MM-yy')}</td>
                   <td><Badge variant={s.status.toLowerCase() as any}>{s.status}</Badge></td>
                   <td className="text-right">
                     <div className="flex justify-end gap-1 opacity-60 group-hover:opacity-100 transition-opacity">
@@ -147,10 +157,13 @@ const Sanctions = () => {
             <div className="p-8 grid grid-cols-2 gap-6">
               <Field label="Select Personnel" required>
                 <Select>
-                  <option>Select Eligible Staff...</option>
-                  {/* Mock filtering available personnel by cadre */}
-                  <option>Muhammad Tariq Khan (10420)</option>
-                  <option>Aisha Rehman (10430)</option>
+                  <option value="">Select Eligible Staff...</option>
+                  {(personnel as any[])
+                    .filter(p => p.cardType === cadre)
+                    .map(p => (
+                      <option key={p.id} value={p.id}>{p.name} ({p.serviceNo})</option>
+                    ))
+                  }
                 </Select>
               </Field>
               <Field label="Department" required><Input defaultValue="Administration" disabled /></Field>

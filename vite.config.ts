@@ -21,6 +21,13 @@ export default defineConfig(({ mode }) => ({
       {
         // Main-Process entry file of the Electron App.
         entry: "electron/main.ts",
+        vite: {
+          build: {
+            rollupOptions: {
+              external: ['@prisma/client'],
+            },
+          },
+        },
       },
       {
         entry: "electron/preload.ts",

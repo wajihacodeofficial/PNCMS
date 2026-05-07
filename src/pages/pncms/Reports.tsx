@@ -1,10 +1,11 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { AppShell, PageHeader } from "@/components/pncms/AppShell";
 import { Btn, Field, Select } from "@/components/pncms/ui-kit";
 import { FileText, Users, Wallet, ClipboardList, CalendarDays, BarChart3, ShieldCheck, FileSpreadsheet, Eye, Printer, Download } from "lucide-react";
-import { personnel } from "@/data/mock";
+import { usePersonnel, useSanctions, useAttendanceRange, useLogs, useSettings } from "@/hooks/use-api";
 import { exportToPDF, exportToExcel } from "@/lib/export";
 import { toast } from "sonner";
+import { format, startOfMonth, endOfMonth, parse } from 'date-fns';
 
 const reportConfig = [
   { id: "personnel", icon: Users, title: "Personnel Master Report", desc: "Complete civilian staff register with rank, cadre, BPS and posting details." },
@@ -16,29 +17,33 @@ const reportConfig = [
 ];
 
 const Reports = () => {
-  const [clerkName, setClerkName] = useState("Wajiha Zehra");
-  const [selectedMonth, setSelectedMonth] = useState("April 2026");
-
-  useEffect(() => {
-    const clk = localStorage.getItem("clerk_name");
-    if (clk) setClerkName(clk);
-  }, []);
+  const { data: settings = {} } = useSettings();
+  const [selectedMonth, setSelectedMonth] = useState(format(new Date(), 'MMMM yyyy'));
+  
+  const { data: personnel = [] } = usePersonnel();
+  const { data: sanctions = [] } = useSanctions();
+  const { data: logs = [] } = useLogs();
+  
+  const parsedDate = parse(selectedMonth, 'MMMM yyyy', new Date());
+  const startStr = format(startOfMonth(parsedDate), 'yyyy-MM-dd');
+  const endStr = format(endOfMonth(parsedDate), 'yyyy-MM-dd');
+  const { data: attendance = [] } = useAttendanceRange(startStr, endStr);
 
   const getCommonMetadata = (dept = "All Departments") => ({
     period: selectedMonth,
     dept: dept,
-    clerk: `${clerkName} · DIL-ADM-04`
+    clerk: `${settings.clerk_name || 'Admin Clerk'} · PNCMS`
   });
 
-  const handleExport = async (type: string, format: 'pdf' | 'excel') => {
-    toast.loading(`Preparing ${type.toUpperCase()} ${format.toUpperCase()}...`);
+  const handleExport = async (type: string, formatType: 'pdf' | 'excel') => {
+    toast.loading(`Preparing ${type.toUpperCase()} ${formatType.toUpperCase()}...`);
 
     try {
       if (type === "personnel") {
         const headers = [["#", "Svc No", "Rank", "Name", "Department", "BPS", "Type"]];
-        const rows = personnel.map((p, i) => [i + 1, p.svc, p.rank, p.name, p.dept, p.bps, p.cardType]);
+        const rows = (personnel as any[]).map((p, i) => [i + 1, p.serviceNo, p.rank?.name, p.name, p.department?.name, p.bps, p.cardType]);
         
-        if (format === 'pdf') {
+        if (formatType === 'pdf') {
           exportToPDF("Personnel Master Register", headers, rows, "personnel_master", getCommonMetadata());
         } else {
           await exportToExcel("Personnel", headers[0], rows, "personnel_master");
@@ -46,12 +51,12 @@ const Reports = () => {
       } 
       
       else if (type === "sanctions") {
-        const saved = localStorage.getItem("pncms_sanctions");
-        const sanctions = saved ? JSON.parse(saved) : [];
         const headers = [["#", "SNC ID", "Employee", "Service No", "Limit", "Status", "Cadre"]];
-        const rows = sanctions.map((s: any, i: number) => [i + 1, s.id, s.emp, s.svc, `${s.hours}h`, s.status.toUpperCase(), s.cadre]);
+        const rows = (sanctions as any[]).map((s: any, i: number) => [
+          i + 1, s.sanctionId, s.employee?.name, s.employee?.serviceNo, `${s.hours}h`, s.status.toUpperCase(), s.employee?.cardType
+        ]);
         
-        if (format === 'pdf') {
+        if (formatType === 'pdf') {
           exportToPDF("Official Sanction Register", headers, rows, "sanction_register", getCommonMetadata());
         } else {
           await exportToExcel("Sanctions", headers[0], rows, "sanction_register");
@@ -59,19 +64,18 @@ const Reports = () => {
       }
 
       else if (type === "payments") {
-        const savedStatuses = localStorage.getItem("pncms_payment_statuses");
-        const statuses = savedStatuses ? JSON.parse(savedStatuses) : {};
-        const savedSanctions = localStorage.getItem("pncms_sanctions");
-        const sanctions = savedSanctions ? JSON.parse(savedSanctions) : [];
-        
         const headers = [["#", "Employee", "Svc No", "Department", "Payable", "Status", "Amount"]];
-        const rows = sanctions.filter((s: any) => s.status === 'Approved').map((s: any, i: number) => {
-          const p = personnel.find(pers => pers.svc === s.svc);
-          const status = statuses[s.id] || "Payment Pending";
-          return [i + 1, p?.name || s.emp, s.svc, p?.dept || s.dept, `${s.hours}h`, status, `Rs. ${(s.hours * 400).toLocaleString()}`];
+        const rows = (sanctions as any[]).filter((s: any) => s.status === 'Approved').map((s: any, i: number) => {
+          const rate = s.employee?.cardType === 'Ministerial' ? 
+            parseInt(settings.rate_ministerial || '380') : 
+            parseInt(settings.rate_industrial || '420');
+          return [
+            i + 1, s.employee?.name, s.employee?.serviceNo, s.employee?.department?.name, 
+            `${s.hours}h`, 'Approved', `Rs. ${(s.hours * rate).toLocaleString()}`
+          ];
         });
 
-        if (format === 'pdf') {
+        if (formatType === 'pdf') {
           exportToPDF("Disbursement Bill Summary", headers, rows, "payment_bill", getCommonMetadata());
         } else {
           await exportToExcel("Payments", headers[0], rows, "payment_bill");
@@ -79,28 +83,45 @@ const Reports = () => {
       }
 
       else if (type === "attendance") {
-        const savedHistory = localStorage.getItem('pncms_attendance_history');
-        const history = savedHistory ? JSON.parse(savedHistory) : {};
-        const dates = Object.keys(history);
-        
         const headers = [["#", "Date", "Total Strength", "Present", "Absent", "Leave"]];
-        const rows = dates.map((date, i) => {
-          const marks = Object.values(history[date]);
-          const p = marks.filter(v => v === "P").length;
-          const a = marks.filter(v => v === "A").length;
-          return [i + 1, date, personnel.length, p, a, personnel.length - (p + a)];
+        
+        // Group attendance by date
+        const grouped = (attendance as any[]).reduce((acc: any, curr: any) => {
+          if (!acc[curr.date]) acc[curr.date] = [];
+          acc[curr.date].push(curr.status);
+          return acc;
+        }, {});
+
+        const rows = Object.entries(grouped).map(([date, marks]: [string, any], i) => {
+          const p = marks.filter((v: string) => v === "P" || v === "L").length;
+          const a = marks.filter((v: string) => v === "A").length;
+          const total = personnel.length;
+          return [i + 1, date, total, p, a, total - (p + a)];
         });
 
-        if (format === 'pdf') {
+        if (formatType === 'pdf') {
           exportToPDF("Monthly Attendance Statement", headers, rows, "attendance_summary", getCommonMetadata());
         } else {
           await exportToExcel("Attendance", headers[0], rows, "attendance_summary");
         }
       }
 
+      else if (type === "audit") {
+        const headers = [["#", "Time", "User", "Action", "Entity", "Result"]];
+        const rows = (logs as any[]).map((l, i) => [
+          i + 1, format(new Date(l.time), 'dd-MMM-yy HH:mm'), l.user, l.action, l.entity, l.result
+        ]);
+        if (formatType === 'pdf') {
+          exportToPDF("System Audit History", headers, rows, "audit_trail", getCommonMetadata());
+        } else {
+          await exportToExcel("AuditLog", headers[0], rows, "audit_trail");
+        }
+      }
+
       toast.dismiss();
       toast.success(`${type.charAt(0).toUpperCase() + type.slice(1)} report exported successfully.`);
     } catch (err) {
+      console.error(err);
       toast.dismiss();
       toast.error("Export failed. Please check system logs.");
     }
@@ -114,7 +135,7 @@ const Reports = () => {
         <div className="col-span-3">
           <Field label="Reporting Period">
             <Select value={selectedMonth} onChange={(e) => setSelectedMonth(e.target.value)} className="h-11 font-bold">
-              {["April 2026","March 2026","February 2026","January 2026"].map(m=><option key={m}>{m}</option>)}
+              {["May 2026", "April 2026", "March 2026", "February 2026"].map(m=><option key={m}>{m}</option>)}
             </Select>
           </Field>
         </div>

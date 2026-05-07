@@ -22,43 +22,58 @@ import {
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
+import { useSettings, useUpsertSetting } from '@/hooks/use-api';
+
 const Settings = () => {
   const navigate = useNavigate();
+  const { data: settings = {}, isLoading } = useSettings();
+  const upsertSetting = useUpsertSetting();
+
   const [clerkName, setClerkName] = useState('');
   const [secQuestion, setSecQuestion] = useState('');
   const [secAnswer, setSecAnswer] = useState('');
   const [adminPass, setAdminPass] = useState('');
   const [secretPass, setSecretPass] = useState('');
-
-  // Allowance Rates
   const [minRate, setMinRate] = useState('380');
   const [indRate, setIndRate] = useState('420');
+
+  useEffect(() => {
+    if (settings) {
+      setClerkName(settings.clerk_name || 'Wajiha Zehra');
+      setSecQuestion(settings.sec_question || 'What is your favorite color?');
+      setSecAnswer(settings.sec_answer || 'blue');
+      setAdminPass(settings.admin_password || 'pncms@2026');
+      setSecretPass(settings.secret_password || '998877');
+      setMinRate(settings.rate_ministerial || '380');
+      setIndRate(settings.rate_industrial || '420');
+    }
+  }, [settings]);
 
   const [showAdminPass, setShowAdminPass] = useState(false);
   const [showSecretPass, setShowSecretPass] = useState(false);
   const [showSecAnswer, setShowSecAnswer] = useState(false);
 
-  useEffect(() => {
-    setClerkName(localStorage.getItem('clerk_name') || 'Wajiha Zehra');
-    setSecQuestion(
-      localStorage.getItem('sec_question') || 'What is your favorite color?'
-    );
-    setSecAnswer(localStorage.getItem('sec_answer') || 'blue');
-    setAdminPass(localStorage.getItem('admin_password') || '12345qwert');
-    setSecretPass(localStorage.getItem('secret_password') || '998877');
-    setMinRate(localStorage.getItem('rate_ministerial') || '380');
-    setIndRate(localStorage.getItem('rate_industrial') || '420');
-  }, []);
+  const handleSave = async () => {
+    const config = {
+      clerk_name: clerkName,
+      sec_question: secQuestion,
+      sec_answer: secAnswer,
+      admin_password: adminPass,
+      secret_password: secretPass,
+      rate_ministerial: minRate,
+      rate_industrial: indRate,
+    };
 
-  const handleSave = () => {
-    localStorage.setItem('clerk_name', clerkName);
-    localStorage.setItem('sec_question', secQuestion);
-    localStorage.setItem('sec_answer', secAnswer);
-    localStorage.setItem('admin_password', adminPass);
-    localStorage.setItem('secret_password', secretPass);
-    localStorage.setItem('rate_ministerial', minRate);
-    localStorage.setItem('rate_industrial', indRate);
-    toast.success('System configuration updated successfully.');
+    try {
+      for (const [key, value] of Object.entries(config)) {
+        await upsertSetting.mutateAsync({ key, value });
+      }
+      // Also update localStorage for immediate UI consistency in other parts of the app
+      Object.entries(config).forEach(([key, value]) => localStorage.setItem(key, value));
+      toast.success('System configuration updated successfully.');
+    } catch (error) {
+      toast.error('Failed to save configuration.');
+    }
   };
 
   return (

@@ -12,6 +12,7 @@ import warship from '@/assets/navy-warship.jpg';
 import crest from '@/assets/navy-crest.png';
 import { Btn } from '@/components/pncms/ui-kit';
 import { logAction } from '@/lib/audit';
+import { api } from '@/lib/api';
 
 const Login = () => {
   const nav = useNavigate();
@@ -24,30 +25,19 @@ const Login = () => {
   const [secAnswer, setSecAnswer] = useState('');
   const [newPassword, setNewPassword] = useState('');
 
-  const handleLogin = (e: React.FormEvent) => {
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    const savedPass = localStorage.getItem('admin_password') || 'pncms@2026';
+    setError('');
+    setSuccess('');
 
-    // Administrator Access
-    if (
-      username === 'Administrator' &&
-      (password === savedPass || password === 'pncms@2026')
-    ) {
-      setError('');
-      setSuccess('Administrator access granted. Initializing terminal...');
-      localStorage.setItem('user_role', 'Admin');
-      if (password === '12345qwert')
-        localStorage.setItem('admin_password', '12345qwert');
+    try {
+      const user = await api.login({ username, password });
+      setSuccess(`${user.role} access granted. Initializing terminal...`);
+      localStorage.setItem('user_role', user.role);
+      localStorage.setItem('username', user.username);
+      
       setTimeout(() => nav('/dashboard'), 1500);
-    }
-    // Clerk Access
-    else if (username === 'Clerk' && password === 'clerk123') {
-      setError('');
-      setSuccess('Clerk access granted. Loading workspace...');
-      localStorage.setItem('user_role', 'Clerk');
-      setTimeout(() => nav('/dashboard'), 1500);
-    } else {
-      setSuccess('');
+    } catch (err: any) {
       setError('Invalid identity or authorization failed');
     }
   };

@@ -3,8 +3,8 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
+  provider = "sqlite"
+  url      = "file:./dev.db"
 }
 
 model Employee {
@@ -16,25 +16,47 @@ model Employee {
   departmentId    String
   department      Department @relation(fields: [departmentId], references: [id])
   cardType        String    // "Ministerial" or "Industrial"
-  
-  // Extended Details
-  appointmentDate DateTime
-  joiningCurrentUnitDate DateTime
-  appointmentLetterRef String
-  joiningLetterRef String
-  retirementDate  DateTime
-  
-  // Addresses
-  presentAddress  String
-  permanentAddress String
-  
+  bps             String?
+  cnic            String?   @unique
   status          String    @default("Active")
+  gender          String?
+  fatherName      String?
+  dob             String?
+  bloodGroup      String?
+  domicile        String?
+  permanentAddress String?
+  presentAddress  String?
+  
+  // Next of Kin
+  nokName         String?
+  nokRelation     String?
+  nokContact      String?
+  nokCnic         String?
+  
+  // Bank Details
+  bankName        String?
+  bankAccount     String?
+  bankBranch      String?
+  accountType     String?
+  
+  // Service Details
+  appointmentDate String?
+  joiningCurrentUnitDate String?
+  appointmentLetterRef String?
+  joiningLetterRef String?
+  retirementDate  DateTime?
+  lastPromotion   String?
+  unitLocation    String?
+  
   phones          EmployeePhone[]
   letters         EmployeeLetter[]
-  
   sanctions       Sanction[]
   workLogs        WorkLog[]
-  leaves          Leave[]
+  leaves          LeaveRecord[]
+  disciplinaryActions DisciplinaryAction[]
+  payments        Payment[]
+  attendance      Attendance[]
+  
   createdAt       DateTime  @default(now())
   updatedAt       DateTime  @updatedAt
 }
@@ -42,6 +64,8 @@ model Employee {
 model Rank {
   id              String    @id @default(cuid())
   name            String    @unique
+  cadre           String?   // Ministerial or Industrial
+  bps             String?
   employees       Employee[]
   createdAt       DateTime  @default(now())
   updatedAt       DateTime  @updatedAt
@@ -50,12 +74,12 @@ model Rank {
 model Department {
   id              String    @id @default(cuid())
   name            String    @unique
-  location        String
-  navcom          String
-  hodName         String
-  hodRank         String
-  bornStrength    Int
-  approvedSanctionStrength Int
+  location        String?
+  navcom          String?
+  hodName         String?
+  hodRank         String?
+  bornStrength    Int?
+  approvedSanctionStrength Int?
   employees       Employee[]
   createdAt       DateTime  @default(now())
   updatedAt       DateTime  @updatedAt
@@ -84,9 +108,13 @@ model EmployeeLetter {
 
 model Sanction {
   id              String    @id @default(cuid())
-  amount          Float
-  reason          String
-  date            DateTime
+  sanctionId      String    @unique // e.g., SNC-2026-0130
+  amount          Float?
+  hours           Float?
+  period          String?
+  reason          String?
+  date            String?
+  status          String    @default("Pending")
   employeeId      String
   employee        Employee  @relation(fields: [employeeId], references: [id], onDelete: Cascade)
   createdAt       DateTime  @default(now())
@@ -101,13 +129,83 @@ model WorkLog {
   createdAt       DateTime  @default(now())
 }
 
-model Leave {
+model LeaveRecord {
   id              String    @id @default(cuid())
-  startDate       DateTime
-  endDate         DateTime
+  startDate       String
+  endDate         String
   type            String
+  days            Int
   status          String    @default("Pending")
   employeeId      String
   employee        Employee  @relation(fields: [employeeId], references: [id], onDelete: Cascade)
   createdAt       DateTime  @default(now())
+}
+
+model DisciplinaryAction {
+  id              String    @id @default(cuid())
+  caseId          String    @unique // e.g., CASE-2026-001
+  type            String
+  offense         String
+  action          String
+  date            String
+  status          String
+  remarks         String?
+  reference       String?
+  details         String?
+  authority       String?
+  employeeId      String
+  employee        Employee  @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  createdAt       DateTime  @default(now())
+}
+
+model Payment {
+  id              String    @id @default(cuid())
+  type            String    // e.g., Late-Sitting, Overtime
+  gross           Float
+  leave           Float
+  payable         Float
+  rate            Float
+  amount          Float
+  status          String
+  period          String
+  employeeId      String
+  employee        Employee  @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  createdAt       DateTime  @default(now())
+}
+
+model Attendance {
+  id              String    @id @default(cuid())
+  date            String
+  status          String    // P, A, CL, RL, etc.
+  employeeId      String
+  employee        Employee  @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  createdAt       DateTime  @default(now())
+
+  @@unique([date, employeeId])
+}
+
+model User {
+  id              String    @id @default(cuid())
+  username        String    @unique
+  password        String    // Hashed
+  role            String    @default("Clerk") // Admin, Clerk
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+}
+
+model Setting {
+  id              String    @id @default(cuid())
+  key             String    @unique
+  value           String
+  updatedAt       DateTime  @updatedAt
+}
+
+model Log {
+  id              String    @id @default(cuid())
+  time            DateTime  @default(now())
+  user            String
+  action          String
+  entity          String
+  ip              String
+  result          String
 }

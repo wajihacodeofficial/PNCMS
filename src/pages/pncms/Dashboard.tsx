@@ -13,86 +13,28 @@ import {
   Clock,
   Gavel,
 } from 'lucide-react';
-import {
-  activity,
-  personnel,
-  leaveRecords,
-  sanctions,
-  payments,
-} from '@/data/mock';
 import { exportToPDF } from '@/lib/export';
 import { useState, useEffect } from 'react';
-import { isWithinInterval, parseISO } from 'date-fns';
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
+import { useDashboardStats, useLogs } from '@/hooks/use-api';
+import { format } from 'date-fns';
 
 const Dashboard = () => {
   const navigate = useNavigate();
-  const [stats, setStats] = useState({
-    total: 412,
-    onLeave: 0,
-    openLogs: 27,
-    pendingAmt: 'Rs. 1.8M',
-    rawPendingAmt: 1800000,
-  });
-
-  useEffect(() => {
-    // 1. Total Personnel
-    const imported = JSON.parse(
-      localStorage.getItem('pncms_personnel_imports') || '[]'
-    );
-    const total = personnel.length + imported.length;
-
-    // 2. Currently on Leave
-    const storedLeaves = JSON.parse(
-      localStorage.getItem('pncms_leave_records') || '[]'
-    );
-    const allLeaves = [...leaveRecords, ...storedLeaves];
-    const today = new Date();
-    const onLeave = allLeaves.filter((l) => {
-      try {
-        return isWithinInterval(today, {
-          start: parseISO(l.from),
-          end: parseISO(l.to),
-        });
-      } catch (e) {
-        return false;
-      }
-    }).length;
-
-    // 3. Open Work Logs (Pending Sanctions)
-    const openLogs = sanctions.filter((s) => s.status === 'Pending').length;
-
-    // 4. Pending Payments
-    const pendingTotal = payments
-      .filter((p) => p.status === 'Pending' || p.status === 'Processed')
-      .reduce((sum, p) => sum + p.amount, 0);
-
-    const formattedAmt =
-      pendingTotal >= 100000
-        ? `Rs. ${(pendingTotal / 1000000).toFixed(1)}M`
-        : `Rs. ${(pendingTotal / 1000).toFixed(0)}K`;
-
-    setStats({
-      total,
-      onLeave,
-      openLogs,
-      pendingAmt: formattedAmt,
-      rawPendingAmt: pendingTotal,
-    });
-  }, []);
+  const { data: stats = { totalPersonnel: 0, onLeave: 0, openLogs: 0 }, isLoading } = useDashboardStats();
+  const { data: logs = [] } = useLogs();
 
   const handleExportPDF = () => {
     const headers = [['Metric', 'Value', 'Subtitle']];
     const data = [
-      ['Total Personnel', stats.total.toString(), 'Active across directorates'],
+      ['Total Personnel', stats.totalPersonnel.toString(), 'Active across directorates'],
       ['Currently on Leave', stats.onLeave.toString(), 'Personnel away today'],
       ['Open Work Logs', stats.openLogs.toString(), 'In current cycle'],
-      ['Pending Payments', stats.pendingAmt, 'Awaiting release'],
     ];
     exportToPDF('PNCMS Operational Brief', headers, data, 'pncms_brief');
   };
@@ -150,7 +92,7 @@ const Dashboard = () => {
       <div className="grid grid-cols-3 gap-5">
         <StatCard
           label="Total Personnel"
-          value={stats.total}
+          value={isLoading ? '...' : stats.totalPersonnel}
           sub="Unit Strength"
           icon={<Users className="w-5 h-5" />}
           accent="primary"
@@ -158,7 +100,7 @@ const Dashboard = () => {
         />
         <StatCard
           label="Currently on Leave"
-          value={stats.onLeave}
+          value={isLoading ? '...' : stats.onLeave}
           sub="Absent today"
           icon={<CalendarDays className="w-5 h-5" />}
           accent="danger"
@@ -166,7 +108,7 @@ const Dashboard = () => {
         />
         <StatCard
           label="Open Work Logs"
-          value={stats.openLogs}
+          value={isLoading ? '...' : stats.openLogs}
           sub="Active Overtime"
           icon={<ClipboardList className="w-5 h-5" />}
           accent="info"
@@ -175,41 +117,29 @@ const Dashboard = () => {
       </div>
 
       <div className="grid grid-cols-12 gap-6 mt-6">
-        <Section title="Recent Operational Activity" className="col-span-8">
-          <div className="space-y-4">
-            {activity.map((a, i) => (
-              <div
-                key={i}
-                className="flex items-center justify-between p-4 bg-muted/20 border border-border/50 rounded-sm hover:bg-muted/30 transition-colors"
-              >
-                <div className="flex items-center gap-4">
-                  <div className="w-2 h-2 rounded-full bg-accent animate-pulse" />
-                  <div>
-                    <p className="text-sm font-semibold text-primary leading-tight">
-                      {a.text}
-                    </p>
-                    <p className="text-[0.65rem] text-muted-foreground mt-1 uppercase font-bold tracking-wider">
-                      {a.tag} · {a.time}
-                    </p>
-                  </div>
-                </div>
-                <Btn
-                  variant="ghost"
-                  className="h-8 px-2 text-[0.6rem]"
-                  onClick={() =>
-                    navigate(
-                      a.tag === 'LEAVE'
-                        ? '/leave'
-                        : a.tag === 'SANCTION'
-                          ? '/overtime'
-                          : '/overtime'
-                    )
-                  }
-                >
-                  View Log
-                </Btn>
-              </div>
-            ))}
+        <Section title="Recent System Activity" className="col-span-8">
+          <div className="overflow-hidden -m-5">
+            <table className="data-table">
+              <thead>
+                <tr><th>Time</th><th>User</th><th>Action</th><th>Affected Record</th></tr>
+              </thead>
+              <tbody>
+                {logs.slice(0, 5).map((l: any) => (
+                  <tr key={l.id} className="hover:bg-muted/30">
+                    <td className="font-mono text-[0.6rem] text-muted-foreground">{format(new Date(l.time), 'HH:mm:ss')}</td>
+                    <td className="font-bold text-primary">{l.user}</td>
+                    <td><Badge variant={l.action === 'DELETE' ? 'danger' : 'info'} className="text-[0.6rem]">{l.action}</Badge></td>
+                    <td className="text-xs italic truncate max-w-[200px]">{l.entity}</td>
+                  </tr>
+                ))}
+                {logs.length === 0 && (
+                  <tr><td colSpan={4} className="text-center py-10 text-muted-foreground italic">No recent activity detected.</td></tr>
+                )}
+              </tbody>
+            </table>
+            <div className="bg-muted/20 p-3 border-t border-border flex justify-center">
+              <Btn variant="ghost" className="text-[0.65rem] font-bold h-7" onClick={() => navigate('/audit')}>View Full Audit Trail</Btn>
+            </div>
           </div>
         </Section>
 
@@ -218,43 +148,22 @@ const Dashboard = () => {
             <div className="space-y-4">
               <div>
                 <div className="flex justify-between text-[0.65rem] font-bold mb-1.5 uppercase">
-                  <span>Attendance Sync</span>
-                  <span className="text-success">100%</span>
+                  <span>Local DB Connectivity</span>
+                  <span className="text-success">Active</span>
                 </div>
                 <div className="h-1 bg-muted rounded-full overflow-hidden">
-                  <div className="h-full bg-success w-full" />
+                  <div className="h-full bg-success w-full animate-pulse" />
                 </div>
               </div>
-              <div>
-                <div className="flex justify-between text-[0.65rem] font-bold mb-1.5 uppercase">
-                  <span>Leave Verification</span>
-                  <span className="text-warning">84%</span>
-                </div>
-                <div className="h-1 bg-muted rounded-full overflow-hidden">
-                  <div className="h-full bg-warning w-[84%]" />
-                </div>
-              </div>
-              <div>
-                <div className="flex justify-between text-[0.65rem] font-bold mb-1.5 uppercase">
-                  <span>Overtime Audit</span>
-                  <span className="text-info">92%</span>
-                </div>
-                <div className="h-1 bg-muted rounded-full overflow-hidden">
-                  <div className="h-full bg-info w-[92%]" />
+              <div className="p-4 bg-primary/5 rounded-sm border border-border">
+                <div className="text-[0.65rem] label-mil text-primary opacity-60 mb-2 uppercase">Sync Status</div>
+                <div className="flex items-center gap-2">
+                  <div className="w-2 h-2 rounded-full bg-success" />
+                  <span className="text-xs font-bold italic">Offline Storage Validated</span>
                 </div>
               </div>
             </div>
           </Section>
-
-          <div className="panel p-5 border-l-4 border-accent bg-accent/5">
-            <h4 className="text-xs font-bold text-blue uppercase tracking-widest mb-2">
-              Command Alert
-            </h4>
-            <p className="text-xs text-foreground/80 leading-relaxed">
-              Muster roll for 29-Apr-2026 is currently open. 42 personnel
-              remaining to be marked.
-            </p>
-          </div>
         </div>
       </div>
     </AppShell>

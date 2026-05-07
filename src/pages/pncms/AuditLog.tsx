@@ -1,32 +1,19 @@
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo } from "react";
 import { exportToPDF } from "@/lib/export";
 import { AppShell, PageHeader } from "@/components/pncms/AppShell";
 import { Btn, Section, Badge, Input } from "@/components/pncms/ui-kit";
 import { Download, Filter, Search, ShieldAlert, Clock, Terminal, User, FileText, CheckCircle2, XCircle } from "lucide-react";
 import { toast } from "sonner";
+import { useLogs } from "@/hooks/use-api";
+import { format, parseISO } from "date-fns";
 
 const AuditLog = () => {
-  const [logs, setLogs] = useState<any[]>([]);
+  const { data: logs = [], isLoading } = useLogs();
   const [search, setSearch] = useState("");
   const [filterAction, setFilterAction] = useState("ALL");
 
-  useEffect(() => {
-    const saved = localStorage.getItem("pncms_audit_logs");
-    if (saved) {
-      setLogs(JSON.parse(saved));
-    } else {
-      // If empty, we can show a placeholder or some initial seed data
-      // but user asked for "no dummy data", so we start empty or with real system initialization logs
-      const initLogs = [
-        { id: "init", time: new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short' }) + " " + new Date().toLocaleTimeString('en-GB', { hour12: false }), user: "System", action: "INITIALIZE", entity: "Audit Register", ip: "127.0.0.1", result: "Success" }
-      ];
-      setLogs(initLogs);
-      localStorage.setItem("pncms_audit_logs", JSON.stringify(initLogs));
-    }
-  }, []);
-
   const filteredLogs = useMemo(() => {
-    return logs.filter(l => {
+    return (logs as any[]).filter(l => {
       const matchesSearch = 
         l.user.toLowerCase().includes(search.toLowerCase()) || 
         l.entity.toLowerCase().includes(search.toLowerCase()) ||
@@ -40,9 +27,16 @@ const AuditLog = () => {
 
   const handleExport = () => {
     const headers = [["Time", "User", "Action", "Affected Record", "IP/Terminal", "Result"]];
-    const rows = filteredLogs.map(l => [l.time, l.user, l.action, l.entity, l.ip, l.result]);
+    const rows = filteredLogs.map(l => [
+      format(parseISO(l.time), 'dd MMM yy HH:mm'),
+      l.user,
+      l.action,
+      l.entity,
+      l.ip,
+      l.result
+    ]);
     exportToPDF("System Audit Trail", headers, rows, "system_audit_log", 
-      { period: "Restricted Access", dept: "Information Security", clerk: "Wajiha Zehra · DIL-ADM-04" }
+      { period: "Restricted Access", dept: "Information Security", clerk: "Wajiha Zehra" }
     );
     toast.success("Audit Log PDF Generated");
   };
@@ -88,9 +82,15 @@ const AuditLog = () => {
           <table className="data-table">
             <thead><tr><th>Time</th><th>User</th><th>Action</th><th>Affected Record</th><th>IP / Terminal</th><th>Result</th></tr></thead>
             <tbody>
-              {filteredLogs.map((l)=>(
+              {isLoading ? (
+                <tr><td colSpan={6} className="text-center py-10 text-muted-foreground italic">Syncing with secure vault...</td></tr>
+              ) : filteredLogs.length === 0 ? (
+                <tr><td colSpan={6} className="text-center py-10 text-muted-foreground italic">No activity logs found.</td></tr>
+              ) : filteredLogs.map((l: any)=>(
                 <tr key={l.id} className="hover:bg-primary/5 transition-colors group">
-                  <td className="font-mono text-[0.65rem] font-bold text-muted-foreground">{l.time}</td>
+                  <td className="font-mono text-[0.65rem] font-bold text-muted-foreground">
+                    {format(parseISO(l.time), 'dd-MMM-yy HH:mm')}
+                  </td>
                   <td className="font-bold text-primary flex items-center gap-2">
                     <User className="w-3.5 h-3.5 text-accent opacity-0 group-hover:opacity-100 transition-opacity" />
                     {l.user}

@@ -1,56 +1,132 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { AppShell, PageHeader } from '@/components/pncms/AppShell';
 import { Btn, Field, Input, Select, Section } from '@/components/pncms/ui-kit';
 import { Save, X, Plus, Trash2, FileCheck2, User } from 'lucide-react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { format, addYears } from 'date-fns';
+import { useDepartments, useRanks, usePersonnel, useUpsertEmployee, useCreateLog } from '@/hooks/use-api';
+import { toast } from 'sonner';
 
 const EmploymentRecordForm = () => {
   const navigate = useNavigate();
   const { id } = useParams();
   const isEdit = Boolean(id);
+  const { data: departments = [] } = useDepartments();
+  const { data: ranks = [] } = useRanks();
+  const { data: personnel = [] } = usePersonnel();
+  const { mutate: upsertEmployee } = useUpsertEmployee();
+  const { mutate: createLog } = useCreateLog();
 
-  // Form State
-  const [appointmentDate, setAppointmentDate] = useState('');
-  const [phones, setPhones] = useState([
-    { number: '', model: '', brand: '', imei1: '', imei2: '' },
-  ]);
+  const [form, setForm] = useState<any>({
+    serviceNo: '',
+    name: '',
+    rankId: '',
+    departmentId: '',
+    cardType: 'Ministerial',
+    bps: 'BPS-07',
+    status: 'Active',
+    appointmentDate: '',
+    joiningDate: '',
+    dob: '',
+    cnic: '',
+    fatherName: '',
+    gender: 'Male',
+    bloodGroup: 'A+',
+    presentAddress: '',
+    permanentAddress: '',
+    accountNo: '',
+    bankName: 'NBP',
+    nokName: '',
+    nokContact: '',
+    nokRelation: '',
+    nokAddress: '',
+    nokCnic: '',
+    phones: [{ number: '', brand: '', model: '', imei1: '', imei2: '' }],
+    letters: [
+      { type: 'Appointment', refNo: '', refDate: '', fileName: '', fileNo: '' },
+      { type: 'Joining', refNo: '', refDate: '', fileName: '', fileNo: '' }
+    ]
+  });
 
-  const retirementDate = appointmentDate
-    ? format(addYears(new Date(appointmentDate), 60), 'yyyy-MM-dd')
+  useEffect(() => {
+    if (isEdit && personnel.length > 0) {
+      const emp = (personnel as any[]).find(p => p.id === id);
+      if (emp) {
+        setForm({
+          ...emp,
+          phones: emp.phones?.length ? emp.phones : [{ number: '', brand: '', model: '', imei1: '', imei2: '' }],
+          letters: emp.letters?.length ? emp.letters : [
+            { type: 'Appointment', refNo: '', refDate: '', fileName: '', fileNo: '' },
+            { type: 'Joining', refNo: '', refDate: '', fileName: '', fileNo: '' }
+          ]
+        });
+      }
+    }
+  }, [isEdit, id, personnel]);
+
+  const retirementDate = form.appointmentDate
+    ? format(addYears(new Date(form.appointmentDate), 60), 'yyyy-MM-dd')
     : '';
 
-  const addPhone = () => {
-    if (phones.length < 5) {
-      setPhones([
-        ...phones,
-        { number: '', model: '', brand: '', imei1: '', imei2: '' },
-      ]);
-    }
+  const handlePhoneChange = (idx: number, field: string, val: string) => {
+    const newPhones = [...form.phones];
+    newPhones[idx] = { ...newPhones[idx], [field]: val };
+    setForm({ ...form, phones: newPhones });
   };
 
-  const removePhone = (index: number) => {
-    setPhones(phones.filter((_, i) => i !== index));
+  const handleLetterChange = (type: string, field: string, val: string) => {
+    const newLetters = form.letters.map((l: any) => 
+      l.type === type ? { ...l, [field]: val } : l
+    );
+    setForm({ ...form, letters: newLetters });
+  };
+
+  const handleSubmit = () => {
+    if (!form.serviceNo || !form.name || !form.rankId || !form.departmentId) {
+      toast.error("Please fill all required fields marked with *");
+      return;
+    }
+
+    upsertEmployee(form, {
+      onSuccess: () => {
+        createLog({
+          user: localStorage.getItem("username") || "Admin",
+          action: isEdit ? "UPDATE" : "CREATE",
+          entity: `Personnel: ${form.serviceNo} - ${form.name}`,
+          result: "Success"
+        });
+        toast.success(isEdit ? "Record updated" : "Personnel enrolled successfully");
+        navigate('/employment-records');
+      },
+      onError: (err: any) => {
+        toast.error(err.message || "Failed to save record");
+      }
+    });
+  };
+
+  const handleRankChange = (rankId: string) => {
+    const rank = (ranks as any[]).find(r => r.id === rankId);
+    if (rank) {
+      setForm({
+        ...form,
+        rankId,
+        bps: rank.bps || '',
+        cardType: rank.cadre || form.cardType
+      });
+    } else {
+      setForm({ ...form, rankId });
+    }
   };
 
   return (
     <AppShell>
       <PageHeader
         title={isEdit ? 'Edit Employment Record' : 'New Employment Record'}
-        subtitle={
-          isEdit ? `Modifying record · ${id}` : 'Civilian Staff Enrollment Form'
-        }
+        subtitle={isEdit ? `Modifying record · ${form.serviceNo}` : 'Civilian Staff Enrollment Form'}
         actions={
           <>
-            <Btn variant="outline" onClick={() => navigate(-1)}>
-              <X className="w-4 h-4" /> Cancel
-            </Btn>
-            <Btn variant="primary">
-              <Save className="w-4 h-4" /> Save Draft
-            </Btn>
-            <Btn variant="gold">
-              <FileCheck2 className="w-4 h-4" /> Submit Record
-            </Btn>
+            <Btn variant="outline" onClick={() => navigate(-1)}><X className="w-4 h-4" /> Cancel</Btn>
+            <Btn variant="gold" onClick={handleSubmit}><FileCheck2 className="w-4 h-4" /> Submit Record</Btn>
           </>
         }
       />
@@ -59,52 +135,28 @@ const EmploymentRecordForm = () => {
         <div className="col-span-8 space-y-5">
           <Section title="01 · Service Details">
             <div className="grid grid-cols-3 gap-4">
-              <Field label="Service Number" required>
-                <Input placeholder="-XXXX" />
-              </Field>
+              <Field label="Service Number" required><Input value={form.serviceNo} onChange={e => setForm({...form, serviceNo: e.target.value})} placeholder="-XXXX" /></Field>
               <Field label="Rank" required>
-                <Select>
-                  <option>Assistant</option>
-                  <option>UDC</option>
-                  <option>LDC</option>
-                  <option>Stenographer</option>
-                  <option>Driver</option>
+                <Select value={form.rankId} onChange={e => handleRankChange(e.target.value)}>
+                  <option value="">Select Rank</option>
+                  {ranks.map((r: any) => <option key={r.id} value={r.id}>{r.name}</option>)}
                 </Select>
               </Field>
               <Field label="Department" required>
-                <Select>
-                  <option>Administration</option>
-                  <option>Naval Headquarters</option>
-                  <option>Naval Dockyard</option>
-                  <option>Engineering Wing</option>
+                <Select value={form.departmentId} onChange={e => setForm({...form, departmentId: e.target.value})}>
+                  <option value="">Select Department</option>
+                  {departments.map((d: any) => <option key={d.id} value={d.id}>{d.name}</option>)}
                 </Select>
               </Field>
               <Field label="Card Type" required>
-                <Select>
-                  <option value="Ministerial">Ministerial</option>
-                  <option value="Industrial">Industrial</option>
-                </Select>
+                <Input value={form.cardType} disabled className="bg-muted/50 font-bold text-primary" />
               </Field>
               <Field label="BPS Grade" required>
-                <Select>
-                  {[
-                    'BPS-07',
-                    'BPS-12',
-                    'BPS-14',
-                    'BPS-15',
-                    'BPS-16',
-                    'BPS-17',
-                  ].map((b) => (
-                    <option key={b}>{b}</option>
-                  ))}
-                </Select>
+                <Input value={form.bps} disabled className="bg-muted/50 font-bold text-primary" />
               </Field>
               <Field label="Status">
-                <Select>
-                  <option>Active</option>
-                  <option>On Leave</option>
-                  <option>Suspended</option>
-                  <option>Retired</option>
+                <Select value={form.status} onChange={e => setForm({...form, status: e.target.value})}>
+                  <option>Active</option><option>On Leave</option><option>Suspended</option><option>Retired</option>
                 </Select>
               </Field>
             </div>
@@ -112,208 +164,71 @@ const EmploymentRecordForm = () => {
 
           <Section title="02 · Appointment & Joining">
             <div className="grid grid-cols-3 gap-4">
-              <Field label="Date of Appointment" required>
-                <Input
-                  type="date"
-                  value={appointmentDate}
-                  onChange={(e) => setAppointmentDate(e.target.value)}
-                />
-              </Field>
-              <Field label="Date of Joining Current Unit" required>
-                <Input type="date" />
-              </Field>
-              <Field label="Date of Retirement (Auto)">
-                <Input
-                  value={retirementDate}
-                  disabled
-                  className="bg-muted/50 font-bold text-primary"
-                />
-              </Field>
+              <Field label="Date of Appointment" required><Input type="date" value={form.appointmentDate} onChange={e => setForm({...form, appointmentDate: e.target.value})} /></Field>
+              <Field label="Date of Joining" required><Input type="date" value={form.joiningDate} onChange={e => setForm({...form, joiningDate: e.target.value})} /></Field>
+              <Field label="Date of Retirement (Auto)"><Input value={retirementDate} disabled className="bg-muted/50 font-bold text-primary" /></Field>
             </div>
-
             <div className="mt-6 grid grid-cols-2 gap-6">
-              <div className="space-y-3 p-4 border border-border rounded-sm bg-muted/10">
-                <h4 className="heading-mil text-[0.7rem] text-primary">
-                  Appointment Letter Metadata
-                </h4>
-                <div className="grid grid-cols-2 gap-3">
-                  <Field label="Ref Number">
-                    <Input placeholder="e.g. NHQ/123/CIV" />
-                  </Field>
-                  <Field label="Ref Date">
-                    <Input type="date" />
-                  </Field>
-                  <Field label="File Name">
-                    <Input placeholder="e.g. Appt_Letter_2024.pdf" />
-                  </Field>
-                  <Field label="File Number">
-                    <Input placeholder="e.g. F-45/2024" />
-                  </Field>
-                </div>
-              </div>
-              <div className="space-y-3 p-4 border border-border rounded-sm bg-muted/10">
-                <h4 className="heading-mil text-[0.7rem] text-primary">
-                  Joining Letter Metadata
-                </h4>
-                <div className="grid grid-cols-2 gap-3">
-                  <Field label="Ref Number">
-                    <Input />
-                  </Field>
-                  <Field label="Ref Date">
-                    <Input type="date" />
-                  </Field>
-                  <Field label="File Name">
-                    <Input />
-                  </Field>
-                  <Field label="File Number">
-                    <Input />
-                  </Field>
-                </div>
-              </div>
-            </div>
-          </Section>
-
-          <Section title="03 · Personal & Address">
-            <div className="grid grid-cols-3 gap-4 mb-4">
-              <Field label="Full Name" required>
-                <Input placeholder="As per CNIC" />
-              </Field>
-              <Field label="Father's Name" required>
-                <Input />
-              </Field>
-              <Field label="CNIC" required>
-                <Input placeholder="00000-0000000-0" />
-              </Field>
-              <Field label="Date of Birth" required>
-                <Input type="date" />
-              </Field>
-              <Field label="Gender" required>
-                <Select>
-                  <option>Male</option>
-                  <option>Female</option>
-                </Select>
-              </Field>
-              <Field label="Blood Group">
-                <Select>
-                  <option>A+</option>
-                  <option>B+</option>
-                  <option>O+</option>
-                  <option>AB+</option>
-                </Select>
-              </Field>
-            </div>
-            <div className="grid grid-cols-2 gap-4">
-              <Field label="Present Address" required>
-                <Input placeholder="Current residence" />
-              </Field>
-              <Field label="Permanent Address" required>
-                <Input placeholder="As per CNIC" />
-              </Field>
-            </div>
-          </Section>
-
-          <Section title="04 · Multi-Phone Support">
-            <div className="space-y-4">
-              {phones.map((phone, idx) => (
-                <div
-                  key={idx}
-                  className="flex gap-3 items-end p-4 border border-border rounded-sm bg-muted/5 relative group"
-                >
-                  <div className="grid grid-cols-5 gap-3 flex-1">
-                    <Field label="Phone Number">
-                      <Input placeholder="03XX-XXXXXXX" />
-                    </Field>
-                    <Field label="Brand">
-                      <Input placeholder="e.g. Samsung" />
-                    </Field>
-                    <Field label="Model">
-                      <Input placeholder="e.g. S21" />
-                    </Field>
-                    <Field label="IMEI 1">
-                      <Input placeholder="15 digits" />
-                    </Field>
-                    <Field label="IMEI 2">
-                      <Input placeholder="15 digits" />
-                    </Field>
+              {['Appointment', 'Joining'].map(type => (
+                <div key={type} className="space-y-3 p-4 border border-border rounded-sm bg-muted/10">
+                  <h4 className="heading-mil text-[0.7rem] text-primary">{type} Letter Metadata</h4>
+                  <div className="grid grid-cols-2 gap-3">
+                    <Field label="Ref Number"><Input value={form.letters.find((l:any)=>l.type===type)?.refNo} onChange={e => handleLetterChange(type, 'refNo', e.target.value)} /></Field>
+                    <Field label="Ref Date"><Input type="date" value={form.letters.find((l:any)=>l.type===type)?.refDate} onChange={e => handleLetterChange(type, 'refDate', e.target.value)} /></Field>
+                    <Field label="File Name"><Input value={form.letters.find((l:any)=>l.type===type)?.fileName} onChange={e => handleLetterChange(type, 'fileName', e.target.value)} /></Field>
+                    <Field label="File Number"><Input value={form.letters.find((l:any)=>l.type===type)?.fileNo} onChange={e => handleLetterChange(type, 'fileNo', e.target.value)} /></Field>
                   </div>
-                  {phones.length > 1 && (
-                    <button
-                      onClick={() => removePhone(idx)}
-                      className="mb-1 p-2 text-destructive hover:bg-destructive/10 rounded-sm transition-colors"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </button>
-                  )}
                 </div>
               ))}
-              {phones.length < 5 && (
-                <button
-                  onClick={addPhone}
-                  className="w-full py-2 border-2 border-dashed border-border rounded-sm text-xs font-semibold text-muted-foreground hover:text-primary hover:border-primary transition-all flex items-center justify-center gap-2"
-                >
-                  <Plus className="w-3 h-3" /> Add Another Phone (Up to 5)
-                </button>
-              )}
+            </div>
+          </Section>
+
+          <Section title="03 · Personal Details">
+            <div className="grid grid-cols-3 gap-4 mb-4">
+              <Field label="Full Name" required><Input value={form.name} onChange={e => setForm({...form, name: e.target.value})} /></Field>
+              <Field label="Father's Name" required><Input value={form.fatherName} onChange={e => setForm({...form, fatherName: e.target.value})} /></Field>
+              <Field label="CNIC" required><Input value={form.cnic} onChange={e => setForm({...form, cnic: e.target.value})} /></Field>
+              <Field label="Date of Birth" required><Input type="date" value={form.dob} onChange={e => setForm({...form, dob: e.target.value})} /></Field>
+              <Field label="Gender"><Select value={form.gender} onChange={e => setForm({...form, gender: e.target.value})}><option>Male</option><option>Female</option></Select></Field>
+              <Field label="Blood Group"><Select value={form.bloodGroup} onChange={e => setForm({...form, bloodGroup: e.target.value})}><option>A+</option><option>B+</option><option>O+</option><option>AB+</option></Select></Field>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <Field label="Present Address"><Input value={form.presentAddress} onChange={e => setForm({...form, presentAddress: e.target.value})} /></Field>
+              <Field label="Permanent Address"><Input value={form.permanentAddress} onChange={e => setForm({...form, permanentAddress: e.target.value})} /></Field>
+            </div>
+          </Section>
+
+          <Section title="04 · Phone Support">
+            <div className="space-y-4">
+              {form.phones.map((phone: any, idx: number) => (
+                <div key={idx} className="flex gap-3 items-end p-4 border border-border rounded-sm bg-muted/5">
+                  <div className="grid grid-cols-5 gap-3 flex-1">
+                    <Field label="Number"><Input value={phone.number} onChange={e => handlePhoneChange(idx, 'number', e.target.value)} /></Field>
+                    <Field label="Brand"><Input value={phone.brand} onChange={e => handlePhoneChange(idx, 'brand', e.target.value)} /></Field>
+                    <Field label="Model"><Input value={phone.model} onChange={e => handlePhoneChange(idx, 'model', e.target.value)} /></Field>
+                    <Field label="IMEI 1"><Input value={phone.imei1} onChange={e => handlePhoneChange(idx, 'imei1', e.target.value)} /></Field>
+                    <Field label="IMEI 2"><Input value={phone.imei2} onChange={e => handlePhoneChange(idx, 'imei2', e.target.value)} /></Field>
+                  </div>
+                  {form.phones.length > 1 && <button onClick={() => setForm({...form, phones: form.phones.filter((_:any,i:number)=>i!==idx)})} className="mb-1 p-2 text-destructive"><Trash2 className="w-4 h-4" /></button>}
+                </div>
+              ))}
+              <button onClick={() => setForm({...form, phones: [...form.phones, {number:'',brand:'',model:'',imei1:'',imei2:''}]})} className="w-full py-2 border-2 border-dashed border-border rounded-sm text-xs font-semibold">+ Add Another Phone</button>
             </div>
           </Section>
         </div>
 
         <div className="col-span-4 space-y-5">
-          <Section title="Profile Picture">
-            <div className="border-2 border-dashed border-border rounded-sm p-6 text-center bg-muted/40">
-              <div className="w-32 h-40 mx-auto bg-card border border-border flex items-center justify-center shadow-inner">
-                <User className="w-16 h-16 text-muted-foreground/30" />
-              </div>
-              <Btn
-                variant="outline"
-                className="mt-4 w-full uppercase text-[0.65rem] tracking-widest"
-              >
-                Select Image
-              </Btn>
-            </div>
-          </Section>
-
           <Section title="Financial Details">
-            <div className="space-y-4">
-              <Field label="Account Number">
-                <Input />
-              </Field>
-              <Field label="Bank Name">
-                <Input defaultValue="NBP" />
-              </Field>
-            </div>
+            <Field label="Account Number"><Input value={form.accountNo} onChange={e => setForm({...form, accountNo: e.target.value})} /></Field>
+            <Field label="Bank Name"><Input value={form.bankName} onChange={e => setForm({...form, bankName: e.target.value})} /></Field>
           </Section>
-
-          <Section title="NOK Details">
-            <div className="border border-border rounded-sm p-4">
-              <Field label="Name">
-                <Input />
-              </Field>
-              <Field label="Contact Number">
-                <Input />
-              </Field>
-              <Field label="Address">
-                <Input />
-              </Field>
-              <Field label="CNIC">
-                <Input />
-              </Field>
-              <Field label="Relation">
-                <Input />
-              </Field>
-            </div>
+          <Section title="Next of Kin">
+            <Field label="Name"><Input value={form.nokName} onChange={e => setForm({...form, nokName: e.target.value})} /></Field>
+            <Field label="Relation"><Input value={form.nokRelation} onChange={e => setForm({...form, nokRelation: e.target.value})} /></Field>
+            <Field label="Contact"><Input value={form.nokContact} onChange={e => setForm({...form, nokContact: e.target.value})} /></Field>
+            <Field label="CNIC"><Input value={form.nokCnic} onChange={e => setForm({...form, nokCnic: e.target.value})} /></Field>
+            <Field label="Address"><Input value={form.nokAddress} onChange={e => setForm({...form, nokAddress: e.target.value})} /></Field>
           </Section>
-
-          <div className="panel p-5 bg-accent/5 border border-accent/20 rounded-sm">
-            <h4 className="heading-mil text-xs text-accent mb-3">
-              Compliance Notice
-            </h4>
-            <p className="text-[0.65rem] text-foreground/70 leading-relaxed">
-              All data entered must be verified against service books and CNIC
-              records. Rank-based entitlements will be calculated based on the
-              selected card type and BPS grade.
-            </p>
-          </div>
         </div>
       </div>
     </AppShell>

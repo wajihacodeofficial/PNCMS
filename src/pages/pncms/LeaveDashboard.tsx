@@ -6,43 +6,47 @@ import { useState, useEffect, useMemo } from "react";
 import { format, isWithinInterval, parseISO } from "date-fns";
 import { exportToPDF } from "@/lib/export";
 import { toast } from "sonner";
+import { useLeaves } from "@/hooks/use-api";
 
 const LeaveDashboard = () => {
   const navigate = useNavigate();
-  const [localLeave, setLocalLeave] = useState<any[]>([]);
+  const { data: leaves = [], isLoading } = useLeaves();
   const [historySearch, setHistorySearch] = useState("");
-
-  useEffect(() => {
-    const stored = JSON.parse(localStorage.getItem('pncms_leave_records') || '[]');
-    setLocalLeave(stored);
-  }, []);
-
-  const historyResults = useMemo(() => {
-    if (!historySearch) return [];
-    return localLeave
-      .filter(l => l.svc === historySearch || l.svc.includes(historySearch))
-      .sort((a, b) => a.from.localeCompare(b.from));
-  }, [historySearch, localLeave]);
 
   const today = new Date();
   
-  const currentOnLeave = [
-    { svc: "10441", name: "Bilal Ahmed Siddiqui", type: "CASUAL", from: "20-Apr-26", days: 3 },
-    { svc: "10442", name: "Saima Nawaz", type: "EARNED", from: "18-Apr-26", days: 7 },
-    { svc: "10443", name: "Imran Hussain Shah", type: "RECREATIONAL", from: "22-Apr-26", days: 2 },
-    { svc: "10444", name: "Nazia Akhtar", type: "CASUAL", from: "25-Apr-26", days: 1 },
-    ...localLeave
-      .filter(l => l.status === 'Submitted' && isWithinInterval(today, { start: parseISO(l.from), end: parseISO(l.to) }))
+  const currentOnLeave = useMemo(() => {
+    return (leaves as any[])
+      .filter(l => l.status === 'Approved' && isWithinInterval(today, { 
+        start: parseISO(l.startDate), 
+        end: parseISO(l.endDate) 
+      }))
       .map(l => ({ 
-        svc: l.svc,
-        name: l.name, 
-        type: l.type === 'ML' ? 'MATERNITY' : l.type.toUpperCase(), 
-        from: format(parseISO(l.from), 'dd-MMM-yy'), 
+        svc: l.employee?.serviceNo || 'N/A',
+        name: l.employee?.name || 'Unknown', 
+        type: l.type.toUpperCase(), 
+        from: format(parseISO(l.startDate), 'dd-MMM-yy'), 
         days: l.days 
       }))
-  ].sort((a, b) => a.svc.localeCompare(b.svc));
+      .sort((a, b) => a.svc.localeCompare(b.svc));
+  }, [leaves]);
 
-  const pendingCount = 6 + localLeave.filter(l => l.status === 'Draft').length;
+  const historyResults = useMemo(() => {
+    if (!historySearch) return [];
+    return (leaves as any[])
+      .filter(l => l.employee?.serviceNo === historySearch || l.employee?.serviceNo?.includes(historySearch))
+      .map(l => ({
+        type: l.type,
+        from: format(parseISO(l.startDate), 'dd-MMM-yy'),
+        to: format(parseISO(l.endDate), 'dd-MMM-yy'),
+        days: l.days,
+        status: l.status,
+        timestamp: l.createdAt
+      }))
+      .sort((a, b) => b.timestamp.localeCompare(a.timestamp));
+  }, [historySearch, leaves]);
+
+  const pendingCount = (leaves as any[]).filter(l => l.status === 'Submitted' || l.status === 'Pending').length;
 
   const handleExportCurrent = () => {
     const headers = [["Svc No", "Employee", "Type", "From", "Days"]];
@@ -77,15 +81,12 @@ const LeaveDashboard = () => {
         }
       />
 
-      <div className="grid grid-cols-4 gap-4 mb-6">
+      <div className="grid grid-cols-2 gap-4 mb-6">
         <StatCard label="Currently on Leave" value={currentOnLeave.length} sub="active absence" icon={<Calendar className="w-5 h-5"/>} accent="danger" />
-        <StatCard label="Gazetted Holidays" value={14} sub="Year 2026" icon={<Flag className="w-5 h-5"/>} accent="success" />
-        <StatCard label="Leave Given by Command" value={2} sub="special directives" icon={<ShieldCheck className="w-5 h-5"/>} accent="primary" />
         <StatCard label="Pending Applications" value={pendingCount} sub="awaiting verification" icon={<Clock className="w-5 h-5"/>} accent="warning" />
       </div>
 
       <div className="grid grid-cols-12 gap-6">
-        {/* Left: Wider Search Panel */}
         <div className="col-span-8">
           <Section 
             title="Leave History Search"
@@ -124,11 +125,11 @@ const LeaveDashboard = () => {
                           <div className="text-xs font-bold text-primary uppercase">{l.type} LEAVE</div>
                           <div className="text-[0.6rem] text-muted-foreground font-mono">{l.from} to {l.to}</div>
                         </div>
-                        <Badge variant={l.status === 'Submitted' ? 'success' : 'pending'}>{l.status}</Badge>
+                        <Badge variant={l.status === 'Approved' ? 'success' : 'pending'}>{l.status}</Badge>
                       </div>
                       <div className="flex justify-between items-center pt-2 border-t border-border/50">
                         <span className="text-xs font-black text-primary italic">{l.days} DAYS</span>
-                        <span className="text-[0.6rem] text-muted-foreground uppercase">{format(parseISO(l.timestamp || new Date().toISOString()), 'dd MMM yyyy')}</span>
+                        <span className="text-[0.6rem] text-muted-foreground uppercase">{format(parseISO(l.timestamp), 'dd MMM yyyy')}</span>
                       </div>
                     </div>
                   ))
@@ -150,7 +151,6 @@ const LeaveDashboard = () => {
           </Section>
         </div>
 
-        {/* Right: Narrower Current List */}
         <div className="col-span-4">
           <Section title="Active On-Leave">
             <div className="overflow-hidden rounded-sm border border-border">
