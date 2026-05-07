@@ -40,8 +40,8 @@ const Settings = () => {
   useEffect(() => {
     if (settings) {
       setClerkName(settings.clerk_name || 'Wajiha Zehra');
-      setSecQuestion(settings.sec_question || 'What is your favorite color?');
-      setSecAnswer(settings.sec_answer || 'blue');
+      setSecQuestion(settings.sec_question || 'What is the secret code?');
+      setSecAnswer(settings.sec_answer || '14081947');
       setAdminPass(settings.admin_password || 'pncms@2026');
       setSecretPass(settings.secret_password || '998877');
       setMinRate(settings.rate_ministerial || '380');

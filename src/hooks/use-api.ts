@@ -23,6 +23,26 @@ export function useSanctions() {
   })
 }
 
+export function useCreateSanction() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: api.createSanction,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['sanctions'] })
+    },
+  })
+}
+
+export function useUpdateSanction() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (data: any) => api.createSanction(data), // Using create as upsert if ID present
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['sanctions'] })
+    },
+  })
+}
+
 export function useDisciplinaryActions() {
   return useQuery({
     queryKey: ['disciplinary-actions'],

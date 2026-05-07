@@ -101,6 +101,13 @@ export function setupHandlers() {
     return await prisma.sanction.create({ data })
   })
 
+  ipcMain.handle('update-sanction', async (_, { id, ...data }: any) => {
+    return await prisma.sanction.update({
+      where: { id },
+      data
+    })
+  })
+
   // Disciplinary Handlers
   ipcMain.handle('get-disciplinary-actions', async () => {
     return await prisma.disciplinaryAction.findMany({

@@ -12,6 +12,8 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import ExcelJS from 'exceljs';
+import { useUpsertEmployee, useCreateLog } from "@/hooks/use-api";
 
 // Memoized Table Row for performance
 const RecordRow = React.memo(({ p, onNavigate }: { p: any; onNavigate: (path: string) => void }) => (
@@ -59,13 +61,97 @@ const EmploymentRecords = () => {
   const { data: ranks = [] } = useRanks();
   const { data: departments = [] } = useDepartments();
 
-  const [isImporting, setIsImporting] = useState(false);
-  
-  const navigate = useNavigate();
+  const { mutateAsync: upsertEmployee } = useUpsertEmployee();
+  const { mutate: createLog } = useCreateLog();
 
   const handleImport = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    // ... import logic remains similar but should call api.upsertEmployee eventually
-    // For now keeping it simple or skipping for brevity as requested "complete backend"
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setIsImporting(true);
+    const toastId = toast.loading("Processing import file...");
+
+    try {
+      const workbook = new ExcelJS.Workbook();
+      const arrayBuffer = await file.arrayBuffer();
+      
+      if (file.name.endsWith('.csv')) {
+        // Simple CSV parsing if needed, but ExcelJS can handle many formats
+        await workbook.csv.read(file.stream() as any);
+      } else {
+        await workbook.xlsx.load(arrayBuffer);
+      }
+
+      const worksheet = workbook.getWorksheet(1);
+      if (!worksheet) throw new Error("No worksheet found");
+
+      let successCount = 0;
+      let errorCount = 0;
+
+      // Assuming headers: Service No, Rank, Name, Department, BPS, Card Type, Status
+      // We skip the first row (headers)
+      const rows: any[] = [];
+      worksheet.eachRow((row, rowNumber) => {
+        if (rowNumber === 1) return;
+        
+        const serviceNo = row.getCell(1).text?.toString().trim();
+        const rankName = row.getCell(2).text?.toString().trim();
+        const name = row.getCell(3).text?.toString().trim();
+        const deptName = row.getCell(4).text?.toString().trim();
+        const bps = row.getCell(5).text?.toString().trim();
+        const cardType = row.getCell(6).text?.toString().trim();
+        
+        if (serviceNo && name) {
+          rows.push({
+            serviceNo,
+            name,
+            rankName,
+            deptName,
+            bps,
+            cardType: cardType || 'Ministerial',
+            status: 'Active'
+          });
+        }
+      });
+
+      for (const rowData of rows) {
+        try {
+          // Find Rank ID and Dept ID by name
+          const rank = ranks.find((r: any) => r.name.toLowerCase() === rowData.rankName?.toLowerCase());
+          const dept = departments.find((d: any) => d.name.toLowerCase() === rowData.deptName?.toLowerCase());
+
+          await upsertEmployee({
+            serviceNo: rowData.serviceNo,
+            name: rowData.name,
+            rankId: rank?.id,
+            departmentId: dept?.id,
+            bps: rowData.bps || rank?.bps,
+            cardType: rowData.cardType,
+            status: rowData.status,
+            accountNo: '',
+            joiningDate: new Date().toISOString()
+          });
+          successCount++;
+        } catch (err) {
+          console.error(`Row failed: ${rowData.serviceNo}`, err);
+          errorCount++;
+        }
+      }
+
+      createLog({
+        user: localStorage.getItem("username") || "Admin",
+        action: "IMPORT",
+        entity: `Imported ${successCount} personnel records from ${file.name}`,
+        result: "Success"
+      });
+
+      toast.success(`Import Complete: ${successCount} added, ${errorCount} failed`, { id: toastId });
+    } catch (error: any) {
+      toast.error(`Import Failed: ${error.message}`, { id: toastId });
+    } finally {
+      setIsImporting(false);
+      if (e.target) e.target.value = '';
+    }
   };
 
   // Optimized filtering logic

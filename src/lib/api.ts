@@ -10,6 +10,7 @@ export const api = {
   // Sanctions
   getSanctions: () => ipcRenderer.invoke('get-sanctions'),
   createSanction: (data: any) => ipcRenderer.invoke('create-sanction', data),
+  updateSanction: (data: any) => ipcRenderer.invoke('update-sanction', data),
 
   // Discipline
   getDisciplinaryActions: () => ipcRenderer.invoke('get-disciplinary-actions'),
