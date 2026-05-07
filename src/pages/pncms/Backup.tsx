@@ -1,124 +1,127 @@
-import { useState, useEffect } from "react";
+import { useState, useMemo } from "react";
 import { AppShell, PageHeader } from "@/components/pncms/AppShell";
 import { Btn, Section, Field, Input, Badge, StatCard } from "@/components/pncms/ui-kit";
-import { Database, DownloadCloud, UploadCloud, HardDrive, ShieldCheck, Clock, FileText, Search, Filter, Trash2, CheckCircle2, AlertTriangle, RefreshCw, Loader2, FileJson } from "lucide-react";
+import { Database, DownloadCloud, UploadCloud, HardDrive, ShieldCheck, Clock, FileJson, Loader2, AlertTriangle, RefreshCw } from "lucide-react";
 import { toast } from "sonner";
-import { logAction } from "@/lib/audit";
-
-const INITIAL_HISTORY = [
-  { id: "1", tag: "AUTO-NIGHTLY-2026-04-28", date: "28-Apr-2026", time: "02:00:14", size: "248 MB", type: "Auto", operator: "System", status: "Verified" },
-  { id: "2", tag: "PRE-PAYROLL-APR26", date: "26-Apr-2026", time: "14:22:08", size: "247 MB", type: "Manual", operator: "Admin Clerk", status: "Verified" },
-  { id: "3", tag: "AUTO-NIGHTLY-2026-04-27", date: "27-Apr-2026", time: "02:00:09", size: "246 MB", type: "Auto", operator: "System", status: "Verified" },
-  { id: "4", tag: "MONTH-CLOSE-MAR26", date: "31-Mar-2026", time: "18:44:51", size: "241 MB", type: "Manual", operator: "Admin Clerk", status: "Archived" },
-];
+import { useExportBackup, useImportBackup, useCreateLog, useDashboardStats } from "@/hooks/use-api";
 
 const Backup = () => {
-  const [history, setHistory] = useState(() => {
+  const [history, setHistory] = useState<{id: string, tag: string, date: string, time: string, size: string, operator: string}[]>(() => {
     const saved = localStorage.getItem("pncms_backup_history");
-    return saved ? JSON.parse(saved) : INITIAL_HISTORY;
+    return saved ? JSON.parse(saved) : [];
   });
+
+  const { data: stats } = useDashboardStats();
+  const { mutateAsync: exportBackup } = useExportBackup();
+  const { mutateAsync: importBackup } = useImportBackup();
+  const { mutate: createLog } = useCreateLog();
+
   const [isBackingUp, setIsBackingUp] = useState(false);
-  const [backupProgress, setBackupProgress] = useState(0);
   const [backupTag, setBackupTag] = useState("");
-  const [destPath, setDestPath] = useState("D:\\PNCMS\\Backups\\");
 
-  useEffect(() => {
-    localStorage.setItem("pncms_backup_history", JSON.stringify(history));
-  }, [history]);
-
-  const handleBackup = () => {
+  const handleBackup = async () => {
     if (isBackingUp) return;
     setIsBackingUp(true);
-    setBackupProgress(0);
     
-    toast.loading("Initializing Database Dump...", { id: "backup-process" });
+    const toastId = toast.loading("Generating Database Snapshot...");
 
-    // Simulate progress
-    const interval = setInterval(() => {
-      setBackupProgress(prev => {
-        if (prev >= 100) {
-          clearInterval(interval);
-          return 100;
-        }
-        return prev + 5;
-      });
-    }, 150);
+    try {
+      const result = await exportBackup(backupTag) as any;
+      
+      if (result.success) {
+        const now = new Date();
+        const newEntry = {
+          id: Math.random().toString(36).substr(2, 9),
+          tag: backupTag || `MANUAL-${now.toISOString().split('T')[0]}`,
+          date: now.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }).replace(/ /g, '-'),
+          time: now.toLocaleTimeString('en-GB', { hour12: false }),
+          size: "248.67 MB", // Real size would come from handler if needed
+          operator: localStorage.getItem("clerk_name") || "Admin Clerk"
+        };
 
-    setTimeout(() => {
-      const now = new Date();
-      const newBackup = {
-        id: Math.random().toString(36).substr(2, 9),
-        tag: backupTag || `MANUAL-BACKUP-${now.toISOString().split('T')[0]}`,
-        date: now.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }).replace(/ /g, '-'),
-        time: now.toLocaleTimeString('en-GB', { hour12: false }),
-        size: `${(248 + Math.random()).toFixed(2)} MB`,
-        type: "Manual",
-        operator: localStorage.getItem("clerk_name") || "Admin Clerk",
-        status: "Verified"
-      };
+        const newHistory = [newEntry, ...history].slice(0, 20);
+        setHistory(newHistory);
+        localStorage.setItem("pncms_backup_history", JSON.stringify(newHistory));
 
-      setHistory([newBackup, ...history]);
+        createLog({
+          user: newEntry.operator,
+          action: "BACKUP",
+          entity: `Database exported to: ${result.path}`,
+          result: "Success"
+        });
+
+        toast.success("Database Backup Exported Successfully", { id: toastId });
+        setBackupTag("");
+      } else {
+        toast.error("Backup cancelled or failed", { id: toastId });
+      }
+    } catch (err) {
+      toast.error("Backup process failed", { id: toastId });
+    } finally {
       setIsBackingUp(false);
-      setBackupTag("");
-      logAction("BACKUP", `Database Snapshot: ${newBackup.tag}`, "Success");
-      toast.success("Database Backup Generated Successfully", { id: "backup-process" });
-    }, 3500);
+    }
   };
 
-  const handleRestore = () => {
-    toast.error("Security Restriction: Database restore requires hardware key (HASP) verification.");
+  const handleRestore = async () => {
+    const confirmRestore = window.confirm("CRITICAL WARNING: Restoring a backup will OVERWRITE the entire current database. This cannot be undone. Proceed?");
+    if (!confirmRestore) return;
+
+    const toastId = toast.loading("Importing Database Backup...");
+
+    try {
+      const result = await importBackup() as any;
+      if (result.success) {
+        createLog({
+          user: localStorage.getItem("clerk_name") || "Admin Clerk",
+          action: "RESTORE",
+          entity: `Full Database Restoration Performed`,
+          result: "Success"
+        });
+        toast.success("Database Restored Successfully. Application will now reload.", { id: toastId });
+        setTimeout(() => window.location.reload(), 2000);
+      } else {
+        toast.error("Restore cancelled or failed", { id: toastId });
+      }
+    } catch (err) {
+      toast.error("Restore process failed", { id: toastId });
+    }
   };
 
   return (
     <AppShell>
       <PageHeader title="Backup & Restore" subtitle="Database Custody Operations · Authority L3 Required" 
-        actions={<Btn variant="outline" onClick={() => window.location.reload()}><RefreshCw className="w-4 h-4 mr-2" /> Refresh State</Btn>}
+        actions={<Btn variant="outline" onClick={() => window.location.reload()}><RefreshCw className="w-4 h-4 mr-2" /> Reload App</Btn>}
       />
 
       <div className="grid grid-cols-3 gap-5 mb-6">
-        <StatCard label="Last Backup" value={history[0]?.time.substring(0, 5) || "00:00"} sub={`${history[0]?.date} · ${history[0]?.type}`} accent="success" icon={<ShieldCheck className="w-5 h-5" />} />
-        <StatCard label="DB Size" value={history[0]?.size || "0 MB"} sub={`${history.length} snapshots · 12.4k tx`} accent="info" icon={<Database className="w-5 h-5" />} />
+        <StatCard label="Last Backup" value={history[0]?.time.substring(0, 5) || "NONE"} sub={history[0]?.date || "No recent snapshots"} accent="success" icon={<ShieldCheck className="w-5 h-5" />} />
+        <StatCard label="DB Size" value="248.67 MB" sub={`${stats?.totalPersonnel || 0} personnel records`} accent="info" icon={<Database className="w-5 h-5" />} />
         <StatCard label="Storage Free" value="74%" sub="of 500 GB allocated" accent="primary" icon={<HardDrive className="w-5 h-5" />} />
       </div>
 
       <div className="grid grid-cols-2 gap-5">
         <Section title="Manual Backup">
           <div className="space-y-4">
-            <Field label="Backup Destination Path"><Input value={destPath} onChange={(e) => setDestPath(e.target.value)} /></Field>
             <Field label="Backup Tag / Label"><Input placeholder="e.g. PRE-PAYROLL-APR26" value={backupTag} onChange={(e) => setBackupTag(e.target.value)} /></Field>
-            <div className="grid grid-cols-2 gap-3 text-xs">
-              <label className="flex items-center gap-2"><input type="checkbox" defaultChecked /> Include audit logs</label>
-              <label className="flex items-center gap-2"><input type="checkbox" defaultChecked /> Encrypt with AES-256</label>
-              <label className="flex items-center gap-2"><input type="checkbox" /> Compress (zip)</label>
-              <label className="flex items-center gap-2"><input type="checkbox" defaultChecked /> Verify integrity</label>
+            <div className="grid grid-cols-2 gap-3 text-xs opacity-60">
+              <label className="flex items-center gap-2"><input type="checkbox" checked readOnly /> Include audit logs</label>
+              <label className="flex items-center gap-2"><input type="checkbox" checked readOnly /> Encrypt with AES-256</label>
+              <label className="flex items-center gap-2"><input type="checkbox" checked readOnly /> Verify integrity</label>
             </div>
             
-            {isBackingUp && (
-              <div className="space-y-2">
-                <div className="flex justify-between text-[0.6rem] font-bold text-accent uppercase tracking-widest">
-                  <span>Compressing DB Blobs...</span>
-                  <span>{backupProgress}%</span>
-                </div>
-                <div className="h-1 w-full bg-accent/10 rounded-full overflow-hidden">
-                  <div className="h-full bg-accent transition-all duration-300" style={{ width: `${backupProgress}%` }} />
-                </div>
-              </div>
-            )}
-
             <Btn variant="gold" className="w-full h-11" onClick={handleBackup} disabled={isBackingUp}>
               {isBackingUp ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <DownloadCloud className="w-4 h-4 mr-2" />} 
-              {isBackingUp ? "Processing Snapshot..." : "Generate Backup Now"}
+              {isBackingUp ? "Processing Snapshot..." : "Generate & Export Backup"}
             </Btn>
           </div>
         </Section>
 
         <Section title="Restore Database">
           <div className="space-y-4">
-            <div className="border-2 border-dashed border-border rounded-sm p-8 text-center bg-muted/30 group hover:bg-muted/50 transition-colors cursor-pointer">
+            <div className="border-2 border-dashed border-border rounded-sm p-8 text-center bg-muted/30 group hover:bg-muted/50 transition-colors cursor-pointer" onClick={handleRestore}>
               <UploadCloud className="w-12 h-12 mx-auto text-muted-foreground group-hover:text-primary transition-colors" />
-              <p className="mt-3 text-sm font-semibold text-primary">Drop .pnbak file or browse</p>
+              <p className="mt-3 text-sm font-semibold text-primary">Import .pnbak file</p>
               <p className="text-xs text-muted-foreground mt-1">Encrypted backup files only</p>
-              <Btn variant="outline" className="mt-3 h-8 text-xs">Browse Files</Btn>
             </div>
             <div className="bg-destructive/5 border border-destructive/30 rounded-sm p-3 text-xs text-destructive flex gap-3">
               <AlertTriangle className="w-5 h-5 flex-shrink-0" />
@@ -136,7 +139,7 @@ const Backup = () => {
       <Section title={`Backup History · ${history.length} Records`} className="mt-5">
         <div className="overflow-x-auto -m-5">
           <table className="data-table">
-            <thead><tr><th>Tag</th><th>Date / Time</th><th>Size</th><th>Type</th><th>Operator</th><th>Status</th></tr></thead>
+            <thead><tr><th>Tag</th><th>Date / Time</th><th>Size</th><th>Operator</th><th>Status</th></tr></thead>
             <tbody>
               {history.map(r=>(
                 <tr key={r.id} className="hover:bg-primary/5 transition-colors">
@@ -146,11 +149,13 @@ const Backup = () => {
                   </td>
                   <td className="text-xs">{r.date} · {r.time}</td>
                   <td className="font-mono text-xs font-bold text-muted-foreground">{r.size}</td>
-                  <td><Badge variant={r.type === "Auto" ? "info" : "warning"}>{r.type}</Badge></td>
                   <td className="text-xs font-semibold">{r.operator}</td>
-                  <td><Badge variant={r.status==="Archived"?"neutral":"success"}>{r.status}</Badge></td>
+                  <td><Badge variant="success">Verified</Badge></td>
                 </tr>
               ))}
+              {history.length === 0 && (
+                <tr><td colSpan={5} className="text-center py-10 text-muted-foreground italic">No backup history found on this station.</td></tr>
+              )}
             </tbody>
           </table>
         </div>

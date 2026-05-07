@@ -1,6 +1,8 @@
-import { ipcMain } from 'electron'
+import { ipcMain, dialog } from 'electron'
 import { prisma } from './db'
 import bcrypt from 'bcryptjs'
+import fs from 'fs'
+import path from 'path'
 
 export function setupHandlers() {
   // Employee Handlers
@@ -330,5 +332,38 @@ export function setupHandlers() {
         result: logData.result || 'Success'
       }
     })
+  })
+
+  // Backup & Restore Handlers
+  ipcMain.handle('export-backup', async (_, tag: string) => {
+    const { filePath } = await dialog.showSaveDialog({
+      title: 'Export Database Backup',
+      defaultPath: `pncms_backup_${tag || Date.now()}.pnbak`,
+      filters: [{ name: 'PNCMS Backup', extensions: ['pnbak'] }]
+    })
+
+    if (filePath) {
+      const dbPath = path.join(process.cwd(), 'prisma', 'dev.db')
+      fs.copyFileSync(dbPath, filePath)
+      return { success: true, path: filePath }
+    }
+    return { success: false }
+  })
+
+  ipcMain.handle('import-backup', async () => {
+    const { filePaths } = await dialog.showOpenDialog({
+      title: 'Import Database Backup',
+      filters: [{ name: 'PNCMS Backup', extensions: ['pnbak'] }],
+      properties: ['openFile']
+    })
+
+    if (filePaths && filePaths[0]) {
+      const dbPath = path.join(process.cwd(), 'prisma', 'dev.db')
+      // Backup current before overwrite
+      fs.copyFileSync(dbPath, `${dbPath}.bak`)
+      fs.copyFileSync(filePaths[0], dbPath)
+      return { success: true }
+    }
+    return { success: false }
   })
 }

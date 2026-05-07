@@ -186,7 +186,19 @@ export function useLogs() {
   return useQuery({
     queryKey: ['logs'],
     queryFn: api.getLogs,
-    refetchInterval: 30000, // auto-refresh every 30s
+    refetchInterval: 5000, // Reduced to 5s for better realtime feel
+  })
+}
+
+export function useExportBackup() {
+  return useMutation({
+    mutationFn: api.exportBackup,
+  })
+}
+
+export function useImportBackup() {
+  return useMutation({
+    mutationFn: api.importBackup,
   })
 }
 

@@ -49,4 +49,8 @@ export const api = {
   // Logs
   getLogs: () => ipcRenderer.invoke('get-logs'),
   createLog: (data: any) => ipcRenderer.invoke('create-log', data),
+  
+  // Backup
+  exportBackup: (tag: string) => ipcRenderer.invoke('export-backup', tag),
+  importBackup: () => ipcRenderer.invoke('import-backup'),
 }
