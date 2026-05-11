@@ -11,6 +11,7 @@ model Employee {
   id                     String               @id @default(cuid())
   serviceNo              String               @unique
   name                   String
+  phoneNumber            String?
   rankId                 String
   departmentId           String
   cardType               String

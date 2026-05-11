@@ -89,7 +89,7 @@ const Ranks = () => {
     return (ranks as any[]).map(r => {
       const bornCount = (personnel as any[]).filter(p => p.rankId === r.id).length;
       return { ...r, born: bornCount };
-    });
+    }).sort((a, b) => b.bps.localeCompare(a.bps));
   }, [ranks, personnel]);
 
   const filteredRanks = processedRanks.filter(r => r.cadre === activeCadre);

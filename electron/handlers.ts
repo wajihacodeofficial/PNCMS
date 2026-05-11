@@ -212,7 +212,7 @@ export function setupHandlers() {
   // Master Data Handlers
   ipcMain.handle('get-ranks', async () => {
     return await prisma.rank.findMany({
-      orderBy: { name: 'asc' }
+      orderBy: { bps: 'desc' }
     })
   })
 

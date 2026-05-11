@@ -79,7 +79,6 @@ const EmploymentRecords = () => {
       const arrayBuffer = await file.arrayBuffer();
       
       if (file.name.endsWith('.csv')) {
-        // Simple CSV parsing if needed, but ExcelJS can handle many formats
         await workbook.csv.read(file.stream() as any);
       } else {
         await workbook.xlsx.load(arrayBuffer);
@@ -88,51 +87,84 @@ const EmploymentRecords = () => {
       const worksheet = workbook.getWorksheet(1);
       if (!worksheet) throw new Error("No worksheet found");
 
+      // Robust Header Mapping
+      const headerRow = worksheet.getRow(1);
+      const colMap: Record<string, number> = {};
+      
+      headerRow.eachCell((cell, colNumber) => {
+        const title = cell.text?.toLowerCase().trim();
+        if (!title) return;
+
+        if (title.includes('service') || title.includes('svc')) colMap.serviceNo = colNumber;
+        else if (title.includes('full name') || title === 'name') colMap.name = colNumber;
+        else if (title.includes('rank')) colMap.rankName = colNumber;
+        else if (title.includes('dept') || title.includes('department')) colMap.deptName = colNumber;
+        else if (title.includes('bps') || title.includes('grade')) colMap.bps = colNumber;
+        else if (title.includes('card') || title.includes('type')) colMap.cardType = colNumber;
+        else if (title.includes('status')) colMap.status = colNumber;
+        else if (title.includes('cnic')) colMap.cnic = colNumber;
+        else if (title.includes('phone') || title.includes('contact')) colMap.phoneNumber = colNumber;
+        else if (title.includes('father')) colMap.fatherName = colNumber;
+        else if (title.includes('dob') || title.includes('birth')) colMap.dob = colNumber;
+        else if (title.includes('blood')) colMap.bloodGroup = colNumber;
+        else if (title.includes('present')) colMap.presentAddress = colNumber;
+        else if (title.includes('permanent')) colMap.permanentAddress = colNumber;
+        else if (title.includes('join')) colMap.joiningDate = colNumber;
+        else if (title.includes('appoint')) colMap.appointmentDate = colNumber;
+        else if (title.includes('bank')) colMap.bankName = colNumber;
+        else if (title.includes('account')) colMap.accountNo = colNumber;
+      });
+
+      if (!colMap.serviceNo || !colMap.name) {
+        throw new Error("Missing critical headers: 'Service No' and 'Name' are required.");
+      }
+
       let successCount = 0;
       let errorCount = 0;
 
-      // Assuming headers: Service No, Rank, Name, Department, BPS, Card Type, Status
-      // We skip the first row (headers)
       const rows: any[] = [];
       worksheet.eachRow((row, rowNumber) => {
         if (rowNumber === 1) return;
         
-        const serviceNo = row.getCell(1).text?.toString().trim();
-        const rankName = row.getCell(2).text?.toString().trim();
-        const name = row.getCell(3).text?.toString().trim();
-        const deptName = row.getCell(4).text?.toString().trim();
-        const bps = row.getCell(5).text?.toString().trim();
-        const cardType = row.getCell(6).text?.toString().trim();
+        const getVal = (key: string) => colMap[key] ? row.getCell(colMap[key]).text?.toString().trim() : '';
+
+        const serviceNo = getVal('serviceNo');
+        const name = getVal('name');
         
         if (serviceNo && name) {
           rows.push({
             serviceNo,
             name,
-            rankName,
-            deptName,
-            bps,
-            cardType: cardType || 'Ministerial',
-            status: 'Active'
+            phoneNumber: getVal('phoneNumber'),
+            rankName: getVal('rankName'),
+            deptName: getVal('deptName'),
+            bps: getVal('bps'),
+            cardType: getVal('cardType') || 'Ministerial',
+            status: getVal('status') || 'Active',
+            cnic: getVal('cnic'),
+            fatherName: getVal('fatherName'),
+            dob: getVal('dob'),
+            bloodGroup: getVal('bloodGroup'),
+            presentAddress: getVal('presentAddress'),
+            permanentAddress: getVal('permanentAddress'),
+            joiningDate: getVal('joiningDate') || new Date().toISOString().split('T')[0],
+            appointmentDate: getVal('appointmentDate'),
+            bankName: getVal('bankName'),
+            accountNo: getVal('accountNo'),
           });
         }
       });
 
       for (const rowData of rows) {
         try {
-          // Find Rank ID and Dept ID by name
           const rank = ranks.find((r: any) => r.name.toLowerCase() === rowData.rankName?.toLowerCase());
           const dept = departments.find((d: any) => d.name.toLowerCase() === rowData.deptName?.toLowerCase());
 
           await upsertEmployee({
-            serviceNo: rowData.serviceNo,
-            name: rowData.name,
+            ...rowData,
             rankId: rank?.id,
             departmentId: dept?.id,
             bps: rowData.bps || rank?.bps,
-            cardType: rowData.cardType,
-            status: rowData.status,
-            accountNo: '',
-            joiningDate: new Date().toISOString()
           });
           successCount++;
         } catch (err) {
