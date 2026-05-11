@@ -105,7 +105,7 @@ const Ranks = () => {
           subtitle={`${viewingRank.cadre} Cadre · BPS Level: ${viewingRank.bps}`}
           actions={
             <div className="flex gap-2">
-              <Btn variant="gold" onClick={() => exportToExcel('Personnel Roster', [['Svc No', 'Name', 'Dept']], rankIndividuals.map(i=>[i.serviceNo, i.name, i.department?.name]), `roster_${viewingRank.name}`)}><FileSpreadsheet className="w-4 h-4 mr-2" /> Save Excel</Btn>
+              <Btn variant="gold" onClick={() => exportToExcel('Personnel Roster', ['Svc No', 'Name', 'Dept'], rankIndividuals.map(i=>[i.serviceNo, i.name, i.department?.name]), `roster_${viewingRank.name}`)}><FileSpreadsheet className="w-4 h-4 mr-2" /> Save Excel</Btn>
               <Btn variant="outline" onClick={() => setViewingRank(null)}><ArrowLeft className="w-4 h-4 mr-2" /> Back to List</Btn>
             </div>
           }

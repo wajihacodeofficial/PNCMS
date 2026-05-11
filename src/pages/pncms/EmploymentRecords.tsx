@@ -50,6 +50,8 @@ const RecordRow = React.memo(({ p, onNavigate }: { p: any; onNavigate: (path: st
 ));
 
 const EmploymentRecords = () => {
+  const navigate = useNavigate();
+
   const [showFilters, setShowFilters] = useState(false);
   const [search, setSearch] = useState("");
   const [rankFilter, setRankFilter] = useState("All Ranks");
@@ -60,6 +62,7 @@ const EmploymentRecords = () => {
   const { data: personnel = [], isLoading } = usePersonnel();
   const { data: ranks = [] } = useRanks();
   const { data: departments = [] } = useDepartments();
+  const [isImporting, setIsImporting] = useState(false);
 
   const { mutateAsync: upsertEmployee } = useUpsertEmployee();
   const { mutate: createLog } = useCreateLog();

@@ -1,6 +1,6 @@
 import { useNavigate } from 'react-router-dom';
 import { AppShell, PageHeader } from '@/components/pncms/AppShell';
-import { StatCard, Section, Btn } from '@/components/pncms/ui-kit';
+import { StatCard, Section, Btn, Badge } from '@/components/pncms/ui-kit';
 import {
   Users,
   ClipboardList,
