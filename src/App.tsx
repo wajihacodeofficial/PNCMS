@@ -28,11 +28,18 @@ import Ranks from "./pages/pncms/Ranks";
 import Discipline from "./pages/pncms/Discipline";
 import Payments from "./pages/pncms/Payments";
 import NotFound from "./pages/NotFound.tsx";
+import { useRealtimeSync } from "./hooks/use-api";
+
+const RealtimeSyncManager = () => {
+  useRealtimeSync();
+  return null;
+};
 
 const queryClient = new QueryClient();
 
 const App = () => (
   <QueryClientProvider client={queryClient}>
+    <RealtimeSyncManager />
     <TooltipProvider>
       <Toaster />
       <Sonner />

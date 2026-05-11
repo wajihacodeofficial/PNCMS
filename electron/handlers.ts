@@ -1,10 +1,17 @@
-import { ipcMain, dialog } from 'electron'
+import { ipcMain, dialog, BrowserWindow } from 'electron'
 import { prisma } from './db'
 import bcrypt from 'bcryptjs'
 import fs from 'fs'
 import path from 'path'
 
+function notifyChange(topic: string) {
+  BrowserWindow.getAllWindows().forEach(win => {
+    win.webContents.send('db-changed', topic)
+  })
+}
+
 export function setupHandlers() {
+
   // Employee Handlers
   ipcMain.handle('get-personnel', async () => {
     return await prisma.employee.findMany({
@@ -61,8 +68,7 @@ export function setupHandlers() {
       fileNumber: l.fileNo
     }))
 
-    if (id) {
-      return await prisma.$transaction(async (tx) => {
+      const result = await prisma.$transaction(async (tx) => {
         await tx.employeePhone.deleteMany({ where: { employeeId: id } })
         await tx.employeeLetter.deleteMany({ where: { employeeId: id } })
 
@@ -75,14 +81,18 @@ export function setupHandlers() {
           }
         })
       })
+      notifyChange('personnel')
+      return result
     } else {
-      return await prisma.employee.create({
+      const result = await prisma.employee.create({
         data: {
           ...employeeData,
           phones: { create: phoneCreate },
           letters: { create: letterCreate }
         }
       })
+      notifyChange('personnel')
+      return result
     }
   })
 
@@ -100,14 +110,20 @@ export function setupHandlers() {
   })
 
   ipcMain.handle('create-sanction', async (_, data: any) => {
-    return await prisma.sanction.create({ data })
+    const result = await prisma.sanction.create({ data })
+    notifyChange('sanctions')
+    return result
+
   })
 
   ipcMain.handle('update-sanction', async (_, { id, ...data }: any) => {
-    return await prisma.sanction.update({
+    const result = await prisma.sanction.update({
       where: { id },
       data
     })
+    notifyChange('sanctions')
+    return result
+
   })
 
   // Disciplinary Handlers
@@ -144,8 +160,7 @@ export function setupHandlers() {
     })
   })
 
-  ipcMain.handle('update-attendance', async (_, { date, employeeId, status }: any) => {
-    return await prisma.attendance.upsert({
+    const result = await prisma.attendance.upsert({
       where: {
         date_employeeId: {
           date,
@@ -155,7 +170,9 @@ export function setupHandlers() {
       update: { status },
       create: { date, employeeId, status }
     })
-  })
+    notifyChange('attendance')
+    return result
+
 
   // Master Data Handlers
   ipcMain.handle('get-ranks', async () => {
@@ -164,25 +181,27 @@ export function setupHandlers() {
     })
   })
 
-  ipcMain.handle('upsert-rank', async (_, data: any) => {
-    const { id, ...rest } = data
+    let result
     if (id) {
-      return await prisma.rank.update({
+      result = await prisma.rank.update({
         where: { id },
         data: rest
       })
     } else {
-      return await prisma.rank.create({
+      result = await prisma.rank.create({
         data: rest
       })
     }
-  })
+    notifyChange('ranks')
+    return result
 
-  ipcMain.handle('delete-rank', async (_, id: string) => {
-    return await prisma.rank.delete({
+
+    const result = await prisma.rank.delete({
       where: { id }
     })
-  })
+    notifyChange('ranks')
+    return result
+
 
   ipcMain.handle('get-departments', async () => {
     return await prisma.department.findMany({
@@ -190,25 +209,27 @@ export function setupHandlers() {
     })
   })
 
-  ipcMain.handle('upsert-department', async (_, data: any) => {
-    const { id, ...rest } = data
+    let result
     if (id) {
-      return await prisma.department.update({
+      result = await prisma.department.update({
         where: { id },
         data: rest
       })
     } else {
-      return await prisma.department.create({
+      result = await prisma.department.create({
         data: rest
       })
     }
-  })
+    notifyChange('departments')
+    return result
 
-  ipcMain.handle('delete-department', async (_, id: string) => {
-    return await prisma.department.delete({
+
+    const result = await prisma.department.delete({
       where: { id }
     })
-  })
+    notifyChange('departments')
+    return result
+
 
   // Auth Handlers
   ipcMain.handle('login', async (_, { username, password }: any) => {
@@ -251,8 +272,9 @@ export function setupHandlers() {
 
     if (!employee) throw new Error(`Personnel with Svc No ${svc} not found`)
 
+    let result
     if (id) {
-      return await prisma.disciplinaryAction.update({
+      result = await prisma.disciplinaryAction.update({
         where: { id },
         data: {
           ...rest,
@@ -260,13 +282,15 @@ export function setupHandlers() {
         }
       })
     } else {
-      return await prisma.disciplinaryAction.create({
+      result = await prisma.disciplinaryAction.create({
         data: {
           ...rest,
           employeeId: employee.id
         }
       })
     }
+    notifyChange('disciplinary-actions')
+    return result
   })
 
   // Settings Handlers
@@ -274,13 +298,14 @@ export function setupHandlers() {
     return await prisma.setting.findMany()
   })
 
-  ipcMain.handle('upsert-setting', async (_, { key, value }: any) => {
-    return await prisma.setting.upsert({
+    const result = await prisma.setting.upsert({
       where: { key },
       update: { value },
       create: { key, value }
     })
-  })
+    notifyChange('settings')
+    return result
+
 
   ipcMain.handle('get-attendance-range', async (_, { start, end }: { start: string; end: string }) => {
     return await prisma.attendance.findMany({
@@ -322,8 +347,7 @@ export function setupHandlers() {
     })
   })
 
-  ipcMain.handle('create-log', async (_, logData: any) => {
-    return await prisma.log.create({
+    const result = await prisma.log.create({
       data: {
         user: logData.user,
         action: logData.action,
@@ -332,7 +356,9 @@ export function setupHandlers() {
         result: logData.result || 'Success'
       }
     })
-  })
+    notifyChange('logs')
+    return result
+
 
   // Backup & Restore Handlers
   ipcMain.handle('export-backup', async (_, tag: string) => {
@@ -362,6 +388,15 @@ export function setupHandlers() {
       // Backup current before overwrite
       fs.copyFileSync(dbPath, `${dbPath}.bak`)
       fs.copyFileSync(filePaths[0], dbPath)
+      BrowserWindow.getAllWindows().forEach(win => {
+        win.webContents.send('db-changed', 'personnel')
+        win.webContents.send('db-changed', 'sanctions')
+        win.webContents.send('db-changed', 'attendance')
+        win.webContents.send('db-changed', 'ranks')
+        win.webContents.send('db-changed', 'departments')
+        win.webContents.send('db-changed', 'settings')
+        win.webContents.send('db-changed', 'logs')
+      })
       return { success: true }
     }
     return { success: false }

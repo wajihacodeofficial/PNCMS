@@ -1,5 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { api } from '@/lib/api'
+import { useEffect } from 'react'
 
 export function usePersonnel() {
   return useQuery({
@@ -210,4 +211,26 @@ export function useCreateLog() {
       queryClient.invalidateQueries({ queryKey: ['logs'] })
     },
   })
+}
+
+export function useRealtimeSync() {
+  const queryClient = useQueryClient()
+
+  useEffect(() => {
+    if (!window.ipcRenderer) return
+
+    const listener = (_: any, topic: string) => {
+      queryClient.invalidateQueries({ queryKey: [topic] })
+      
+      // Invalidate dashboard stats if personnel, sanctions or attendance change
+      if (['personnel', 'sanctions', 'attendance'].includes(topic)) {
+        queryClient.invalidateQueries({ queryKey: ['dashboard-stats'] })
+      }
+    }
+
+    window.ipcRenderer.on('db-changed', listener)
+    return () => {
+      window.ipcRenderer.off('db-changed', listener)
+    }
+  }, [queryClient])
 }

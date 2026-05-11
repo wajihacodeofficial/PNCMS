@@ -7,7 +7,7 @@ const About = () => (
   <AppShell>
     <PageHeader
       title="About PNCMS"
-      subtitle="Software Information & Vendor Credits"
+      subtitle="Software Information & Agency Credits"
     />
 
     <div className="panel overflow-hidden mb-6">
@@ -67,7 +67,7 @@ const About = () => (
         </dl>
       </Section>
 
-      <Section title="Vendor & Development">
+      <Section title="Agency & Development">
         <div className="space-y-4">
           <div>
             <div className="label-mil">Developed By</div>
@@ -75,7 +75,7 @@ const About = () => (
               Code Vertex Solutions
             </h3>
             <p className="text-xs text-muted-foreground mt-1">
-              Approved Defense Software Vendor · Karachi, Pakistan
+              Software Development Agency · Karachi, Pakistan
             </p>
           </div>
           <dl className="text-sm space-y-2.5">
