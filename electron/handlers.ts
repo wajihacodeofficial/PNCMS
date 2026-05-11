@@ -186,7 +186,41 @@ export function setupHandlers() {
     })
   })
 
-  ipcMain.handle('update-attendance', async (_, { date, employeeId, status }: any) => {
+  ipcMain.handle('get-muster-lock', async (_, date: string) => {
+    return await prisma.musterLock.findUnique({
+      where: { date }
+    })
+  })
+
+  ipcMain.handle('lock-muster', async (_, { date, lockedBy }: any) => {
+    const result = await prisma.musterLock.create({
+      data: { date, lockedBy }
+    })
+    notifyChange('attendance')
+    return result
+  })
+
+  ipcMain.handle('unlock-muster', async (_, { date, password }: any) => {
+    const secret = await prisma.setting.findUnique({ where: { key: 'secret_password' } })
+    if (secret && secret.value !== password) {
+      throw new Error('Invalid secret password')
+    }
+    const result = await prisma.musterLock.delete({
+      where: { date }
+    })
+    notifyChange('attendance')
+    return result
+  })
+
+  ipcMain.handle('update-attendance', async (_, { date, employeeId, status, overridePassword }: any) => {
+    const lock = await prisma.musterLock.findUnique({ where: { date } })
+    if (lock) {
+      const secret = await prisma.setting.findUnique({ where: { key: 'secret_password' } })
+      if (!overridePassword || (secret && secret.value !== overridePassword)) {
+        throw new Error('This muster is locked. Secret password required for updates.')
+      }
+    }
+
     const result = await prisma.attendance.upsert({
       where: {
         date_employeeId: { date, employeeId }

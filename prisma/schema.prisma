@@ -203,3 +203,10 @@ model Log {
   ip     String
   result String
 }
+
+model MusterLock {
+  id       String   @id @default(cuid())
+  date     String   @unique
+  lockedAt DateTime @default(now())
+  lockedBy String
+}

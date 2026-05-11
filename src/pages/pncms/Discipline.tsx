@@ -5,7 +5,7 @@ import {
   Plus, ShieldAlert, Gavel, Search, Trash2, X, Eye, FileText, Printer, MessageSquare, Edit3, CheckCircle, Clock, History, Send, Lock, Unlock, ShieldX, Upload
 } from 'lucide-react';
 import { toast } from 'sonner';
-import { useDisciplinaryActions, useUpsertDisciplinaryAction, useCreateLog } from '@/hooks/use-api';
+import { useDisciplinaryActions, useUpsertDisciplinaryAction, useCreateLog, usePersonnel } from '@/hooks/use-api';
 import { logAction } from '@/lib/audit';
 import * as ExcelJS from 'exceljs';
 
@@ -36,8 +36,10 @@ interface DisciplineRecord {
 
 const Discipline = () => {
   const { data: records = [], isLoading } = useDisciplinaryActions();
+  const { data: personnel = [] } = usePersonnel();
   const { mutate: upsertAction } = useUpsertDisciplinaryAction();
   const { mutate: createLog } = useCreateLog();
+
 
   const [isAdding, setIsAdding] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -55,6 +57,17 @@ const Discipline = () => {
     svc: '', name: '', offense: 'Unauthorized Absence', action: 'Written Warning',
     date: '', ref: '', status: 'Ongoing', details: '', remarks: '', authority: 'Cdr. Imtiaz Ali'
   });
+
+  // Auto-fill personnel name from SVC number
+  useEffect(() => {
+    if (form.svc && form.svc.length >= 3) {
+      const match = (personnel as any[]).find(p => p.serviceNo === form.svc);
+      if (match && match.name !== form.name) {
+        setForm(prev => ({ ...prev, name: match.name }));
+      }
+    }
+  }, [form.svc, personnel]);
+
 
   const handleSave = () => {
     upsertAction({

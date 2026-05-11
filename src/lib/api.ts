@@ -26,8 +26,11 @@ export const api = {
   // Attendance
   getAttendance: (date: string) => ipcRenderer.invoke('get-attendance', date),
   getAttendanceRange: (start: string, end: string) => ipcRenderer.invoke('get-attendance-range', { start, end }),
-  updateAttendance: (date: string, employeeId: string, status: string) => 
-    ipcRenderer.invoke('update-attendance', { date, employeeId, status }),
+  updateAttendance: (date: string, employeeId: string, status: string, overridePassword?: string) => 
+    ipcRenderer.invoke('update-attendance', { date, employeeId, status, overridePassword }),
+  getMusterLock: (date: string) => ipcRenderer.invoke('get-muster-lock', date),
+  lockMuster: (data: { date: string; lockedBy: string }) => ipcRenderer.invoke('lock-muster', data),
+  unlockMuster: (data: { date: string; password?: string }) => ipcRenderer.invoke('unlock-muster', data),
 
   // Master Data
   getRanks: () => ipcRenderer.invoke('get-ranks'),

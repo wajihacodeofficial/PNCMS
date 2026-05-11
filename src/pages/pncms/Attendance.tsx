@@ -7,7 +7,7 @@ import { exportToPDF, exportToExcel } from "@/lib/export";
 import { logAction } from "@/lib/audit";
 import * as Tabs from "@radix-ui/react-tabs";
 import { format, parseISO, isWithinInterval, subDays } from "date-fns";
-import { usePersonnel, useAttendance, useDepartments } from "@/hooks/use-api";
+import { usePersonnel, useAttendance, useDepartments, useMusterLock, useLockMuster, useUnlockMuster } from "@/hooks/use-api";
 import { api } from "@/lib/api";
 import { useQueryClient } from "@tanstack/react-query";
 
@@ -35,10 +35,14 @@ const Attendance = () => {
   const { data: personnel = [], isLoading: isPersonnelLoading } = usePersonnel();
   const { data: attendance = [], isLoading: isAttendanceLoading } = useAttendance(selectedDate);
 
-  const [showUnlockModal, setShowUnlockModal] = useState(false);
-  const [unlockUsername, setUnlockUsername] = useState("");
-  const [unlockPassword, setUnlockPassword] = useState("");
-  const [pendingAction, setPendingAction] = useState<(() => void) | null>(null);
+  const { data: lock } = useMusterLock(selectedDate);
+  const { mutate: lockMuster } = useLockMuster();
+  const { mutate: unlockMuster } = useUnlockMuster();
+
+  const [showOverrideModal, setShowOverrideModal] = useState(false);
+  const [overridePassword, setOverridePassword] = useState("");
+  const [pendingUpdate, setPendingUpdate] = useState<{empId: string, status: string} | null>(null);
+  const [isLocking, setIsLocking] = useState(false);
 
   useEffect(() => {
     const clk = localStorage.getItem("clerk_name");
@@ -54,13 +58,66 @@ const Attendance = () => {
   }, [attendance]);
 
   const markAttendance = async (employeeId: string, status: string) => {
+    if (lock) {
+      setPendingUpdate({ empId: employeeId, status });
+      setShowOverrideModal(true);
+      return;
+    }
+
     try {
       await api.updateAttendance(selectedDate, employeeId, status);
       queryClient.invalidateQueries({ queryKey: ['attendance', selectedDate] });
       toast.success("Attendance updated");
-    } catch (error) {
-      toast.error("Failed to update attendance");
+    } catch (error: any) {
+      toast.error(error.message || "Failed to update attendance");
     }
+  };
+
+  const handleOverride = async () => {
+    if (!pendingUpdate) return;
+    try {
+      await api.updateAttendance(selectedDate, pendingUpdate.empId, pendingUpdate.status, overridePassword);
+      queryClient.invalidateQueries({ queryKey: ['attendance', selectedDate] });
+      toast.success("Attendance updated with override");
+      setShowOverrideModal(false);
+      setOverridePassword("");
+      setPendingUpdate(null);
+    } catch (error: any) {
+      toast.error(error.message || "Invalid secret password");
+    }
+  };
+
+  const handleLock = () => {
+    lockMuster({ date: selectedDate, lockedBy: clerkName }, {
+      onSuccess: () => {
+        toast.success(`Muster Roll for ${selectedDate} has been locked.`);
+        api.createLog({
+          user: clerkName,
+          action: "LOCK",
+          entity: `Muster Roll: ${selectedDate}`,
+          result: "Success"
+        });
+      }
+    });
+  };
+
+  const handleUnlock = () => {
+    unlockMuster({ date: selectedDate, password: overridePassword }, {
+      onSuccess: () => {
+        toast.success(`Muster Roll for ${selectedDate} has been unlocked.`);
+        setShowOverrideModal(false);
+        setOverridePassword("");
+        api.createLog({
+          user: clerkName,
+          action: "UNLOCK",
+          entity: `Muster Roll: ${selectedDate}`,
+          result: "Success"
+        });
+      },
+      onError: (err: any) => {
+        toast.error(err.message || "Invalid secret password");
+      }
+    });
   };
 
   const filteredList = useMemo(() => {
@@ -82,7 +139,15 @@ const Attendance = () => {
           <div className="flex gap-2">
             <Btn variant="outline"><Download className="w-4 h-4" /> Export PDF</Btn>
             {activeTab === "daily" && (
-              <Btn variant="gold"><Lock className="w-4 h-4" /> Lock Muster Roll</Btn>
+              lock ? (
+                <Btn variant="gold" onClick={() => setShowOverrideModal(true)} className="bg-destructive hover:bg-destructive/90 text-white border-none">
+                  <Unlock className="w-4 h-4" /> Unlock Muster Roll
+                </Btn>
+              ) : (
+                <Btn variant="gold" onClick={handleLock}>
+                  <Lock className="w-4 h-4" /> Lock Muster Roll
+                </Btn>
+              )
             )}
           </div>
         }
@@ -163,10 +228,52 @@ const Attendance = () => {
           </Section>
         </Tabs.Content>
 
-        <Tabs.Content value="history" className="p-8 text-center text-muted-foreground italic">
-           History view will be expanded in the next update.
+        <Tabs.Content value="history" className="animate-in fade-in slide-in-from-right-2">
+          <Section title="Muster History Log">
+             <div className="py-20 text-center text-muted-foreground italic">
+               <History className="w-12 h-12 mx-auto mb-4 opacity-20" />
+               Muster history is maintained through the Audit Trail and Sanction registers.
+             </div>
+          </Section>
         </Tabs.Content>
       </Tabs.Root>
+
+      {showOverrideModal && (
+        <div className="fixed inset-0 z-50 bg-primary/60 backdrop-blur-sm flex items-center justify-center p-8 animate-in fade-in duration-200">
+          <div className="bg-card max-w-md w-full rounded-md shadow-elevated border border-border overflow-hidden">
+            <div className="bg-gradient-command px-6 py-4 flex items-center justify-between border-b border-white/10">
+              <h2 className="text-lg text-white font-heading italic font-black uppercase tracking-tight">Security Verification</h2>
+              <button onClick={() => { setShowOverrideModal(false); setPendingUpdate(null); setOverridePassword(""); }} className="text-white/70 hover:text-white"><X className="w-6 h-6" /></button>
+            </div>
+            <div className="p-8 text-center">
+              <div className="w-16 h-16 rounded-full bg-accent/10 text-accent flex items-center justify-center mx-auto mb-4 border border-accent/20">
+                <ShieldAlert className="w-8 h-8" />
+              </div>
+              <h3 className="text-lg font-bold text-primary mb-2">Restricted Action</h3>
+              <p className="text-sm text-muted-foreground mb-6">
+                This muster roll is <b>LOCKED</b>. Enter the administrative secret password to {pendingUpdate ? 'perform this update' : 'unlock this date'}.
+              </p>
+              <Input
+                type="password"
+                placeholder="Enter Secret Password"
+                className="text-center h-12 text-lg tracking-[0.3em]"
+                value={overridePassword}
+                onChange={(e) => setOverridePassword(e.target.value)}
+                autoFocus
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    pendingUpdate ? handleOverride() : handleUnlock();
+                  }
+                }}
+              />
+              <div className="mt-8 flex gap-3">
+                <Btn variant="outline" className="flex-1" onClick={() => { setShowOverrideModal(false); setPendingUpdate(null); setOverridePassword(""); }}>Cancel</Btn>
+                <Btn variant="gold" className="flex-1" onClick={pendingUpdate ? handleOverride : handleUnlock}>Verify & Proceed</Btn>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </AppShell>
   );
 };

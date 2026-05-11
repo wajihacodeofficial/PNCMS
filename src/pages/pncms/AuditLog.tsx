@@ -89,11 +89,19 @@ const AuditLog = () => {
               ) : filteredLogs.map((l: any)=>(
                 <tr key={l.id} className="hover:bg-primary/5 transition-colors group">
                   <td className="font-mono text-[0.65rem] font-bold text-muted-foreground">
-                    {format(parseISO(l.time), 'dd-MMM-yy HH:mm')}
+                    {l.time ? (
+                      (() => {
+                        try {
+                          return format(typeof l.time === 'string' ? parseISO(l.time) : l.time, 'dd-MMM-yy HH:mm');
+                        } catch (e) {
+                          return 'Invalid Date';
+                        }
+                      })()
+                    ) : 'N/A'}
                   </td>
                   <td className="font-bold text-primary flex items-center gap-2">
                     <User className="w-3.5 h-3.5 text-accent opacity-0 group-hover:opacity-100 transition-opacity" />
-                    {l.user}
+                    {l.user || 'Unknown'}
                   </td>
                   <td>
                     <Badge variant={l.action==="DELETE"?"danger":l.action==="DISBURSE"||l.action==="APPROVE"?"success":"info"}>
@@ -103,12 +111,12 @@ const AuditLog = () => {
                   <td className="text-muted-foreground text-xs italic">
                     <span className="flex items-center gap-2">
                       <FileText className="w-3 h-3" />
-                      {l.entity}
+                      {l.entity || '—'}
                     </span>
                   </td>
                   <td className="font-mono text-[0.65rem] font-bold flex items-center gap-2">
                     <Terminal className="w-3.5 h-3.5 text-muted-foreground" />
-                    {l.ip}
+                    {l.ip || '—'}
                   </td>
                   <td>
                     {l.result==="Success" ? (

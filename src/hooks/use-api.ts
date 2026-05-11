@@ -98,6 +98,34 @@ export function useAttendanceRange(start: string, end: string) {
   })
 }
 
+export function useMusterLock(date: string) {
+  return useQuery({
+    queryKey: ['attendance', 'lock', date],
+    queryFn: () => api.getMusterLock(date),
+    enabled: !!date
+  })
+}
+
+export function useLockMuster() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: api.lockMuster,
+    onSuccess: (_, { date }) => {
+      queryClient.invalidateQueries({ queryKey: ['attendance', 'lock', date] })
+    }
+  })
+}
+
+export function useUnlockMuster() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: api.unlockMuster,
+    onSuccess: (_, { date }) => {
+      queryClient.invalidateQueries({ queryKey: ['attendance', 'lock', date] })
+    }
+  })
+}
+
 export function useRanks() {
   return useQuery({
     queryKey: ['ranks'],
@@ -166,12 +194,7 @@ export function useSettings() {
   return useQuery({
     queryKey: ['settings'],
     queryFn: async () => {
-      const data = await api.getSettings();
-      const settings: Record<string, string> = {};
-      data.forEach((s: any) => {
-        settings[s.key] = s.value;
-      });
-      return settings;
+      return await api.getSettings();
     },
   })
 }
