@@ -192,6 +192,12 @@ export function setupHandlers() {
     })
   })
 
+  ipcMain.handle('get-all-muster-locks', async () => {
+    return await prisma.musterLock.findMany({
+      orderBy: { date: 'desc' }
+    })
+  })
+
   ipcMain.handle('lock-muster', async (_, { date, lockedBy }: any) => {
     const result = await prisma.musterLock.create({
       data: { date, lockedBy }

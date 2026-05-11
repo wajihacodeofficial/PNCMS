@@ -106,12 +106,20 @@ export function useMusterLock(date: string) {
   })
 }
 
+export function useAllMusterLocks() {
+  return useQuery({
+    queryKey: ['attendance', 'locks'],
+    queryFn: api.getAllMusterLocks,
+  })
+}
+
 export function useLockMuster() {
   const queryClient = useQueryClient()
   return useMutation({
     mutationFn: api.lockMuster,
     onSuccess: (_, { date }) => {
       queryClient.invalidateQueries({ queryKey: ['attendance', 'lock', date] })
+      queryClient.invalidateQueries({ queryKey: ['attendance', 'locks'] })
     }
   })
 }
@@ -122,6 +130,7 @@ export function useUnlockMuster() {
     mutationFn: api.unlockMuster,
     onSuccess: (_, { date }) => {
       queryClient.invalidateQueries({ queryKey: ['attendance', 'lock', date] })
+      queryClient.invalidateQueries({ queryKey: ['attendance', 'locks'] })
     }
   })
 }

@@ -7,7 +7,7 @@ import { exportToPDF, exportToExcel } from "@/lib/export";
 import { logAction } from "@/lib/audit";
 import * as Tabs from "@radix-ui/react-tabs";
 import { format, parseISO, isWithinInterval, subDays } from "date-fns";
-import { usePersonnel, useAttendance, useDepartments, useMusterLock, useLockMuster, useUnlockMuster } from "@/hooks/use-api";
+import { usePersonnel, useAttendance, useDepartments, useMusterLock, useLockMuster, useUnlockMuster, useAllMusterLocks } from "@/hooks/use-api";
 import { api } from "@/lib/api";
 import { useQueryClient } from "@tanstack/react-query";
 
@@ -36,6 +36,7 @@ const Attendance = () => {
   const { data: attendance = [], isLoading: isAttendanceLoading } = useAttendance(selectedDate);
 
   const { data: lock } = useMusterLock(selectedDate);
+  const { data: allLocks = [] } = useAllMusterLocks();
   const { mutate: lockMuster } = useLockMuster();
   const { mutate: unlockMuster } = useUnlockMuster();
 
@@ -229,10 +230,57 @@ const Attendance = () => {
         </Tabs.Content>
 
         <Tabs.Content value="history" className="animate-in fade-in slide-in-from-right-2">
-          <Section title="Muster History Log">
-             <div className="py-20 text-center text-muted-foreground italic">
-               <History className="w-12 h-12 mx-auto mb-4 opacity-20" />
-               Muster history is maintained through the Audit Trail and Sanction registers.
+          <Section title="Muster History Log" actions={
+            <div className="text-[0.6rem] font-bold text-muted-foreground uppercase flex items-center gap-2">
+              <ShieldAlert className="w-3 h-3" /> Verified Records Only
+            </div>
+          }>
+             <div className="overflow-x-auto -m-5">
+               <table className="data-table">
+                 <thead>
+                   <tr>
+                     <th>Muster Date</th>
+                     <th>Locked By</th>
+                     <th>Verification Time</th>
+                     <th>Status</th>
+                     <th className="text-right">Action</th>
+                   </tr>
+                 </thead>
+                 <tbody>
+                   {(allLocks as any[]).length === 0 ? (
+                     <tr>
+                       <td colSpan={5} className="text-center py-20 text-muted-foreground italic">
+                         No locked muster records found. Use "Daily Entry" to lock a date.
+                       </td>
+                     </tr>
+                   ) : (allLocks as any[]).map((l) => (
+                     <tr key={l.id} className="hover:bg-primary/5 transition-colors group">
+                       <td className="font-mono text-sm font-bold text-primary">
+                         {format(parseISO(l.date), "dd MMMM yyyy")}
+                       </td>
+                       <td className="font-semibold">{l.lockedBy}</td>
+                       <td className="text-xs text-muted-foreground">
+                         {format(parseISO(l.lockedAt), "dd-MMM-yy HH:mm")}
+                       </td>
+                       <td>
+                         <Badge variant="success">Verified & Locked</Badge>
+                       </td>
+                       <td className="text-right">
+                         <Btn 
+                           variant="outline" 
+                           className="h-8 text-[0.6rem] uppercase tracking-wider"
+                           onClick={() => {
+                             setSelectedDate(l.date);
+                             setActiveTab("daily");
+                           }}
+                         >
+                           <Eye className="w-3.5 h-3.5 mr-1.5" /> View Roll
+                         </Btn>
+                       </td>
+                     </tr>
+                   ))}
+                 </tbody>
+               </table>
              </div>
           </Section>
         </Tabs.Content>

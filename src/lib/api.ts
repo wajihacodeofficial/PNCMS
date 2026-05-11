@@ -29,6 +29,7 @@ export const api = {
   updateAttendance: (date: string, employeeId: string, status: string, overridePassword?: string) => 
     ipcRenderer.invoke('update-attendance', { date, employeeId, status, overridePassword }),
   getMusterLock: (date: string) => ipcRenderer.invoke('get-muster-lock', date),
+  getAllMusterLocks: () => ipcRenderer.invoke('get-all-muster-locks'),
   lockMuster: (data: { date: string; lockedBy: string }) => ipcRenderer.invoke('lock-muster', data),
   unlockMuster: (data: { date: string; password?: string }) => ipcRenderer.invoke('unlock-muster', data),
 
