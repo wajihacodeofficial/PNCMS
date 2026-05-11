@@ -67,6 +67,15 @@ export function useLeaves() {
     queryFn: api.getLeaves,
   })
 }
+export function useCreateLeave() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: api.createLeave,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['leaves'] })
+    },
+  })
+}
 
 export function usePayments() {
   return useQuery({
@@ -217,7 +226,8 @@ export function useRealtimeSync() {
   const queryClient = useQueryClient()
 
   useEffect(() => {
-    if (!window.ipcRenderer) return
+    const ipc = (window as any).ipcRenderer
+    if (!ipc) return
 
     const listener = (_: any, topic: string) => {
       queryClient.invalidateQueries({ queryKey: [topic] })
@@ -228,9 +238,9 @@ export function useRealtimeSync() {
       }
     }
 
-    window.ipcRenderer.on('db-changed', listener)
+    ipc.on('db-changed', listener)
     return () => {
-      window.ipcRenderer.off('db-changed', listener)
+      ipc.off('db-changed', listener)
     }
   }, [queryClient])
 }

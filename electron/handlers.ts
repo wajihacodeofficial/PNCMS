@@ -68,6 +68,7 @@ export function setupHandlers() {
       fileNumber: l.fileNo
     }))
 
+    if (id) {
       const result = await prisma.$transaction(async (tx) => {
         await tx.employeePhone.deleteMany({ where: { employeeId: id } })
         await tx.employeeLetter.deleteMany({ where: { employeeId: id } })
@@ -113,7 +114,6 @@ export function setupHandlers() {
     const result = await prisma.sanction.create({ data })
     notifyChange('sanctions')
     return result
-
   })
 
   ipcMain.handle('update-sanction', async (_, { id, ...data }: any) => {
@@ -123,7 +123,6 @@ export function setupHandlers() {
     })
     notifyChange('sanctions')
     return result
-
   })
 
   // Disciplinary Handlers
@@ -131,8 +130,29 @@ export function setupHandlers() {
     return await prisma.disciplinaryAction.findMany({
       include: {
         employee: true
-      }
+      },
+      orderBy: { date: 'desc' }
     })
+  })
+
+  ipcMain.handle('upsert-disciplinary-action', async (_, data: any) => {
+    const { id, svc, ...rest } = data
+    const employee = await prisma.employee.findUnique({ where: { serviceNo: svc } })
+    if (!employee) throw new Error(`Personnel with Svc No ${svc} not found`)
+
+    let result
+    if (id) {
+      result = await prisma.disciplinaryAction.update({
+        where: { id },
+        data: { ...rest, employeeId: employee.id }
+      })
+    } else {
+      result = await prisma.disciplinaryAction.create({
+        data: { ...rest, employeeId: employee.id }
+      })
+    }
+    notifyChange('disciplinary-actions')
+    return result
   })
 
   // Leave Handlers
@@ -142,6 +162,12 @@ export function setupHandlers() {
         employee: true
       }
     })
+  })
+
+  ipcMain.handle('create-leave', async (_, data: any) => {
+    const result = await prisma.leaveRecord.create({ data })
+    notifyChange('leaves')
+    return result
   })
 
   // Payment Handlers
@@ -160,19 +186,28 @@ export function setupHandlers() {
     })
   })
 
+  ipcMain.handle('update-attendance', async (_, { date, employeeId, status }: any) => {
     const result = await prisma.attendance.upsert({
       where: {
-        date_employeeId: {
-          date,
-          employeeId
-        }
+        date_employeeId: { date, employeeId }
       },
       update: { status },
       create: { date, employeeId, status }
     })
     notifyChange('attendance')
     return result
+  })
 
+  ipcMain.handle('get-attendance-range', async (_, { start, end }: { start: string; end: string }) => {
+    return await prisma.attendance.findMany({
+      where: {
+        date: {
+          gte: start,
+          lte: end
+        }
+      }
+    })
+  })
 
   // Master Data Handlers
   ipcMain.handle('get-ranks', async () => {
@@ -181,6 +216,7 @@ export function setupHandlers() {
     })
   })
 
+  ipcMain.handle('upsert-rank', async (_, { id, ...rest }: any) => {
     let result
     if (id) {
       result = await prisma.rank.update({
@@ -194,14 +230,15 @@ export function setupHandlers() {
     }
     notifyChange('ranks')
     return result
+  })
 
-
+  ipcMain.handle('delete-rank', async (_, id: string) => {
     const result = await prisma.rank.delete({
       where: { id }
     })
     notifyChange('ranks')
     return result
-
+  })
 
   ipcMain.handle('get-departments', async () => {
     return await prisma.department.findMany({
@@ -209,6 +246,7 @@ export function setupHandlers() {
     })
   })
 
+  ipcMain.handle('upsert-department', async (_, { id, ...rest }: any) => {
     let result
     if (id) {
       result = await prisma.department.update({
@@ -222,14 +260,15 @@ export function setupHandlers() {
     }
     notifyChange('departments')
     return result
+  })
 
-
+  ipcMain.handle('delete-department', async (_, id: string) => {
     const result = await prisma.department.delete({
       where: { id }
     })
     notifyChange('departments')
     return result
-
+  })
 
   // Auth Handlers
   ipcMain.handle('login', async (_, { username, password }: any) => {
@@ -252,52 +291,15 @@ export function setupHandlers() {
     }
   })
 
-  // Discipline Handlers
-  ipcMain.handle('get-disciplinary-actions', async () => {
-    return await prisma.disciplinaryAction.findMany({
-      include: {
-        employee: true
-      },
-      orderBy: { date: 'desc' }
-    })
-  })
-
-  ipcMain.handle('upsert-disciplinary-action', async (_, data: any) => {
-    const { id, svc, ...rest } = data
-    
-    // Find employee by service number
-    const employee = await prisma.employee.findUnique({
-      where: { serviceNo: svc }
-    })
-
-    if (!employee) throw new Error(`Personnel with Svc No ${svc} not found`)
-
-    let result
-    if (id) {
-      result = await prisma.disciplinaryAction.update({
-        where: { id },
-        data: {
-          ...rest,
-          employeeId: employee.id
-        }
-      })
-    } else {
-      result = await prisma.disciplinaryAction.create({
-        data: {
-          ...rest,
-          employeeId: employee.id
-        }
-      })
-    }
-    notifyChange('disciplinary-actions')
-    return result
-  })
-
   // Settings Handlers
   ipcMain.handle('get-settings', async () => {
-    return await prisma.setting.findMany()
+    const settings = await prisma.setting.findMany()
+    const map: any = {}
+    settings.forEach(s => map[s.key] = s.value)
+    return map
   })
 
+  ipcMain.handle('upsert-setting', async (_, { key, value }: any) => {
     const result = await prisma.setting.upsert({
       where: { key },
       update: { value },
@@ -305,24 +307,12 @@ export function setupHandlers() {
     })
     notifyChange('settings')
     return result
-
-
-  ipcMain.handle('get-attendance-range', async (_, { start, end }: { start: string; end: string }) => {
-    return await prisma.attendance.findMany({
-      where: {
-        date: {
-          gte: start,
-          lte: end
-        }
-      }
-    })
   })
 
   ipcMain.handle('get-dashboard-stats', async () => {
     const totalPersonnel = await prisma.employee.count()
     const openLogs = await prisma.sanction.count({ where: { status: 'Pending' } })
     
-    // For "On Leave", we'd check active leave records for today
     const today = new Date().toISOString().split('T')[0]
     const onLeave = await prisma.leaveRecord.count({
       where: {
@@ -347,6 +337,7 @@ export function setupHandlers() {
     })
   })
 
+  ipcMain.handle('create-log', async (_, logData: any) => {
     const result = await prisma.log.create({
       data: {
         user: logData.user,
@@ -358,7 +349,7 @@ export function setupHandlers() {
     })
     notifyChange('logs')
     return result
-
+  })
 
   // Backup & Restore Handlers
   ipcMain.handle('export-backup', async (_, tag: string) => {
@@ -385,7 +376,6 @@ export function setupHandlers() {
 
     if (filePaths && filePaths[0]) {
       const dbPath = path.join(process.cwd(), 'prisma', 'dev.db')
-      // Backup current before overwrite
       fs.copyFileSync(dbPath, `${dbPath}.bak`)
       fs.copyFileSync(filePaths[0], dbPath)
       BrowserWindow.getAllWindows().forEach(win => {

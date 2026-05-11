@@ -52,12 +52,30 @@ import {
 import { Switch } from '@/components/ui/switch';
 import { exportToPDF } from '@/lib/export';
 import { toast } from 'sonner';
-import { personnel, leaveRecords as globalLeaves, payments, disciplinaryActions } from '@/data/mock';
+import { 
+  useEmployee, 
+  useLeaves, 
+  useDisciplinaryActions, 
+  usePayments,
+  useUpsertDisciplinaryAction,
+  useCreateLog
+} from '@/hooks/use-api';
+
 
 const EmploymentRecordProfile = () => {
   const navigate = useNavigate();
   const { id } = useParams();
+  
+  const { data: employee, isLoading: isEmployeeLoading } = useEmployee(id || '');
+  const { data: allLeaves = [] } = useLeaves();
+  const { data: allDisciplines = [] } = useDisciplinaryActions();
+  const { data: allPayments = [] } = usePayments();
+  const { mutate: upsertDiscipline } = useUpsertDisciplinaryAction();
+  const { mutate: createLog } = useCreateLog();
+
   const [isActive, setIsActive] = useState(true);
+
+
 
   const { tenureStr, isMinisterial } = useMemo(() => {
     const isMin = id?.includes('1042') || true;
@@ -176,81 +194,45 @@ const EmploymentRecordProfile = () => {
     },
   ]);
 
-  const allPersonnel = useMemo(() => {
-    const imported = JSON.parse(localStorage.getItem('pncms_personnel_imports') || '[]');
-    const importedSvcs = new Set(imported.map((p: any) => p.svc));
-    const filteredMock = personnel.filter(p => !importedSvcs.has(p.svc));
-    return [...filteredMock, ...imported];
-  }, []);
-
   const profile = useMemo(() => {
-    return allPersonnel.find(p => p.svc === id) || allPersonnel[0] || personnel[0];
-  }, [allPersonnel, id]);
+    if (!employee) return null;
+    return {
+      ...employee,
+      svc: employee.serviceNo,
+      rank: employee.rank?.name,
+      dept: employee.department?.name,
+      permAddr: employee.permanentAddress,
+      presAddr: employee.presentAddress,
+      joinDate: employee.joiningCurrentUnitDate || 'N/A',
+    };
+  }, [employee]);
 
   const personLeaves = useMemo(() => {
-    return globalLeaves.filter(l => l.svc === id).map(l => ({
-      type: l.type === 'CL' ? 'Casual Leave' : l.type === 'RL' ? 'Recreational Leave' : l.type === 'DL' ? 'Disability Leave' : 'Other Leave',
-      start: l.from,
-      end: l.to,
+    return allLeaves.filter((l: any) => l.employeeId === employee?.id).map((l: any) => ({
+      type: l.type === 'CL' ? 'Casual Leave' : l.type === 'RL' ? 'Recreational Leave' : l.type === 'SL' ? 'Sick Leave' : 'Other Leave',
+      start: l.startDate,
+      end: l.endDate,
       days: l.days,
-      ref: `LVE/${l.from.replace(/-/g, '/')}/${l.svc}`
+      ref: `LVE/${l.startDate.replace(/-/g, '/')}/${employee?.serviceNo}`
     }));
-  }, [id]);
+  }, [allLeaves, employee]);
 
   const personDisciplines = useMemo(() => {
-    return disciplinaryActions.filter(d => d.svc === id);
-  }, [id]);
-
-  const [disciplines, setDisciplines] = useState<any[]>(personDisciplines);
-
-  // Sync state if id changes
-  useEffect(() => {
-    setDisciplines(personDisciplines);
-  }, [personDisciplines]);
+    return allDisciplines.filter((d: any) => d.employeeId === employee?.id);
+  }, [allDisciplines, employee]);
 
   const personPayments = useMemo(() => {
-    return payments.filter(p => p.svc === id);
-  }, [id]);
+    return allPayments.filter((p: any) => p.employeeId === employee?.id);
+  }, [allPayments, employee]);
 
   // NEW: State for Leave Records to sync with Attendance
-  const [leaveRecords, setLeaveRecords] = useState<any[]>(personLeaves.length > 0 ? personLeaves : [
-    {
-      type: 'Casual Leave',
-      start: '2026-02-12',
-      end: '2026-02-14',
-      days: 3,
-      ref: 'LVE/2026/02/12',
-    },
-    {
-      type: 'Recreation Leave',
-      start: '2026-01-10',
-      end: '2026-01-24',
-      days: 15,
-      ref: 'LVE/2026/01/05',
-    },
-    {
-      type: 'Earned Leave',
-      start: '2025-11-01',
-      end: '2025-11-10',
-      days: 10,
-      ref: 'LVE/2025/11/01',
-    },
-    {
-      type: 'Casual Leave',
-      start: '2025-03-14',
-      end: '2025-03-16',
-      days: 3,
-      ref: 'LVE/2025/03/14',
-    },
-    // Adding one active leave for testing visibility
-    {
-      type: 'Casual Leave',
-      start: format(subDays(new Date(), 2), 'yyyy-MM-dd'),
-      end: format(new Date(), 'yyyy-MM-dd'),
-      days: 3,
-      ref: 'LVE/2026/ACTIVE',
-    },
-  ]);
+  const [leaveRecords, setLeaveRecords] = useState<any[]>([]);
+
+  useEffect(() => {
+    if (personLeaves.length > 0) {
+      setLeaveRecords(personLeaves);
+    }
+  }, [personLeaves]);
 
   const initialAttendance = useMemo(() => {
     const start = new Date('2024-05-16');
@@ -437,7 +419,11 @@ const EmploymentRecordProfile = () => {
     toast.success("Attendance Report Generated");
   };
 
+  if (isEmployeeLoading) return <div className="p-20 text-center font-black italic text-primary animate-pulse">ESTABLISHING SECURE CONNECTION TO PERSONNEL RECORDS...</div>;
+  if (!profile) return <div className="p-20 text-center">Personnel Record Not Found.</div>;
+
   return (
+
     <AppShell>
       <PageHeader
         title={`${profile?.name || 'Personnel Profile'}`}
@@ -1251,14 +1237,27 @@ const EmploymentRecordProfile = () => {
                         'Add Discipline Record',
                         disciplineFields,
                         {},
-                        (d) => setDisciplines([...disciplines, d])
+                        (d) => {
+                          upsertDiscipline({ ...d, svc: profile.svc }, {
+                            onSuccess: () => {
+                              createLog({
+                                user: localStorage.getItem("username") || "Admin",
+                                action: "CREATE",
+                                entity: `Discipline: ${profile.svc} - ${d.action}`,
+                                result: "Success"
+                              });
+                              toast.success("Discipline record added");
+                            }
+                          });
+                        }
                       )
                     }
+
                   >
                     <Plus className="w-3 h-3 mr-1" /> Add Record
                   </Btn>
                 </div>
-                {disciplines.length === 0 ? (
+                {personDisciplines.length === 0 ? (
                   <div className="p-8 text-center border-2 border-dashed border-border rounded-sm bg-muted/20">
                     <ShieldCheck className="w-12 h-12 text-success/30 mx-auto mb-3" />
                     <p className="text-sm font-semibold text-primary">
@@ -1281,15 +1280,15 @@ const EmploymentRecordProfile = () => {
                         </tr>
                       </thead>
                       <tbody>
-                        {disciplines.map((d) => (
+                        {personDisciplines.map((d: any) => (
                           <tr key={d.id}>
                             <td className="text-xs font-mono">{d.date}</td>
                             <td className="font-bold text-destructive">
                               {d.action}
                             </td>
-                            <td className="text-xs">{d.reason}</td>
+                            <td className="text-xs">{d.reason || d.offense}</td>
                             <td className="text-[0.65rem] font-mono text-accent">
-                              {d.ref}
+                              {d.ref || d.reference}
                             </td>
                             <td className="text-right">
                               <div className="flex justify-end gap-1">
@@ -1298,13 +1297,20 @@ const EmploymentRecordProfile = () => {
                                     openModal(
                                       'Edit Discipline Record',
                                       disciplineFields,
-                                      d,
-                                      (x) =>
-                                        setDisciplines(
-                                          disciplines.map((y) =>
-                                            y.id === x.id ? x : y
-                                          )
-                                        )
+                                      { ...d, ref: d.reference || d.ref, reason: d.offense || d.reason },
+                                      (x) => {
+                                        upsertDiscipline({ ...x, svc: profile.svc }, {
+                                          onSuccess: () => {
+                                             createLog({
+                                               user: localStorage.getItem("username") || "Admin",
+                                               action: "UPDATE",
+                                               entity: `Discipline: ${profile.svc} - ${x.action}`,
+                                               result: "Success"
+                                             });
+                                             toast.success("Discipline record updated");
+                                          }
+                                        });
+                                      }
                                     )
                                   }
                                   className="p-1 rounded bg-muted hover:bg-muted/80 text-primary"
@@ -1312,11 +1318,12 @@ const EmploymentRecordProfile = () => {
                                   <Pencil className="w-3 h-3" />
                                 </button>
                                 <button
-                                  onClick={() =>
-                                    setDisciplines(
-                                      disciplines.filter((x) => x.id !== d.id)
-                                    )
-                                  }
+                                  onClick={() => {
+                                    if(confirm("Are you sure you want to delete this record?")) {
+                                       // We need a delete mutation if we want to support this
+                                       toast.error("Delete not implemented for individual discipline records yet");
+                                    }
+                                  }}
                                   className="p-1 rounded bg-muted hover:bg-destructive/20 text-destructive"
                                 >
                                   <Trash2 className="w-3 h-3" />
@@ -1329,6 +1336,7 @@ const EmploymentRecordProfile = () => {
                     </table>
                   </div>
                 )}
+
               </Section>
             </Tabs.Content>
           </Tabs.Root>

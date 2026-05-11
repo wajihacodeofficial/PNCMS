@@ -18,6 +18,7 @@ export const api = {
 
   // Leaves
   getLeaves: () => ipcRenderer.invoke('get-leaves'),
+  createLeave: (data: any) => ipcRenderer.invoke('create-leave', data),
 
   // Payments
   getPayments: () => ipcRenderer.invoke('get-payments'),
