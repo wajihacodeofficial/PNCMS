@@ -5,7 +5,7 @@ import {
   Building2, HardHat, Printer,
   FileSpreadsheet, Calendar, Eye, X, ScrollText, ArrowLeft, Check, ShieldX
 } from 'lucide-react';
-import { useSanctions, useSettings, useAttendanceRange } from '@/hooks/use-api';
+import { useSanctions, useSettings, useAttendanceRange, useUpdateSanction } from '@/hooks/use-api';
 import { exportToPDF, exportToExcel } from '@/lib/export';
 import { toast } from 'sonner';
 import { format } from 'date-fns';
@@ -25,6 +25,7 @@ const Payments = () => {
 
   const { data: settings = {} as any } = useSettings();
   const { data: sanctions = [] } = useSanctions();
+  const { mutate: updateSanction } = useUpdateSanction();
 
   const startOfMonth = format(new Date(new Date().getFullYear(), new Date().getMonth(), 1), 'yyyy-MM-dd');
   const endOfMonth   = format(new Date(new Date().getFullYear(), new Date().getMonth() + 1, 0), 'yyyy-MM-dd');
@@ -40,7 +41,7 @@ const Payments = () => {
     return (sanctions as any[])
       .filter(s => s.employee?.cardType === selectedCadre && s.status === 'Approved')
       .map(s => {
-        const empAttendance = (attendance as any[]).filter(a => a.employeeId === s.employeeId);
+        const empAttendance = (attendance as any[]).filter(a => a.serviceNo === s.serviceNo);
         const presentDays   = empAttendance.filter(a => ['P', 'L'].includes(a.status)).length;
         const totalDays     = 22;
         const maxHours      = s.hours || 0;
@@ -87,6 +88,26 @@ const Payments = () => {
     ]);
     await exportToExcel(`${label} Payments`, headers, rows, `payments_${label.toLowerCase()}`);
     toast.success('Excel Exported');
+  };
+  const handleProcessPayment = () => {
+    if (!selectedPerson) return;
+    
+    const timeline = JSON.parse(selectedPerson.timeline || "[]");
+    const updatedTimeline = [
+      ...timeline,
+      { event: "Payment Made", time: new Date().toISOString(), user: "Accounts Clerk" }
+    ];
+
+    updateSanction({
+      id: selectedPerson.id,
+      status: 'Paid',
+      timeline: JSON.stringify(updatedTimeline)
+    }, {
+      onSuccess: () => {
+        toast.success(`Payment processed for ${selectedPerson.name}`);
+        setSelectedPerson(null);
+      }
+    });
   };
 
   if (!selectedCadre) {
@@ -188,6 +209,12 @@ const Payments = () => {
                   </tbody>
                 </table>
               </div>
+            </div>
+            <div className="border-t border-border bg-muted/40 px-8 py-4 flex justify-end gap-3 shrink-0">
+              <Btn variant="outline" onClick={() => setSelectedPerson(null)}>Close Statement</Btn>
+              <Btn variant="gold" onClick={handleProcessPayment}>
+                <Check className="w-4 h-4 mr-2" /> Process & Mark Paid
+              </Btn>
             </div>
           </div>
         </div>

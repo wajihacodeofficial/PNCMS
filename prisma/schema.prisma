@@ -8,8 +8,7 @@ datasource db {
 }
 
 model Employee {
-  id                     String               @id @default(cuid())
-  serviceNo              String               @unique
+  serviceNo              String               @id
   name                   String
   phoneNumber            String?
   rankId                 String
@@ -81,23 +80,23 @@ model Department {
 
 model EmployeePhone {
   id          String   @id @default(cuid())
-  employeeId  String
+  serviceNo   String
   phoneNumber String
   imei1       String?
   imei2       String?
   model       String?
   brand       String?
-  employee    Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  employee    Employee @relation(fields: [serviceNo], references: [serviceNo], onDelete: Cascade)
 }
 
 model EmployeeLetter {
   id              String   @id @default(cuid())
-  employeeId      String
+  serviceNo       String
   referenceNumber String
   referenceDate   DateTime
   fileName        String
   fileNumber      String
-  employee        Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  employee        Employee @relation(fields: [serviceNo], references: [serviceNo], onDelete: Cascade)
 }
 
 model Sanction {
@@ -109,30 +108,32 @@ model Sanction {
   reason     String?
   date       String?
   status     String   @default("Pending")
-  employeeId String
+  timeline   String?  @default("[]")
+  serviceNo  String
   createdAt  DateTime @default(now())
-  employee   Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  employee   Employee @relation(fields: [serviceNo], references: [serviceNo], onDelete: Cascade)
 }
 
 model WorkLog {
-  id         String   @id @default(cuid())
-  date       DateTime
-  hours      Float
-  employeeId String
-  createdAt  DateTime @default(now())
-  employee   Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  id        String   @id @default(cuid())
+  date      DateTime
+  hours     Float
+  serviceNo String
+  createdAt DateTime @default(now())
+  employee  Employee @relation(fields: [serviceNo], references: [serviceNo], onDelete: Cascade)
 }
 
 model LeaveRecord {
-  id         String   @id @default(cuid())
-  startDate  String
-  endDate    String
-  type       String
-  days       Int
-  status     String   @default("Pending")
-  employeeId String
-  createdAt  DateTime @default(now())
-  employee   Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  id        String   @id @default(cuid())
+  startDate String
+  endDate   String
+  type      String
+  days      Int
+  status    String   @default("Pending")
+  timeline  String?  @default("[]")
+  serviceNo String
+  createdAt DateTime @default(now())
+  employee  Employee @relation(fields: [serviceNo], references: [serviceNo], onDelete: Cascade)
 }
 
 model DisciplinaryAction {
@@ -147,35 +148,37 @@ model DisciplinaryAction {
   reference  String?
   details    String?
   authority  String?
-  employeeId String
+  serviceNo  String
+  timeline   String?  @default("[]")
   createdAt  DateTime @default(now())
-  employee   Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  employee   Employee @relation(fields: [serviceNo], references: [serviceNo], onDelete: Cascade)
 }
 
 model Payment {
-  id         String   @id @default(cuid())
-  type       String
-  gross      Float
-  leave      Float
-  payable    Float
-  rate       Float
-  amount     Float
-  status     String
-  period     String
-  employeeId String
-  createdAt  DateTime @default(now())
-  employee   Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  id        String   @id @default(cuid())
+  type      String
+  gross     Float
+  leave     Float
+  payable   Float
+  rate      Float
+  amount    Float
+  status    String
+  period    String
+  serviceNo String
+  timeline  String?  @default("[]")
+  createdAt DateTime @default(now())
+  employee  Employee @relation(fields: [serviceNo], references: [serviceNo], onDelete: Cascade)
 }
 
 model Attendance {
-  id         String   @id @default(cuid())
-  date       String
-  status     String
-  employeeId String
-  createdAt  DateTime @default(now())
-  employee   Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  id        String   @id @default(cuid())
+  date      String
+  status    String
+  serviceNo String
+  createdAt DateTime @default(now())
+  employee  Employee @relation(fields: [serviceNo], references: [serviceNo], onDelete: Cascade)
 
-  @@unique([date, employeeId])
+  @@unique([date, serviceNo])
 }
 
 model User {

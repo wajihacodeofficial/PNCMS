@@ -49,7 +49,7 @@ const About = () => (
           {[
             ['Application', 'PNCMS'],
             ['Version', '1.0.0 (Stable)'],
-            ['Released', '28 April 2026'],
+            ['Released', '15 May 2026'],
             ['Database Engine', 'PostgreSQL 16 (Encrypted)'],
             ['Runtime', 'Electron · React 18'],
             ['License', 'Pakistan Navy Internal Use Only'],

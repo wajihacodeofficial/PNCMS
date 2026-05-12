@@ -84,7 +84,7 @@ const Discipline = () => {
       details: form.details,
       remarks: form.remarks,
       authority: form.authority,
-      employeeId: (personnel as any[]).find(p => p.serviceNo === form.svc)?.id
+      svc: form.svc
     }, {
       onSuccess: () => {
         createLog({
@@ -156,8 +156,6 @@ const Discipline = () => {
       .sort((a, b) => (a.date || '').localeCompare(b.date || ''));
   }, [search, records]);
 
-  if (isLoading) return <div className="p-8 text-center">Loading disciplinary actions...</div>;
-
   return (
     <AppShell>
       <input 
@@ -171,47 +169,57 @@ const Discipline = () => {
         actions={
           <div className="flex gap-2">
             <Btn variant="outline" onClick={() => fileInputRef.current?.click()}>
-              <Upload className="w-4 h-4" /> Import Data
+              <Upload className="w-4 h-4 mr-2" /> Import Data
             </Btn>
             <Btn variant="danger" onClick={() => setIsAdding(true)}>
-              <Plus className="w-4 h-4" /> Log Proceeding
+              <Plus className="w-4 h-4 mr-2" /> Log Proceeding
             </Btn>
           </div>
         }
       />
 
-      <Section title={`Discipline Log · ${filteredRecords.length} Records`}>
+      <Section title={`Discipline Log · ${isLoading ? '...' : filteredRecords.length} Records`}>
         <div className="mb-5 relative">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
           <input placeholder="Search records..." className="w-full h-11 pl-10 pr-3 bg-muted/20 border border-border rounded-sm focus:outline-none focus:border-accent" value={search} onChange={(e) => setSearch(e.target.value)} />
         </div>
 
-        <div className="overflow-x-auto -m-5">
-          <table className="data-table">
-            <thead>
-              <tr><th>Svc No</th><th>Employee</th><th>Offense</th><th>Action</th><th>Date</th><th>Status</th><th className="text-right">Actions</th></tr>
-            </thead>
-            <tbody>
-              {filteredRecords.map((r) => (
-                <tr key={r.id} className="hover:bg-primary/5 cursor-pointer group" onClick={() => setSelectedCase(r)}>
-                  <td className="font-mono text-xs text-primary font-bold">{r.employee?.serviceNo}</td>
-                  <td className="font-semibold">{r.employee?.name}</td>
-                  <td className="text-xs">{r.offense}</td>
-                  <td><Badge variant={r.action?.includes('Suspension') ? 'danger' : 'warning'}>{r.action}</Badge></td>
-                  <td className="text-xs font-mono">{r.date}</td>
-                  <td><Badge variant={r.status === 'Closed' ? 'success' : 'warning'}>{r.status}</Badge></td>
-                  <td className="text-right" onClick={e => e.stopPropagation()}>
-                    <div className="flex justify-end gap-1">
-                      <button className="p-1.5 rounded-sm hover:bg-primary/10 text-primary" onClick={() => setSelectedCase(r)}><Eye className="w-4 h-4" /></button>
-                      <button className="p-1.5 rounded-sm hover:bg-primary/10 text-primary" onClick={() => handleEditAttempt(r)}><Edit3 className="w-4 h-4" /></button>
-                    </div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+        <div className="overflow-x-auto -m-5 min-h-[300px]">
+          {isLoading ? (
+            <div className="p-20 text-center flex flex-col items-center gap-3">
+              <div className="w-8 h-8 border-2 border-accent border-t-transparent rounded-full animate-spin" />
+              <p className="label-mil">Accessing Disciplinary Database...</p>
+            </div>
+          ) : (
+            <table className="data-table">
+              <thead>
+                <tr><th>Svc No</th><th>Employee</th><th>Offense</th><th>Action</th><th>Date</th><th>Status</th><th className="text-right">Actions</th></tr>
+              </thead>
+              <tbody>
+                {filteredRecords.length === 0 ? (
+                  <tr><td colSpan={7} className="text-center py-20 text-muted-foreground italic">No disciplinary records found matching search.</td></tr>
+                ) : filteredRecords.map((r) => (
+                  <tr key={r.id} className="hover:bg-primary/5 cursor-pointer group" onClick={() => setSelectedCase(r)}>
+                    <td className="font-mono text-xs text-primary font-bold">{r.employee?.serviceNo}</td>
+                    <td className="font-semibold">{r.employee?.name}</td>
+                    <td className="text-xs">{r.offense}</td>
+                    <td><Badge variant={r.action?.includes('Suspension') ? 'danger' : 'warning'}>{r.action}</Badge></td>
+                    <td className="text-xs font-mono">{r.date}</td>
+                    <td><Badge variant={r.status === 'Closed' ? 'success' : 'warning'}>{r.status}</Badge></td>
+                    <td className="text-right" onClick={e => e.stopPropagation()}>
+                      <div className="flex justify-end gap-1">
+                        <button className="p-1.5 rounded-sm hover:bg-primary/10 text-primary" onClick={() => setSelectedCase(r)}><Eye className="w-4 h-4" /></button>
+                        <button className="p-1.5 rounded-sm hover:bg-primary/10 text-primary" onClick={() => handleEditAttempt(r)}><Edit3 className="w-4 h-4" /></button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
         </div>
       </Section>
+n>
 
       {/* Case Detail Modal */}
       {selectedCase && (

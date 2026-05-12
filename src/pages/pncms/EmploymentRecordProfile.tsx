@@ -208,21 +208,21 @@ const EmploymentRecordProfile = () => {
   }, [employee]);
 
   const personLeaves = useMemo(() => {
-    return allLeaves.filter((l: any) => l.employeeId === employee?.id).map((l: any) => ({
+    return allLeaves.filter((l: any) => l.serviceNo === employee?.serviceNo).map((l: any) => ({
       type: l.type === 'CL' ? 'Casual Leave' : l.type === 'RL' ? 'Recreational Leave' : l.type === 'SL' ? 'Sick Leave' : 'Other Leave',
       start: l.startDate,
       end: l.endDate,
       days: l.days,
-      ref: `LVE/${l.startDate.replace(/-/g, '/')}/${employee?.serviceNo}`
+      ref: `LVE/${(l.startDate || "").replace(/-/g, '/')}/${employee?.serviceNo}`
     }));
   }, [allLeaves, employee]);
 
   const personDisciplines = useMemo(() => {
-    return allDisciplines.filter((d: any) => d.employeeId === employee?.id);
+    return allDisciplines.filter((d: any) => d.serviceNo === employee?.serviceNo);
   }, [allDisciplines, employee]);
 
   const personPayments = useMemo(() => {
-    return allPayments.filter((p: any) => p.employeeId === employee?.id);
+    return allPayments.filter((p: any) => p.serviceNo === employee?.serviceNo);
   }, [allPayments, employee]);
 
   // NEW: State for Leave Records to sync with Attendance
@@ -290,7 +290,7 @@ const EmploymentRecordProfile = () => {
         }
       }
 
-      const matchesSearch = !attendanceSearch || a.d.toLowerCase().includes(attendanceSearch.toLowerCase());
+      const matchesSearch = !attendanceSearch || (a.d || "").toLowerCase().includes(attendanceSearch.toLowerCase());
       
       return matchesDate && matchesStatus && matchesSearch;
     });
@@ -1470,7 +1470,7 @@ const EmploymentRecordProfile = () => {
                 <div className="space-y-6">
                   {Object.entries(
                     leaveRecords.reduce((acc: any, curr: any) => {
-                      const year = curr.start.split('-')[0];
+                      const year = (curr.start || "").split('-')[0] || "N/A";
                       if (!acc[year]) acc[year] = [];
                       acc[year].push(curr);
                       return acc;

@@ -199,6 +199,16 @@ export function useUpsertEmployee() {
   })
 }
 
+export function useDeleteEmployee() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: api.deleteEmployee,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['personnel'] })
+    },
+  })
+}
+
 export function useSettings() {
   return useQuery({
     queryKey: ['settings'],

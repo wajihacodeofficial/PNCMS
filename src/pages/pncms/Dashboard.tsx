@@ -29,15 +29,15 @@ import { format } from 'date-fns';
 
 const Dashboard = () => {
   const navigate = useNavigate();
-  const { data: stats = { totalPersonnel: 0, onLeave: 0, openLogs: 0 }, isLoading } = useDashboardStats();
+  const { data: stats = { personnelCount: 0, leaveCount: 0, pendingSanctions: 0 }, isLoading } = useDashboardStats();
   const { data: logs = [] } = useLogs();
 
   const handleExportPDF = () => {
     const headers = [['Metric', 'Value', 'Subtitle']];
     const data = [
-      ['Total Personnel', stats.totalPersonnel.toString(), 'Active across directorates'],
-      ['Currently on Leave', stats.onLeave.toString(), 'Personnel away today'],
-      ['Open Work Logs', stats.openLogs.toString(), 'In current cycle'],
+      ['Total Personnel', stats.personnelCount.toString(), 'Active across directorates'],
+      ['Currently on Leave', stats.leaveCount.toString(), 'Personnel away today'],
+      ['Open Work Logs', stats.pendingSanctions.toString(), 'In current cycle'],
     ];
     exportToPDF('PNCMS Operational Brief', headers, data, 'pncms_brief');
   };
@@ -95,7 +95,7 @@ const Dashboard = () => {
       <div className="grid grid-cols-3 gap-5">
         <StatCard
           label="Total Personnel"
-          value={isLoading ? '...' : stats.totalPersonnel}
+          value={isLoading ? '...' : stats.personnelCount}
           sub="Unit Strength"
           icon={<Users className="w-5 h-5" />}
           accent="primary"
@@ -103,7 +103,7 @@ const Dashboard = () => {
         />
         <StatCard
           label="Currently on Leave"
-          value={isLoading ? '...' : stats.onLeave}
+          value={isLoading ? '...' : stats.leaveCount}
           sub="Absent today"
           icon={<CalendarDays className="w-5 h-5" />}
           accent="danger"
@@ -111,7 +111,7 @@ const Dashboard = () => {
         />
         <StatCard
           label="Open Work Logs"
-          value={isLoading ? '...' : stats.openLogs}
+          value={isLoading ? '...' : stats.pendingSanctions}
           sub="Active Overtime"
           icon={<ClipboardList className="w-5 h-5" />}
           accent="info"

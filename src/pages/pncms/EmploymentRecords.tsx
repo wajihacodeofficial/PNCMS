@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from "react";
 import { AppShell, PageHeader } from "@/components/pncms/AppShell";
 import { Btn, Badge, Section, Field, Select } from "@/components/pncms/ui-kit";
-import { Plus, Download, Search, Filter, Eye, Pencil, Upload, X } from "lucide-react";
+import { Plus, Download, Search, Filter, Eye, Pencil, Upload, X, ShieldAlert, RotateCcw, AlertTriangle, Trash2 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { exportToPDF, exportToExcel } from "@/lib/export";
 import { toast } from "sonner";
@@ -13,17 +13,17 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import ExcelJS from 'exceljs';
-import { useUpsertEmployee, useCreateLog } from "@/hooks/use-api";
+import { useUpsertEmployee, useCreateLog, useDeleteEmployee } from "@/hooks/use-api";
 
 // Memoized Table Row for performance
-const RecordRow = React.memo(({ p, onNavigate }: { p: any; onNavigate: (path: string) => void }) => (
+const RecordRow = React.memo(({ p, onNavigate, onDelete }: { p: any; onNavigate: (path: string) => void; onDelete: (id: string, svc: string) => void }) => (
   <tr key={p.serviceNo} className="hover:bg-muted/30 transition-colors">
     <td className="font-mono text-xs text-primary font-semibold">{p.serviceNo}</td>
     <td className="font-semibold text-xs">{p.rank?.name}</td>
     <td>
       <div className="flex items-center gap-2.5">
         <div className="w-7 h-7 rounded-sm bg-primary/10 text-primary flex items-center justify-center text-[0.65rem] font-bold">
-          {p.name.split(" ").map((n: string)=>n[0]).slice(0,2).join("")}
+          {(p.name || "N A").split(" ").map((n: string)=>n[0]).slice(0,2).join("")}
         </div>
         <span className="font-semibold">{p.name}</span>
       </div>
@@ -38,11 +38,14 @@ const RecordRow = React.memo(({ p, onNavigate }: { p: any; onNavigate: (path: st
     </td>
     <td className="text-right">
       <div className="flex justify-end gap-1">
-        <Btn variant="ghost" className="p-1.5 h-auto text-info" onClick={() => onNavigate(`/employment-records/${p.serviceNo}`)}>
+        <Btn variant="ghost" className="p-1.5 h-auto text-info" title="View Profile" onClick={() => onNavigate(`/employment-records/${p.serviceNo}`)}>
           <Eye className="w-4 h-4" />
         </Btn>
-        <Btn variant="ghost" className="p-1.5 h-auto text-primary" onClick={() => onNavigate(`/employment-records/edit/${p.id}`)}>
+        <Btn variant="ghost" className="p-1.5 h-auto text-primary" title="Edit Record" onClick={() => onNavigate(`/employment-records/edit/${p.serviceNo}`)}>
           <Pencil className="w-4 h-4" />
+        </Btn>
+        <Btn variant="ghost" className="p-1.5 h-auto text-destructive" title="Delete Record" onClick={() => onDelete(p.serviceNo, p.serviceNo)}>
+          <X className="w-4 h-4" />
         </Btn>
       </div>
     </td>
@@ -58,14 +61,45 @@ const EmploymentRecords = () => {
   const [deptFilter, setDeptFilter] = useState("All Departments");
   const [cardFilter, setCardFilter] = useState("All Types");
   const [statusFilter, setStatusFilter] = useState("All Status");
+  const [deleteId, setDeleteId] = useState<string | null>(null);
+  const [deleteSvc, setDeleteSvc] = useState<string | null>(null);
   
-  const { data: personnel = [], isLoading } = usePersonnel();
+  const { data: personnel = [], isLoading, error } = usePersonnel();
+  
+  if (error) {
+    return (
+      <div className="p-20 text-center flex flex-col items-center gap-4 text-destructive text-sm font-bold uppercase tracking-widest">
+        <ShieldAlert className="w-12 h-12" />
+        <div>Personnel Sync Error</div>
+        <div className="text-xs opacity-70">{(error as any)?.message || "Failed to retrieve civilian records"}</div>
+        <Btn variant="outline" className="mt-4" onClick={() => window.location.reload()}><RotateCcw className="w-4 h-4" /> Reset Connection</Btn>
+      </div>
+    );
+  }
   const { data: ranks = [] } = useRanks();
   const { data: departments = [] } = useDepartments();
   const [isImporting, setIsImporting] = useState(false);
 
   const { mutateAsync: upsertEmployee } = useUpsertEmployee();
+  const { mutate: deleteEmployee } = useDeleteEmployee();
   const { mutate: createLog } = useCreateLog();
+
+  const confirmDelete = () => {
+    if (!deleteId) return;
+    deleteEmployee(deleteId, {
+      onSuccess: () => {
+        createLog({
+          user: localStorage.getItem("username") || "Admin",
+          action: "DELETE",
+          entity: `Personnel: ${deleteSvc}`,
+          result: "Success"
+        });
+        toast.success(`Record ${deleteSvc} deleted successfully`);
+        setDeleteId(null);
+        setDeleteSvc(null);
+      }
+    });
+  };
 
   const handleImport = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -194,8 +228,8 @@ const EmploymentRecords = () => {
     return (personnel as any[]).filter(p => {
       const q = search.toLowerCase();
       const matchesSearch = search === "" || 
-        p.name.toLowerCase().includes(q) || 
-        p.serviceNo.toLowerCase().includes(q);
+        (p.name || "").toLowerCase().includes(q) || 
+        (p.serviceNo || "").toLowerCase().includes(q);
       
       const matchesRank = rankFilter === "All Ranks" || p.rank?.name === rankFilter;
       const matchesDept = deptFilter === "All Departments" || p.department?.name === deptFilter;
@@ -203,7 +237,7 @@ const EmploymentRecords = () => {
       const matchesStatus = statusFilter === "All Status" || p.status === statusFilter;
       
       return matchesSearch && matchesRank && matchesDept && matchesCard && matchesStatus;
-    }).sort((a, b) => a.serviceNo.localeCompare(b.serviceNo));
+    }).sort((a, b) => (a.serviceNo || "").localeCompare(b.serviceNo || ""));
   }, [personnel, search, rankFilter, deptFilter, cardFilter, statusFilter]);
 
   const handleExportPDF = () => {
@@ -218,8 +252,6 @@ const EmploymentRecords = () => {
     exportToExcel("Employment Records", headers, data, "Employment_Records");
   };
   
-  if (isLoading) return <div className="p-8 text-center">Loading personnel...</div>;
-
   return (
     <AppShell>
       <PageHeader
@@ -236,21 +268,21 @@ const EmploymentRecords = () => {
                 disabled={isImporting}
               />
               <Btn variant="outline" className={isImporting ? "opacity-50 pointer-events-none" : ""}>
-                <Upload className={`w-4 h-4 ${isImporting ? "animate-bounce" : ""}`} /> 
+                <Upload className={`w-4 h-4 mr-2 ${isImporting ? "animate-bounce" : ""}`} /> 
                 {isImporting ? "Processing..." : "Import Data"}
               </Btn>
             </label>
 
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Btn variant="outline"><Download className="w-4 h-4" /> Export records</Btn>
+                <Btn variant="outline"><Download className="w-4 h-4 mr-2" /> Export records</Btn>
               </DropdownMenuTrigger>
               <DropdownMenuContent>
                 <DropdownMenuItem onClick={handleExportPDF}>Export as PDF</DropdownMenuItem>
                 <DropdownMenuItem onClick={handleExportExcel}>Export as Excel</DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
-            <Btn variant="gold" onClick={() => navigate("/employment-records/new")}><Plus className="w-4 h-4" /> Add Record</Btn>
+            <Btn variant="gold" onClick={() => navigate("/employment-records/new")}><Plus className="w-4 h-4 mr-2" /> Add Record</Btn>
           </>
         }
       />
@@ -272,7 +304,7 @@ const EmploymentRecords = () => {
               className="h-10 px-4" 
               onClick={() => setShowFilters(!showFilters)}
             >
-              <Filter className="w-4 h-4" /> 
+              <Filter className="w-4 h-4 mr-2" /> 
               {showFilters ? "Hide Filters" : "Advanced Filters"}
             </Btn>
             {(search || rankFilter !== "All Ranks" || deptFilter !== "All Departments") && (
@@ -318,36 +350,67 @@ const EmploymentRecords = () => {
         </div>
       </Section>
 
-      <Section title={`Employment Records · ${filteredPersonnel.length} Personnel Found`}>
-        <div className="overflow-x-auto -m-5">
-          <table className="data-table">
-            <thead>
-              <tr>
-                <th>Service No</th>
-                <th>Rank</th>
-                <th>Name</th>
-                <th>Department</th>
-                <th>Card Type</th>
-                <th>BPS</th>
-                <th>Status</th>
-                <th className="text-right">Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {filteredPersonnel.map((p) => (
-                <RecordRow key={p.serviceNo} p={p} onNavigate={navigate} />
-              ))}
-              {filteredPersonnel.length === 0 && (
+      <Section title={`Employment Records · ${isLoading ? '...' : filteredPersonnel.length} Personnel Found`}>
+        <div className="overflow-x-auto -m-5 min-h-[400px]">
+          {isLoading ? (
+            <div className="p-20 text-center flex flex-col items-center gap-4">
+              <div className="w-10 h-10 border-4 border-accent border-t-transparent rounded-full animate-spin" />
+              <p className="label-mil">Syncing with personnel database...</p>
+            </div>
+          ) : (
+            <table className="data-table">
+              <thead>
                 <tr>
-                  <td colSpan={8} className="text-center py-12 text-muted-foreground italic">
-                    No matching records found.
-                  </td>
+                  <th>Service No</th>
+                  <th>Rank</th>
+                  <th>Name</th>
+                  <th>Department</th>
+                  <th>Card Type</th>
+                  <th>BPS</th>
+                  <th>Status</th>
+                  <th className="text-right">Actions</th>
                 </tr>
-              )}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {filteredPersonnel.map((p) => (
+                  <RecordRow key={p.serviceNo} p={p} onNavigate={navigate} onDelete={handleDelete} />
+                ))}
+                {filteredPersonnel.length === 0 && (
+                  <tr>
+                    <td colSpan={8} className="text-center py-12 text-muted-foreground italic">
+                      No matching records found.
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          )}
         </div>
       </Section>
+      {deleteId && (
+        <div className="fixed inset-0 z-[100] bg-primary/60 backdrop-blur-sm flex items-center justify-center p-8 animate-in fade-in duration-200">
+          <div className="bg-card w-full max-w-md rounded-md shadow-elevated overflow-hidden border border-destructive/20 animate-in zoom-in-95 duration-200">
+            <div className="bg-destructive/10 px-6 py-6 flex flex-col items-center text-center">
+              <div className="w-16 h-16 rounded-full bg-destructive/20 flex items-center justify-center mb-4">
+                <AlertTriangle className="w-8 h-8 text-destructive" />
+              </div>
+              <h2 className="text-xl font-heading font-black italic uppercase text-destructive tracking-tight">Security Confirmation</h2>
+              <p className="text-sm text-foreground/70 mt-2 leading-relaxed">
+                Are you sure you want to permanently delete personnel record <span className="font-bold text-destructive">{deleteSvc}</span>?
+              </p>
+              <div className="mt-2 text-[0.6rem] font-bold uppercase tracking-widest text-destructive/60 bg-destructive/5 px-3 py-1 rounded-full border border-destructive/10">
+                This action cannot be undone
+              </div>
+            </div>
+            <div className="border-t border-border bg-muted/40 px-6 py-4 flex gap-3">
+              <Btn variant="outline" className="flex-1" onClick={() => { setDeleteId(null); setDeleteSvc(null); }}>Abort Action</Btn>
+              <Btn variant="danger" className="flex-1" onClick={confirmDelete}>
+                <Trash2 className="w-4 h-4 mr-2" /> Confirm Delete
+              </Btn>
+            </div>
+          </div>
+        </div>
+      )}
     </AppShell>
   );
 };

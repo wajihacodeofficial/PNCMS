@@ -114,7 +114,7 @@ const Departments = () => {
                 <Download className="w-4 h-4 mr-2" /> Export PDF
               </Btn>
               <Btn variant="outline" onClick={() => setViewingDeptId(null)}>
-                <ArrowLeft className="w-4 h-4 mr-2" /> Back to Units
+                <ArrowLeft className="w-4 h-4 mr-2" /> Back to Departments
               </Btn>
             </div>
           }
@@ -149,7 +149,7 @@ const Departments = () => {
         subtitle="Operational Units · Administrative Wings · Strength Control"
         actions={
           <Btn variant="gold" onClick={() => handleOpenModal()}>
-            <Plus className="w-4 h-4" /> Add New Unit
+            <Plus className="w-4 h-4" /> Add New Department
           </Btn>
         }
       />
@@ -159,7 +159,7 @@ const Departments = () => {
           <table className="data-table">
             <thead>
               <tr>
-                <th>Unit Name</th>
+                <th>Department Name</th>
                 <th>Location</th>
                 <th>Navcom</th>
                 <th>HOD / OIC</th>
@@ -185,11 +185,11 @@ const Departments = () => {
                     </td>
                     <td className="font-mono font-bold">{d.born}</td>
                     <td className="font-mono text-muted-foreground">{d.approvedSanctionStrength || 0}</td>
-                    <td>
-                       <div className={`text-[0.6rem] font-bold uppercase ${variance > 0 ? 'text-danger' : 'text-success'}`}>
-                         {variance > 0 ? `+${variance} Excess` : variance < 0 ? `${Math.abs(variance)} Under` : 'Balanced'}
-                       </div>
-                    </td>
+                     <td>
+                        <div className={`text-[0.6rem] font-bold uppercase ${variance > 0 ? 'text-danger' : variance < 0 ? 'text-warning' : 'text-success'}`}>
+                          {variance > 0 ? `+${variance} Excess` : variance < 0 ? `${Math.abs(variance)} Shortage` : 'Balanced'}
+                        </div>
+                     </td>
                     <td className="text-right" onClick={e=>e.stopPropagation()}>
                       <div className="flex justify-end gap-1">
                         <button onClick={(e) => handleOpenModal(d, e)} className="p-1.5 rounded-sm hover:bg-primary/10 text-primary"><Pencil className="w-4 h-4" /></button>
@@ -208,12 +208,12 @@ const Departments = () => {
         <div className="fixed inset-0 z-[100] bg-primary/60 backdrop-blur-sm flex items-center justify-center p-8">
           <div className="bg-card w-full max-w-2xl rounded-md shadow-elevated border border-border overflow-hidden animate-in zoom-in-95">
             <div className="bg-primary px-6 py-4 flex items-center justify-between text-white font-heading font-bold uppercase italic tracking-wider">
-               {editingId ? 'Modify Unit' : 'Register Unit'}
+               {editingId ? 'Modify Department' : 'Register Department'}
                <button onClick={() => setIsModalOpen(false)}><X className="w-5 h-5" /></button>
             </div>
             <div className="p-8 space-y-6">
               <div className="grid grid-cols-2 gap-4">
-                <Field label="Unit Name" required><Input value={formData.name} onChange={e => setFormData({ ...formData, name: e.target.value })} /></Field>
+                <Field label="Department Name" required><Input value={formData.name} onChange={e => setFormData({ ...formData, name: e.target.value })} /></Field>
                 <Field label="Location"><Input value={formData.location} onChange={e => setFormData({ ...formData, location: e.target.value })} placeholder="e.g. PNS DILAWAR" /></Field>
                 <Field label="Navcom (5-Digit)" required><Input value={formData.navcom} onChange={e => setFormData({ ...formData, navcom: e.target.value })} maxLength={5} /></Field>
                 <Field label="Sanctioned Strength"><Input type="number" value={formData.approvedSanctionStrength} onChange={e => setFormData({ ...formData, approvedSanctionStrength: parseInt(e.target.value) || 0 })} /></Field>
@@ -225,7 +225,7 @@ const Departments = () => {
             </div>
             <div className="bg-muted/30 p-5 flex justify-end gap-3 border-t border-border">
               <Btn variant="outline" onClick={() => setIsModalOpen(false)}>Cancel</Btn>
-              <Btn variant="gold" onClick={handleSave}>Commit Unit</Btn>
+              <Btn variant="gold" onClick={handleSave}>Commit Department</Btn>
             </div>
           </div>
         </div>

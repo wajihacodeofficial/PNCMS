@@ -18,8 +18,9 @@ export const prisma = new PrismaClient({
 export async function initDb() {
   try {
     await prisma.$connect()
-    console.log('Database connected at:', dbPath)
+    const count = await prisma.employee.count()
+    console.log('Database connected. Personnel count:', count)
   } catch (error) {
-    console.error('Failed to connect to database:', error)
+    console.error('DATABASE CRITICAL ERROR:', error)
   }
 }

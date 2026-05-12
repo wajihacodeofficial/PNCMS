@@ -9,17 +9,76 @@ import {
   Input,
   Select,
 } from '@/components/pncms/ui-kit';
-import { Plus, AlertTriangle, Eye, Check, X, Search, FileText } from 'lucide-react';
-import { useSanctions, usePersonnel } from '@/hooks/use-api';
+import { Plus, AlertTriangle, Eye, Check, X, Search, FileText, History } from 'lucide-react';
+import { useSanctions, usePersonnel, useCreateSanction } from '@/hooks/use-api';
+import { toast } from 'sonner';
 import { format, parseISO } from 'date-fns';
 
 const Sanctions = () => {
   const { cadre } = useCadre();
   const [open, setOpen] = useState(false);
+  const [selectedSanction, setSelectedSanction] = useState<any>(null);
+  const [timelineOpen, setTimelineOpen] = useState(false);
   const navigate = useNavigate();
   const { data: sanctions = [], isLoading } = useSanctions();
   const { data: personnel = [] } = usePersonnel();
-  
+  const { mutate: createSanction } = useCreateSanction();
+  const { mutate: updateSanction } = useUpdateSanction();
+
+  const [form, setForm] = useState({
+    svc: '',
+    hours: '',
+    reason: '',
+    period: 'April 2026'
+  });
+
+  const selectedEmployee = useMemo(() => {
+    return (personnel as any[]).find(p => p.serviceNo === form.svc);
+  }, [form.svc, personnel]);
+
+  const handleSubmit = () => {
+    if (!form.svc || !form.hours || !selectedEmployee) {
+      toast.error("Please provide Service Number and Hours");
+      return;
+    }
+
+    createSanction({
+      svc: form.svc,
+      hours: parseFloat(form.hours),
+      reason: form.reason || `Authorized ${typeLabel} for ${form.period}`,
+      period: form.period,
+      status: 'Pending',
+      date: format(new Date(), 'yyyy-MM-dd'),
+      sanctionId: `SN-${Date.now()}`
+    }, {
+      onSuccess: () => {
+        toast.success("Sanction Request Submitted");
+        setOpen(false);
+        setForm({ svc: '', hours: '', reason: '', period: 'April 2026' });
+      },
+      onError: (err: any) => {
+        toast.error(err.message || "Failed to submit request");
+      }
+    });
+  };
+  const handleUpdateStatus = (id: string, currentTimeline: string, newStatus: string) => {
+    const timeline = JSON.parse(currentTimeline || "[]");
+    const updatedTimeline = [
+      ...timeline,
+      { event: `Sanction ${newStatus}`, time: new Date().toISOString(), user: "Admin Clerk" }
+    ];
+
+    updateSanction({ 
+      id, 
+      status: newStatus,
+      timeline: JSON.stringify(updatedTimeline)
+    }, {
+      onSuccess: () => {
+        toast.success(`Sanction ${newStatus}`);
+      }
+    });
+  };
+
   const filteredSanctions = useMemo(() => {
     return (sanctions as any[]).filter(s => s.employee?.cardType === cadre);
   }, [sanctions, cadre]);
@@ -127,11 +186,29 @@ const Sanctions = () => {
                   <td><Badge variant={s.status.toLowerCase() as any}>{s.status}</Badge></td>
                   <td className="text-right">
                     <div className="flex justify-end gap-1 opacity-60 group-hover:opacity-100 transition-opacity">
-                      <button className="p-1.5 rounded-sm hover:bg-muted text-info"><Eye className="w-4 h-4" /></button>
+                      <button 
+                        onClick={() => { setSelectedSanction(s); setTimelineOpen(true); }}
+                        className="p-1.5 rounded-sm hover:bg-muted text-info" 
+                        title="View Timeline"
+                      >
+                        <Eye className="w-4 h-4" />
+                      </button>
                       {s.status === 'Pending' && (
                         <>
-                          <button className="p-1.5 rounded-sm hover:bg-success/10 text-success"><Check className="w-4 h-4" /></button>
-                          <button className="p-1.5 rounded-sm hover:bg-destructive/10 text-destructive"><X className="w-4 h-4" /></button>
+                          <button 
+                            onClick={() => handleUpdateStatus(s.id, s.timeline, 'Approved')}
+                            className="p-1.5 rounded-sm hover:bg-success/10 text-success" 
+                            title="Approve"
+                          >
+                            <Check className="w-4 h-4" />
+                          </button>
+                          <button 
+                            onClick={() => handleUpdateStatus(s.id, s.timeline, 'Rejected')}
+                            className="p-1.5 rounded-sm hover:bg-destructive/10 text-destructive" 
+                            title="Reject"
+                          >
+                            <X className="w-4 h-4" />
+                          </button>
                         </>
                       )}
                     </div>
@@ -155,34 +232,88 @@ const Sanctions = () => {
             </div>
             <div className="h-1 bg-accent" />
             <div className="p-8 grid grid-cols-2 gap-6">
-              <Field label="Select Personnel" required>
-                <Select>
-                  <option value="">Select Eligible Staff...</option>
-                  {(personnel as any[])
-                    .filter(p => p.cardType === cadre)
-                    .map(p => (
-                      <option key={p.id} value={p.id}>{p.name} ({p.serviceNo})</option>
-                    ))
-                  }
-                </Select>
+              <Field label="Service Number" required>
+                <Input 
+                  value={form.svc} 
+                  onChange={(e) => setForm({...form, svc: e.target.value})}
+                  placeholder="Enter Service No..." 
+                />
               </Field>
-              <Field label="Department" required><Input defaultValue="Administration" disabled /></Field>
-              <Field label="Max Authorized Hours" required><Input type="number" placeholder="e.g. 40" /></Field>
+              <Field label="Personnel Name">
+                <Input value={selectedEmployee?.name || 'Search Results...'} disabled className="bg-muted/50 font-bold text-primary" />
+              </Field>
+              <Field label="Max Hours" required>
+                <Input 
+                  type="number" 
+                  value={form.hours}
+                  onChange={(e) => setForm({...form, hours: e.target.value})}
+                  placeholder="e.g. 40" 
+                />
+              </Field>
               <Field label="Authorization Month" required>
-                <Select>
+                <Select value={form.period} onChange={(e) => setForm({...form, period: e.target.value})}>
                   <option>April 2026</option>
                   <option>May 2026</option>
                 </Select>
               </Field>
               <div className="col-span-2">
-                <Field label="Operational Justification" required>
-                  <textarea rows={3} className="w-full p-3 bg-card border border-border rounded-sm text-sm focus:outline-none focus:border-accent" placeholder="State reason for overtime..." />
+                <Field label="Operational Justification">
+                  <textarea 
+                    rows={3} 
+                    value={form.reason}
+                    onChange={(e) => setForm({...form, reason: e.target.value})}
+                    className="w-full p-3 bg-card border border-border rounded-sm text-sm focus:outline-none focus:border-accent" 
+                    placeholder="State reason for overtime..." 
+                  />
                 </Field>
               </div>
             </div>
             <div className="border-t border-border bg-muted/40 px-6 py-4 flex justify-end gap-3">
-              <Btn variant="outline" onClick={() => setOpen(false)}>Cancel Request</Btn>
-              <Btn variant="gold">Authorize & Record</Btn>
+              <Btn variant="outline" onClick={() => setOpen(false)}>Cancel</Btn>
+              <Btn variant="gold" onClick={handleSubmit}>Submit Request</Btn>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {timelineOpen && selectedSanction && (
+        <div className="fixed inset-0 z-50 bg-primary/60 backdrop-blur-sm flex items-center justify-center p-8 animate-in fade-in duration-200">
+          <div className="bg-card w-full max-w-lg rounded-md shadow-elevated overflow-hidden border border-border">
+            <div className="bg-gradient-command px-6 py-4 flex items-center justify-between border-b border-white/10">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-sm bg-accent/20 flex items-center justify-center">
+                  <History className="w-5 h-5 text-accent" />
+                </div>
+                <div>
+                  <div className="label-mil text-accent">Operational Timeline</div>
+                  <h2 className="text-sm text-white font-bold uppercase tracking-widest">{selectedSanction.sanctionId}</h2>
+                </div>
+              </div>
+              <button onClick={() => setTimelineOpen(false)} className="text-white/70 hover:text-white"><X className="w-5 h-5" /></button>
+            </div>
+            <div className="h-1 bg-accent" />
+            
+            <div className="p-8">
+              <div className="relative space-y-6 before:absolute before:inset-0 before:ml-5 before:-translate-x-px before:h-full before:w-0.5 before:bg-border/30">
+                {JSON.parse(selectedSanction.timeline || "[]").map((step: any, idx: number) => (
+                  <div key={idx} className="relative flex items-center gap-6">
+                    <div className="flex items-center justify-center w-10 h-10 rounded-full border-2 border-accent bg-card text-accent shadow shrink-0 z-10">
+                      <div className="w-2.5 h-2.5 rounded-full bg-accent animate-pulse" />
+                    </div>
+                    <div className="flex-1 p-3.5 rounded border border-border bg-muted/20">
+                      <div className="flex items-center justify-between mb-1">
+                        <div className="font-bold text-primary text-[0.7rem] uppercase tracking-wider">{step.event}</div>
+                        <time className="font-mono text-[0.6rem] text-muted-foreground">{format(parseISO(step.time), 'HH:mm dd MMM')}</time>
+                      </div>
+                      <div className="text-[0.65rem] text-foreground/70">Actioned by <span className="font-bold text-primary italic underline">{step.user}</span></div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+            
+            <div className="border-t border-border bg-muted/40 px-6 py-4 flex justify-end">
+              <Btn variant="primary" size="sm" onClick={() => setTimelineOpen(false)}>Close Registry</Btn>
             </div>
           </div>
         </div>

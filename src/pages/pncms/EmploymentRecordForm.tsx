@@ -57,7 +57,7 @@ const EmploymentRecordForm = () => {
 
   useEffect(() => {
     if (isEdit && personnel.length > 0) {
-      const emp = (personnel as any[]).find((p) => p.id === id);
+      const emp = (personnel as any[]).find((p) => p.serviceNo === id);
       if (emp) {
         // Map letters carefully
         const appointmentLetter = emp.letters?.find((l: any) => 

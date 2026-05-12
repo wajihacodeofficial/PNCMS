@@ -29,11 +29,12 @@ const Attendance = () => {
   const [activeTab, setActiveTab] = useState("daily");
   const [selectedDate, setSelectedDate] = useState(format(new Date(), "yyyy-MM-dd"));
   const [search, setSearch] = useState("");
+  const [historySearch, setHistorySearch] = useState("");
   const [deptFilter, setDeptFilter] = useState<string>("All");
   const [clerkName, setClerkName] = useState("Wajiha Zehra");
   
-  const { data: personnel = [], isLoading: isPersonnelLoading } = usePersonnel();
-  const { data: attendance = [], isLoading: isAttendanceLoading } = useAttendance(selectedDate);
+  const { data: personnel = [], isLoading: isPersonnelLoading, error: personnelError } = usePersonnel();
+  const { data: attendance = [], isLoading: isAttendanceLoading, error: attendanceError } = useAttendance(selectedDate);
 
   const { data: lock } = useMusterLock(selectedDate);
   const { data: allLocks = [] } = useAllMusterLocks();
@@ -45,6 +46,17 @@ const Attendance = () => {
   const [pendingUpdate, setPendingUpdate] = useState<{empId: string, status: string} | null>(null);
   const [isLocking, setIsLocking] = useState(false);
 
+  const filteredHistory = useMemo(() => {
+    if (!Array.isArray(allLocks)) return [];
+    return allLocks
+      .filter(l => {
+        if (!historySearch) return true;
+        const formattedDate = safeFormat(l.date, "dd MMMM yyyy").toLowerCase();
+        return formattedDate.includes(historySearch.toLowerCase()) || l.date.includes(historySearch);
+      })
+      .sort((a, b) => (b.date || "").localeCompare(a.date || ""));
+  }, [allLocks, historySearch]);
+
   useEffect(() => {
     const clk = localStorage.getItem("clerk_name");
     if (clk) setClerkName(clk);
@@ -52,21 +64,22 @@ const Attendance = () => {
 
   const currentMarks = useMemo(() => {
     const marks: Record<string, string> = {};
-    (attendance as any[]).forEach(a => {
-      marks[a.employeeId] = a.status;
+    if (!Array.isArray(attendance)) return marks;
+    attendance.forEach(a => {
+      if (a.serviceNo) marks[a.serviceNo] = a.status;
     });
     return marks;
   }, [attendance]);
 
-  const markAttendance = async (employeeId: string, status: string) => {
+  const markAttendance = async (serviceNo: string, status: string) => {
     if (lock) {
-      setPendingUpdate({ empId: employeeId, status });
+      setPendingUpdate({ empId: serviceNo, status });
       setShowOverrideModal(true);
       return;
     }
 
     try {
-      await api.updateAttendance(selectedDate, employeeId, status);
+      await api.updateAttendance(selectedDate, serviceNo, status);
       queryClient.invalidateQueries({ queryKey: ['attendance', selectedDate] });
       toast.success("Attendance updated");
     } catch (error: any) {
@@ -122,31 +135,55 @@ const Attendance = () => {
   };
 
   const filteredList = useMemo(() => {
-    return (personnel as any[])
+    if (!Array.isArray(personnel)) return [];
+    return personnel
       .filter(p => {
-        const matchesSearch = p.name.toLowerCase().includes(search.toLowerCase()) || p.serviceNo.includes(search);
+        const matchesSearch = (p.name || "").toLowerCase().includes(search.toLowerCase()) || (p.serviceNo || "").includes(search);
         const matchesDept = deptFilter === "All" || p.department?.name === deptFilter;
         return matchesSearch && matchesDept;
       })
-      .sort((a, b) => a.name.localeCompare(b.name));
+      .sort((a, b) => (a.name || "").localeCompare(b.name || ""));
   }, [personnel, search, deptFilter]);
 
-  if (isPersonnelLoading || isAttendanceLoading) return <div className="p-8 text-center">Loading...</div>;
+  const safeFormat = (dateStr: string, fmt: string) => {
+    try {
+      if (!dateStr) return "—";
+      return format(parseISO(dateStr), fmt);
+    } catch (e) {
+      console.error("Date formatting error:", e);
+      return "Invalid Date";
+    }
+  };
+
+  const isLoadingData = isPersonnelLoading || isAttendanceLoading;
+
+  if (personnelError || attendanceError) {
+    return (
+      <div className="p-20 text-center flex flex-col items-center gap-4 text-destructive">
+        <ShieldAlert className="w-12 h-12" />
+        <h3 className="text-lg font-bold">Data Access Failure</h3>
+        <p className="label-mil">{(personnelError as any)?.message || (attendanceError as any)?.message || "Internal system error"}</p>
+        <Btn variant="outline" onClick={() => window.location.reload()}><RotateCcw className="w-4 h-4" /> Try Reconnecting</Btn>
+      </div>
+    );
+  }
 
   return (
     <AppShell>
       <PageHeader title="Muster Roll Control" subtitle="Daily Attendance Reporting & Verification"
         actions={
           <div className="flex gap-2">
-            <Btn variant="outline"><Download className="w-4 h-4" /> Export PDF</Btn>
+            <Btn variant="outline" onClick={() => exportToPDF("Muster Roll", [["Svc No", "Name", "Status"]], filteredList.map(p=>[p.serviceNo, p.name, currentMarks[p.serviceNo]||"Pending"]), "muster_roll")}>
+              <Download className="w-4 h-4 mr-2" /> Export PDF
+            </Btn>
             {activeTab === "daily" && (
               lock ? (
                 <Btn variant="gold" onClick={() => setShowOverrideModal(true)} className="bg-destructive hover:bg-destructive/90 text-white border-none">
-                  <Unlock className="w-4 h-4" /> Unlock Muster Roll
+                  <Unlock className="w-4 h-4 mr-2" /> Unlock Muster Roll
                 </Btn>
               ) : (
                 <Btn variant="gold" onClick={handleLock}>
-                  <Lock className="w-4 h-4" /> Lock Muster Roll
+                  <Lock className="w-4 h-4 mr-2" /> Lock Muster Roll
                 </Btn>
               )
             )}
@@ -164,9 +201,9 @@ const Attendance = () => {
           </Tabs.Trigger>
         </Tabs.List>
 
-        <Tabs.Content value="daily" className="animate-in fade-in slide-in-from-left-2">
+        <Tabs.Content value="daily" className="animate-in fade-in slide-in-from-left-2 outline-none">
           <Section 
-            title={`Active Muster Roll · ${format(parseISO(selectedDate), "dd MMMM yyyy")}`}
+            title={`Active Muster Roll · ${isLoadingData ? "..." : safeFormat(selectedDate, "dd MMMM yyyy")}`}
             actions={
               <div className="flex items-center gap-2 border-l border-border pl-3">
                  <span className="text-[0.6rem] font-bold text-muted-foreground uppercase">Muster Date</span>
@@ -174,67 +211,98 @@ const Attendance = () => {
               </div>
             }
           >
-            <div className="flex flex-wrap items-center justify-between gap-4 mb-6">
-              <div className="flex items-center gap-3 flex-1 min-w-[300px]">
-                <div className="relative flex-1">
-                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                  <input placeholder="Search personnel..." className="w-full h-10 pl-10 pr-3 bg-muted/20 border border-border rounded-sm focus:outline-none focus:border-accent text-sm" value={search} onChange={(e) => setSearch(e.target.value)} />
-                </div>
+            {isLoadingData ? (
+              <div className="p-20 text-center flex flex-col items-center gap-4">
+                <div className="w-10 h-10 border-4 border-accent border-t-transparent rounded-full animate-spin" />
+                <p className="label-mil">
+                  {isPersonnelLoading ? "Synchronizing Personnel Registry..." : "Retrieving Daily Muster Records..."}
+                </p>
+                <div className="text-[0.6rem] text-muted-foreground uppercase tracking-widest animate-pulse">Establishing Secure Connection</div>
               </div>
-            </div>
+            ) : personnel.length === 0 ? (
+              <div className="p-20 text-center flex flex-col items-center gap-4 text-muted-foreground">
+                <Users className="w-12 h-12 opacity-20" />
+                <h3 className="text-sm font-bold uppercase tracking-widest">No Personnel Records</h3>
+                <p className="text-xs">Add civilian staff in the Employment Record panel first.</p>
+                <Btn variant="outline" onClick={() => window.location.reload()}><RotateCcw className="w-4 h-4" /> Refresh System</Btn>
+              </div>
+            ) : (
+              <>
+                <div className="flex flex-wrap items-center justify-between gap-4 mb-6">
+                  <div className="flex items-center gap-3 flex-1 min-w-[300px]">
+                    <div className="relative flex-1">
+                      <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                      <input placeholder="Search personnel..." className="w-full h-10 pl-10 pr-3 bg-muted/20 border border-border rounded-sm focus:outline-none focus:border-accent text-sm" value={search} onChange={(e) => setSearch(e.target.value)} />
+                    </div>
+                  </div>
+                </div>
 
-            <div className="overflow-x-auto -m-5">
-              <table className="data-table">
-                <thead>
-                  <tr><th>Svc No</th><th>Name</th><th>Rank</th><th>Department</th><th>Muster Status</th><th className="text-right">Action</th></tr>
-                </thead>
-                <tbody>
-                  {filteredList.map(p => {
-                    const mark = currentMarks[p.id] || "";
-                    return (
-                      <tr key={p.id}>
-                        <td className="font-mono text-xs font-bold text-primary">{p.serviceNo}</td>
-                        <td className="font-semibold text-primary">{p.name}</td>
-                        <td className="text-muted-foreground text-xs">{p.rank?.name}</td>
-                        <td className="text-xs font-bold uppercase text-muted-foreground/60">{p.department?.name}</td>
-                        <td>
-                          {mark ? (
-                            <Badge variant={STATUS_CONFIG[mark]?.variant as any}>{STATUS_CONFIG[mark]?.label}</Badge>
-                          ) : (
-                            <span className="text-[0.6rem] font-bold text-muted-foreground italic">Pending...</span>
-                          )}
-                        </td>
-                        <td className="text-right flex justify-end">
-                           <CompactToggle
-                             value={mark}
-                             onChange={(val) => markAttendance(p.id, val as Mark)}
-                             options={[
-                               { value: "P", label: "Present", variant: "success" },
-                               { value: "A", label: "Absent", variant: "danger" },
-                               { value: "L", label: "Late", variant: "warning" },
-                               { value: "CL", label: "Casual Leave", variant: "info" },
-                               { value: "RL", label: "Recreational Leave", variant: "info" },
-                               { value: "LWOP", label: "Leave without pay", variant: "info" },
-                               { value: "DL", label: "Disability Leave", variant: "info" },
-                               { value: "LFP", label: "Leave on Full Pay", variant: "info" },
-                             ]}
-                           />
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
+                <div className="overflow-x-auto -m-5">
+                  <table className="data-table">
+                    <thead>
+                      <tr><th>Svc No</th><th>Name</th><th>Rank</th><th>Department</th><th>Muster Status</th><th className="text-right">Action</th></tr>
+                    </thead>
+                    <tbody>
+                      {filteredList.map((p, idx) => {
+                        if (!p || !p.serviceNo) return null;
+                        const mark = currentMarks[p.serviceNo] || "";
+                        const personnelName = p.name || "Unknown Personnel";
+                        const rankName = p.rank?.name || "—";
+                        const deptName = p.department?.name || "—";
+
+                        return (
+                          <tr key={p.serviceNo || idx}>
+                            <td className="font-mono text-xs font-bold text-primary">{p.serviceNo}</td>
+                            <td className="font-semibold text-primary">{personnelName}</td>
+                            <td className="text-muted-foreground text-xs">{rankName}</td>
+                            <td className="text-xs font-bold uppercase text-muted-foreground/60">{deptName}</td>
+                            <td>
+                              {mark && STATUS_CONFIG[mark] ? (
+                                <Badge variant={STATUS_CONFIG[mark].variant as any}>{STATUS_CONFIG[mark].label}</Badge>
+                              ) : mark ? (
+                                <Badge variant="info">{mark}</Badge>
+                              ) : (
+                                <span className="text-[0.6rem] font-bold text-muted-foreground italic">Pending...</span>
+                              )}
+                            </td>
+                            <td className="text-right flex justify-end">
+                               <CompactToggle
+                                 value={mark}
+                                 onChange={(val) => markAttendance(p.serviceNo, val as Mark)}
+                                 options={[
+                                   { value: "P", label: "Present", variant: "success" },
+                                   { value: "A", label: "Absent", variant: "danger" },
+                                   { value: "L", label: "Late", variant: "warning" },
+                                   { value: "CL", label: "Casual Leave", variant: "info" },
+                                   { value: "RL", label: "Recreational Leave", variant: "info" },
+                                   { value: "LWOP", label: "Leave without pay", variant: "info" },
+                                   { value: "DL", label: "Disability Leave", variant: "info" },
+                                   { value: "LFP", label: "Leave on Full Pay", variant: "info" },
+                                 ]}
+                               />
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              </>
+            )}
           </Section>
         </Tabs.Content>
 
-        <Tabs.Content value="history" className="animate-in fade-in slide-in-from-right-2">
+        <Tabs.Content value="history" className="animate-in fade-in slide-in-from-right-2 outline-none">
           <Section title="Muster History Log" actions={
             <div className="text-[0.6rem] font-bold text-muted-foreground uppercase flex items-center gap-2">
               <ShieldAlert className="w-3 h-3" /> Verified Records Only
             </div>
           }>
+             <div className="mb-5 relative">
+               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+               <input placeholder="Search history by date (e.g. 12 May 2026)..." className="w-full h-11 pl-10 pr-3 bg-muted/20 border border-border rounded-sm focus:outline-none focus:border-accent text-sm" value={historySearch} onChange={(e) => setHistorySearch(e.target.value)} />
+             </div>
+
              <div className="overflow-x-auto -m-5">
                <table className="data-table">
                  <thead>
@@ -247,35 +315,44 @@ const Attendance = () => {
                    </tr>
                  </thead>
                  <tbody>
-                   {(allLocks as any[]).length === 0 ? (
+                   {filteredHistory.length === 0 ? (
                      <tr>
                        <td colSpan={5} className="text-center py-20 text-muted-foreground italic">
-                         No locked muster records found. Use "Daily Entry" to lock a date.
+                         {historySearch ? "No history records match your search." : "No locked muster records found."}
                        </td>
                      </tr>
-                   ) : (allLocks as any[]).map((l) => (
-                     <tr key={l.id} className="hover:bg-primary/5 transition-colors group">
+                   ) : filteredHistory.map((l: any) => (
+                     <tr key={l.id || l.date} className="hover:bg-primary/5 transition-colors group">
                        <td className="font-mono text-sm font-bold text-primary">
-                         {format(parseISO(l.date), "dd MMMM yyyy")}
+                         {safeFormat(l.date, "dd MMMM yyyy")}
                        </td>
-                       <td className="font-semibold">{l.lockedBy}</td>
+                       <td className="font-semibold">{l.lockedBy || "Admin"}</td>
                        <td className="text-xs text-muted-foreground">
-                         {format(parseISO(l.lockedAt), "dd-MMM-yy HH:mm")}
+                         {l.lockedAt ? new Date(l.lockedAt).toLocaleString('en-PK', { day: '2-digit', month: 'short', year: '2-digit', hour: '2-digit', minute: '2-digit' }) : "—"}
                        </td>
                        <td>
                          <Badge variant="success">Verified & Locked</Badge>
                        </td>
                        <td className="text-right">
-                         <Btn 
-                           variant="outline" 
-                           className="h-8 text-[0.6rem] uppercase tracking-wider"
-                           onClick={() => {
-                             setSelectedDate(l.date);
-                             setActiveTab("daily");
-                           }}
-                         >
-                           <Eye className="w-3.5 h-3.5 mr-1.5" /> View Roll
-                         </Btn>
+                         <div className="flex justify-end gap-2">
+                           <Btn 
+                             variant="outline" 
+                             className="h-8 text-[0.6rem] uppercase tracking-wider"
+                             onClick={() => {
+                               setSelectedDate(l.date);
+                               setActiveTab("daily");
+                             }}
+                           >
+                             <Eye className="w-3.5 h-3.5 mr-1.5" /> View Roll
+                           </Btn>
+                           <Btn 
+                             variant="outline" 
+                             className="h-8 text-[0.6rem] uppercase tracking-wider"
+                             onClick={() => exportToPDF(`Muster Roll - ${l.date}`, [["Svc No", "Name", "Status"]], [], `muster_${l.date}`)}
+                           >
+                             <Download className="w-3.5 h-3.5 mr-1.5" /> Export
+                           </Btn>
+                         </div>
                        </td>
                      </tr>
                    ))}

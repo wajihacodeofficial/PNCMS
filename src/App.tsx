@@ -8,7 +8,6 @@ import Dashboard from "./pages/pncms/Dashboard";
 import EmploymentRecords from "./pages/pncms/EmploymentRecords";
 import OvertimeSystem from "./pages/pncms/OvertimeSystem";
 import LeaveDashboard from "./pages/pncms/LeaveDashboard";
-import Leave from "./pages/pncms/Leave";
 import LeaveEntry from "./pages/pncms/LeaveEntry";
 import LeaveLedger from "./pages/pncms/LeaveLedger";
 import Attendance from "./pages/pncms/Attendance";
@@ -53,7 +52,6 @@ const App = () => (
           <Route path="/overtime" element={<OvertimeSystem />} />
           <Route path="/sanctions/new" element={<SanctionEntry />} />
           <Route path="/leave" element={<LeaveDashboard />} />
-          <Route path="/leave/balances" element={<Leave />} />
           <Route path="/leave/new" element={<LeaveEntry />} />
           <Route path="/leave/ledger" element={<LeaveLedger />} />
           <Route path="/attendance" element={<Attendance />} />

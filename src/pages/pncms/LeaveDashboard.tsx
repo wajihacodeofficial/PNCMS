@@ -76,7 +76,6 @@ const LeaveDashboard = () => {
           <div className="flex gap-3">
             <Btn variant="outline" onClick={handleExportCurrent}><FileDown className="w-4 h-4" /> Export Active</Btn>
             <Btn variant="outline" onClick={() => navigate("/leave/ledger")}><ListChecks className="w-4 h-4" /> View Ledger</Btn>
-            <Btn variant="primary" onClick={() => navigate("/leave/balances")}><Users className="w-4 h-4" /> Manage Balances</Btn>
             <Btn variant="gold" onClick={() => navigate("/leave/new")}><UserPlus className="w-4 h-4" /> New Leave Record</Btn>
           </div>
         }

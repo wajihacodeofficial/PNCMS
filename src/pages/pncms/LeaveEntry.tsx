@@ -108,7 +108,6 @@ const LeaveEntry = () => {
 
     createLeave(
       {
-        employeeId: selectedPerson?.id,
         svc: selectedSvc,
         startDate: fromDate,
         endDate: toDate,

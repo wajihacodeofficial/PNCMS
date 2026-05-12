@@ -1,4 +1,4 @@
-import { ipcMain, dialog, BrowserWindow } from 'electron'
+import { ipcMain, dialog, BrowserWindow, app } from 'electron'
 import { prisma } from './db'
 import bcrypt from 'bcryptjs'
 import fs from 'fs'
@@ -14,12 +14,20 @@ export function setupHandlers() {
 
   // Employee Handlers
   ipcMain.handle('get-personnel', async () => {
-    return await prisma.employee.findMany({
-      include: {
-        rank: true,
-        department: true,
-      },
-    })
+    console.log('[IPC] Fetching personnel registry...');
+    try {
+      const result = await prisma.employee.findMany({
+        include: {
+          rank: true,
+          department: true,
+        },
+      })
+      console.log(`[IPC] Successfully retrieved ${result.length} personnel records`);
+      return result;
+    } catch (err) {
+      console.error('[IPC] Critical Error in get-personnel:', err);
+      throw err;
+    }
   })
 
   ipcMain.handle('get-employee-by-svc', async (_, svc: string) => {
@@ -68,33 +76,35 @@ export function setupHandlers() {
       fileNumber: l.fileNo
     }))
 
-    if (id) {
-      const result = await prisma.$transaction(async (tx) => {
-        await tx.employeePhone.deleteMany({ where: { employeeId: id } })
-        await tx.employeeLetter.deleteMany({ where: { employeeId: id } })
+    // Use serviceNo as the primary key for upsert
+    const result = await prisma.$transaction(async (tx) => {
+      await tx.employeePhone.deleteMany({ where: { serviceNo: data.serviceNo } })
+      await tx.employeeLetter.deleteMany({ where: { serviceNo: data.serviceNo } })
 
-        return await tx.employee.update({
-          where: { id },
-          data: {
-            ...employeeData,
-            phones: { create: phoneCreate },
-            letters: { create: letterCreate }
-          }
-        })
-      })
-      notifyChange('personnel')
-      return result
-    } else {
-      const result = await prisma.employee.create({
-        data: {
+      return await tx.employee.upsert({
+        where: { serviceNo: data.serviceNo },
+        update: {
+          ...employeeData,
+          phones: { create: phoneCreate },
+          letters: { create: letterCreate }
+        },
+        create: {
           ...employeeData,
           phones: { create: phoneCreate },
           letters: { create: letterCreate }
         }
       })
-      notifyChange('personnel')
-      return result
-    }
+    })
+    notifyChange('personnel')
+    return result
+  })
+
+  ipcMain.handle('delete-employee', async (_, serviceNo: string) => {
+    const result = await prisma.employee.delete({
+      where: { serviceNo }
+    })
+    notifyChange('personnel')
+    return result
   })
 
   // Sanction Handlers
@@ -111,7 +121,21 @@ export function setupHandlers() {
   })
 
   ipcMain.handle('create-sanction', async (_, data: any) => {
-    const result = await prisma.sanction.create({ data })
+    const { employeeId, svc, timeline, ...rest } = data;
+    const targetSvc = svc || employeeId; 
+    
+    // Initial timeline entry if none provided
+    const initialTimeline = timeline || JSON.stringify([
+      { event: "Application Started", time: new Date().toISOString(), user: "System" }
+    ]);
+
+    const result = await prisma.sanction.create({ 
+      data: {
+        ...rest,
+        timeline: initialTimeline,
+        employee: { connect: { serviceNo: targetSvc } }
+      }
+    })
     notifyChange('sanctions')
     return result
   })
@@ -137,25 +161,18 @@ export function setupHandlers() {
 
   ipcMain.handle('upsert-disciplinary-action', async (_, data: any) => {
     const { id, svc, employeeId, ...rest } = data
+    const targetSvc = svc || employeeId;
     
-    const normalizedSvc = svc ? String(svc).trim() : null;
-    let targetEmployeeId = employeeId;
-    if (!targetEmployeeId && normalizedSvc) {
-      const employee = await prisma.employee.findUnique({ where: { serviceNo: normalizedSvc } })
-      if (!employee) throw new Error(`Personnel with Svc No "${normalizedSvc}" not found in database`)
-      targetEmployeeId = employee.id;
-    }
-
-    if (!targetEmployeeId) throw new Error("Internal Error: Could not resolve database identifier for personnel");
+    if (!targetSvc) throw new Error("Service Number is required to identify personnel");
 
     if (id) {
       return await prisma.disciplinaryAction.update({
         where: { id },
-        data: { ...rest, employee: { connect: { id: targetEmployeeId } } }
+        data: { ...rest, employee: { connect: { serviceNo: targetSvc } } }
       })
     } else {
       return await prisma.disciplinaryAction.create({
-        data: { ...rest, employee: { connect: { id: targetEmployeeId } } }
+        data: { ...rest, employee: { connect: { serviceNo: targetSvc } } }
       })
     }
   })
@@ -170,24 +187,20 @@ export function setupHandlers() {
   })
 
   ipcMain.handle('create-leave', async (_, data: any) => {
-    const { employeeId, svc, ...rest } = data
-    
-    const normalizedSvc = svc ? String(svc).trim() : null;
-    let targetId = employeeId;
+    const { employeeId, svc, timeline, ...rest } = data
+    const targetSvc = svc || employeeId;
 
-    if (!targetId && normalizedSvc) {
-       const employee = await prisma.employee.findUnique({ where: { serviceNo: normalizedSvc } });
-       if (employee) targetId = employee.id;
-    }
+    if (!targetSvc) throw new Error("Service Number is required to resolve personnel");
 
-    if (!targetId) {
-       throw new Error(`Could not resolve personnel ID for leave record. (Svc: "${normalizedSvc}", ID: "${employeeId}")`);
-    }
+    const initialTimeline = timeline || JSON.stringify([
+      { event: "Leave Request Submitted", time: new Date().toISOString(), user: "Admin Clerk" }
+    ]);
 
     const result = await prisma.leaveRecord.create({ 
       data: {
         ...rest,
-        employee: { connect: { id: targetId } }
+        timeline: initialTimeline,
+        employee: { connect: { serviceNo: targetSvc } }
       }
     })
     notifyChange('leaves')
@@ -205,9 +218,17 @@ export function setupHandlers() {
 
   // Attendance Handlers
   ipcMain.handle('get-attendance', async (_, date: string) => {
-    return await prisma.attendance.findMany({
-      where: { date }
-    })
+    console.log(`[IPC] Fetching attendance for date: ${date}`);
+    try {
+      const result = await prisma.attendance.findMany({
+        where: { date }
+      })
+      console.log(`[IPC] Found ${result.length} attendance records`);
+      return result;
+    } catch (err) {
+      console.error(`[IPC] Error fetching attendance:`, err);
+      throw err;
+    }
   })
 
   ipcMain.handle('get-muster-lock', async (_, date: string) => {
@@ -242,7 +263,8 @@ export function setupHandlers() {
     return result
   })
 
-  ipcMain.handle('update-attendance', async (_, { date, employeeId, status, overridePassword }: any) => {
+  ipcMain.handle('update-attendance', async (_, { date, employeeId, svc, status, overridePassword }: any) => {
+    const targetSvc = svc || employeeId;
     const lock = await prisma.musterLock.findUnique({ where: { date } })
     if (lock) {
       const secret = await prisma.setting.findUnique({ where: { key: 'secret_password' } })
@@ -251,13 +273,21 @@ export function setupHandlers() {
       }
     }
 
-    const result = await prisma.attendance.upsert({
-      where: {
-        date_employeeId: { date, employeeId }
-      },
-      update: { status },
-      create: { date, employeeId, status }
+    const existing = await prisma.attendance.findFirst({
+      where: { date, serviceNo: targetSvc }
     })
+
+    let result
+    if (existing) {
+      result = await prisma.attendance.update({
+        where: { id: existing.id },
+        data: { status }
+      })
+    } else {
+      result = await prisma.attendance.create({
+        data: { date, serviceNo: targetSvc, status }
+      })
+    }
     notifyChange('attendance')
     return result
   })
@@ -305,9 +335,7 @@ export function setupHandlers() {
   })
 
   ipcMain.handle('get-departments', async () => {
-    return await prisma.department.findMany({
-      orderBy: { name: 'asc' }
-    })
+    return await prisma.department.findMany()
   })
 
   ipcMain.handle('upsert-department', async (_, { id, ...rest }: any) => {
@@ -373,58 +401,51 @@ export function setupHandlers() {
     return result
   })
 
+  // Dashboard Stats
   ipcMain.handle('get-dashboard-stats', async () => {
-    const totalPersonnel = await prisma.employee.count()
-    const openLogs = await prisma.sanction.count({ where: { status: 'Pending' } })
+    const personnelCount = await prisma.employee.count()
+    const leaveCount = await prisma.leaveRecord.count({ where: { status: 'Approved' } })
+    const pendingSanctions = await prisma.sanction.count({ where: { status: 'Pending' } })
     
-    const today = new Date().toISOString().split('T')[0]
-    const onLeave = await prisma.leaveRecord.count({
-      where: {
-        startDate: { lte: today },
-        endDate: { gte: today },
-        status: 'Approved'
-      }
-    })
+    // Cadre distribution
+    const ministerial = await prisma.employee.count({ where: { cardType: 'Ministerial' } })
+    const industrial = await prisma.employee.count({ where: { cardType: 'Industrial' } })
 
     return {
-      totalPersonnel,
-      openLogs,
-      onLeave,
+      personnelCount,
+      leaveCount,
+      pendingSanctions,
+      cadre: { ministerial, industrial }
     }
   })
 
-  // Audit Log Handlers
+  // Logs
   ipcMain.handle('get-logs', async () => {
     return await prisma.log.findMany({
       orderBy: { time: 'desc' },
-      take: 500
+      take: 50
     })
   })
 
-  ipcMain.handle('create-log', async (_, logData: any) => {
-    const result = await prisma.log.create({
+  ipcMain.handle('create-log', async (_, data: any) => {
+    return await prisma.log.create({
       data: {
-        user: logData.user,
-        action: logData.action,
-        entity: logData.entity,
-        ip: logData.ip || '127.0.0.1',
-        result: logData.result || 'Success'
+        ...data,
+        ip: '127.0.0.1'
       }
     })
-    notifyChange('logs')
-    return result
   })
 
-  // Backup & Restore Handlers
+  // Backup/Restore Handlers
   ipcMain.handle('export-backup', async (_, tag: string) => {
+    const dbPath = path.join(process.cwd(), 'prisma/dev.db')
+    const fileName = `backup_${tag || Date.now()}.db`
     const { filePath } = await dialog.showSaveDialog({
-      title: 'Export Database Backup',
-      defaultPath: `pncms_backup_${tag || Date.now()}.pnbak`,
-      filters: [{ name: 'PNCMS Backup', extensions: ['pnbak'] }]
+      defaultPath: fileName,
+      filters: [{ name: 'SQLite Database', extensions: ['db'] }]
     })
 
     if (filePath) {
-      const dbPath = path.join(process.cwd(), 'prisma', 'dev.db')
       fs.copyFileSync(dbPath, filePath)
       return { success: true, path: filePath }
     }
@@ -433,24 +454,14 @@ export function setupHandlers() {
 
   ipcMain.handle('import-backup', async () => {
     const { filePaths } = await dialog.showOpenDialog({
-      title: 'Import Database Backup',
-      filters: [{ name: 'PNCMS Backup', extensions: ['pnbak'] }],
-      properties: ['openFile']
+      filters: [{ name: 'SQLite Database', extensions: ['db'] }]
     })
 
-    if (filePaths && filePaths[0]) {
-      const dbPath = path.join(process.cwd(), 'prisma', 'dev.db')
-      fs.copyFileSync(dbPath, `${dbPath}.bak`)
+    if (filePaths && filePaths.length > 0) {
+      const dbPath = path.join(process.cwd(), 'prisma/dev.db')
       fs.copyFileSync(filePaths[0], dbPath)
-      BrowserWindow.getAllWindows().forEach(win => {
-        win.webContents.send('db-changed', 'personnel')
-        win.webContents.send('db-changed', 'sanctions')
-        win.webContents.send('db-changed', 'attendance')
-        win.webContents.send('db-changed', 'ranks')
-        win.webContents.send('db-changed', 'departments')
-        win.webContents.send('db-changed', 'settings')
-        win.webContents.send('db-changed', 'logs')
-      })
+      app.relaunch()
+      app.exit()
       return { success: true }
     }
     return { success: false }

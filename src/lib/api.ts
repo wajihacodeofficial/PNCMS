@@ -6,6 +6,7 @@ export const api = {
   getPersonnel: () => ipcRenderer.invoke('get-personnel'),
   getEmployeeBySvc: (svc: string) => ipcRenderer.invoke('get-employee-by-svc', svc),
   upsertEmployee: (data: any) => ipcRenderer.invoke('upsert-employee', data),
+  deleteEmployee: (id: string) => ipcRenderer.invoke('delete-employee', id),
 
   // Sanctions
   getSanctions: () => ipcRenderer.invoke('get-sanctions'),

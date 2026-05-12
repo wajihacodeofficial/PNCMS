@@ -40,7 +40,7 @@ const Login = () => {
       setSuccess(`${user.role} access granted. Initializing terminal...`);
       localStorage.setItem('user_role', user.role);
       localStorage.setItem('username', user.username);
-      
+
       setTimeout(() => nav('/dashboard'), 1500);
     } catch (err: any) {
       setError('Invalid identity or authorization failed');
@@ -149,7 +149,7 @@ const Login = () => {
                 <div className="mt-1.5 relative">
                   <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/50" />
                   <input
-                    type={showPassword ? "text" : "password"}
+                    type={showPassword ? 'text' : 'password'}
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     placeholder="••••••••••"
@@ -160,7 +160,11 @@ const Login = () => {
                     onClick={() => setShowPassword(!showPassword)}
                     className="absolute right-3 top-1/2 -translate-y-1/2 text-white/50 hover:text-white transition-colors"
                   >
-                    {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                    {showPassword ? (
+                      <EyeOff className="w-4 h-4" />
+                    ) : (
+                      <Eye className="w-4 h-4" />
+                    )}
                   </button>
                 </div>
               </div>
@@ -195,7 +199,7 @@ const Login = () => {
                 <div className="mt-1.5 relative">
                   <HelpCircle className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/50" />
                   <input
-                    type={showAnswer ? "text" : "password"}
+                    type={showAnswer ? 'text' : 'password'}
                     value={secAnswer}
                     onChange={(e) => setSecAnswer(e.target.value)}
                     placeholder="Your answer"
@@ -206,7 +210,11 @@ const Login = () => {
                     onClick={() => setShowAnswer(!showAnswer)}
                     className="absolute right-3 top-1/2 -translate-y-1/2 text-white/50 hover:text-white transition-colors"
                   >
-                    {showAnswer ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                    {showAnswer ? (
+                      <EyeOff className="w-4 h-4" />
+                    ) : (
+                      <Eye className="w-4 h-4" />
+                    )}
                   </button>
                 </div>
               </div>
@@ -216,7 +224,7 @@ const Login = () => {
                 <div className="mt-1.5 relative">
                   <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/50" />
                   <input
-                    type={showNewPassword ? "text" : "password"}
+                    type={showNewPassword ? 'text' : 'password'}
                     value={newPassword}
                     onChange={(e) => setNewPassword(e.target.value)}
                     placeholder="Enter new password"
@@ -227,7 +235,11 @@ const Login = () => {
                     onClick={() => setShowNewPassword(!showNewPassword)}
                     className="absolute right-3 top-1/2 -translate-y-1/2 text-white/50 hover:text-white transition-colors"
                   >
-                    {showNewPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                    {showNewPassword ? (
+                      <EyeOff className="w-4 h-4" />
+                    ) : (
+                      <Eye className="w-4 h-4" />
+                    )}
                   </button>
                 </div>
               </div>

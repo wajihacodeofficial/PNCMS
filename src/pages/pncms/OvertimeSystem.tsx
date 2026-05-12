@@ -69,7 +69,7 @@ const OvertimeSystem = () => {
     }
 
     createSanction({
-      employeeId: emp.id,
+      svc: formSvc,
       hours: parseInt(formHours),
       period: "May 2026",
       status: "Pending",
@@ -163,16 +163,21 @@ const OvertimeSystem = () => {
 
   const totalDisbursement = rosterData.reduce((sum, item) => sum + item.amount, 0);
 
-  if (isSanctionsLoading || isPersonnelLoading) return <div className="p-10 text-center font-bold">Loading System Data...</div>;
-
   if (!selectedCadre) {
     return (
       <AppShell>
         <PageHeader title="Allowance Control Center" subtitle="Authorization & Disbursement Management Hub" />
-        <div className="flex items-center justify-center gap-10 py-20">
-          <CadreCard type="Ministerial" icon={<Building2 className="w-10 h-10" />} label="Late-Sitting" rate={rates.Ministerial} onClick={() => handleCadreSelect('Ministerial')} />
-          <CadreCard type="Industrial" icon={<HardHat className="w-10 h-10" />} label="Overtime" rate={rates.Industrial} onClick={() => handleCadreSelect('Industrial')} />
-        </div>
+        {(isSanctionsLoading || isPersonnelLoading) ? (
+          <div className="flex flex-col items-center justify-center py-20 gap-4">
+             <div className="w-10 h-10 border-4 border-accent border-t-transparent rounded-full animate-spin" />
+             <p className="label-mil">Synchronizing Allowance Database...</p>
+          </div>
+        ) : (
+          <div className="flex items-center justify-center gap-10 py-20">
+            <CadreCard type="Ministerial" icon={<Building2 className="w-10 h-10" />} label="Late-Sitting" rate={rates.Ministerial} onClick={() => handleCadreSelect('Ministerial')} />
+            <CadreCard type="Industrial" icon={<HardHat className="w-10 h-10" />} label="Overtime" rate={rates.Industrial} onClick={() => handleCadreSelect('Industrial')} />
+          </div>
+        )}
       </AppShell>
     );
   }
@@ -277,11 +282,19 @@ const OvertimeSystem = () => {
           <div className="bg-card w-full max-w-2xl rounded-md shadow-elevated border border-border overflow-hidden animate-in zoom-in-95">
              <div className="bg-primary px-6 py-4 flex items-center justify-between"><h3 className="text-white font-heading font-black italic uppercase text-lg">New {typeLabel} Sanction</h3><button onClick={() => setIsAddingSanction(false)} className="text-white/70 hover:text-white"><X className="w-6 h-6"/></button></div>
              <div className="p-8 grid grid-cols-2 gap-6">
-                <Field label="Personnel" required>
-                  <Select value={formSvc} onChange={(e) => setFormSvc(e.target.value)}>
-                    <option value="">Select staff...</option>
-                    {personnel.filter((p: any) => p.cardType === selectedCadre).map((p: any) => <option key={p.serviceNo} value={p.serviceNo}>{p.name} ({p.serviceNo})</option>)}
-                  </Select>
+                <Field label="Service Number" required>
+                  <Input 
+                    value={formSvc} 
+                    onChange={(e) => setFormSvc(e.target.value)} 
+                    placeholder="Enter SVC No..." 
+                  />
+                </Field>
+                <Field label="Personnel Name">
+                  <Input 
+                    value={personnel.find((p: any) => p.serviceNo === formSvc)?.name || 'Not found'} 
+                    disabled 
+                    className="bg-muted/50"
+                  />
                 </Field>
                 <Field label="Max Hours" required>
                   <Input type="number" value={formHours} onChange={(e) => setFormHours(e.target.value)} placeholder="Limit for period" />

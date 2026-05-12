@@ -1,7 +1,7 @@
 import { AppShell, PageHeader } from "@/components/pncms/AppShell";
 import { Section, Btn, Badge } from "@/components/pncms/ui-kit";
 import { FileDown, FileSpreadsheet, Search, Filter, Printer, Zap, XCircle, ArrowUpRight } from "lucide-react";
-import { personnel } from "@/data/mock";
+import { usePersonnel, useLeaves } from "@/hooks/use-api";
 import { useState, useMemo } from "react";
 import { format, parseISO, subMonths } from "date-fns";
 import { exportToPDF, exportToExcel } from "@/lib/export";
@@ -9,6 +9,8 @@ import { toast } from "sonner";
 
 const LeaveLedger = () => {
   const [selectedMonth, setSelectedMonth] = useState("April 2026");
+  const { data: personnel = [] } = usePersonnel();
+  const { data: leaves = [] } = useLeaves();
   
   const attendanceHistory = useMemo(() => {
     const saved = localStorage.getItem('pncms_attendance_history');
@@ -33,7 +35,7 @@ const LeaveLedger = () => {
         const dateObj = parseISO(date);
         const monthYear = format(dateObj, "MMMM yyyy");
         if (monthYear === selectedMonth) {
-          const mark = marks[p.svc];
+          const mark = marks[p.serviceNo];
           if (mark === "P") {
             presentDays++;
           } else if (mark === "A") {
@@ -62,7 +64,7 @@ const LeaveLedger = () => {
   const handlePDF = () => {
     const headers = [["Personnel", "Svc No", "CL", "RL", "DL", "LWOP", "Att. Days", "LFP Balance"]];
     const rows = ledgerData.map((p, i) => [
-      p.name, p.svc, `${12 - (i % 5)}/20`, `${8 - (i % 6)}/15`, `${5 - (i % 3)}/5`, i % 2, p.presentDays, p.newBalance
+      p.name, p.serviceNo, `${12 - (i % 5)}/20`, `${8 - (i % 6)}/15`, `${5 - (i % 3)}/5`, i % 2, p.presentDays, p.newBalance
     ]);
     exportToPDF(`Leave Ledger - ${selectedMonth}`, headers, rows, `leave_ledger_${selectedMonth.replace(' ', '_')}`, 
       { period: selectedMonth, dept: "All Departments", clerk: "Wajiha Zehra · DIL-ADM-04" }
@@ -73,7 +75,7 @@ const LeaveLedger = () => {
   const handleExcel = async () => {
     const headers = ["Name", "Service No", "CL Used", "RL Used", "DL Used", "LWOP", "Present Days", "LFP Balance"];
     const rows = ledgerData.map((p, i) => [
-      p.name, p.svc, 12 - (i % 5), 8 - (i % 6), 5 - (i % 3), i % 2, p.presentDays, p.newBalance
+      p.name, p.serviceNo, 12 - (i % 5), 8 - (i % 6), 5 - (i % 3), i % 2, p.presentDays, p.newBalance
     ]);
     await exportToExcel(`Leave Ledger ${selectedMonth}`, headers, rows, `leave_ledger_${selectedMonth.replace(' ', '_')}`);
     toast.success("Leave Ledger Excel Exported");
@@ -128,10 +130,10 @@ const LeaveLedger = () => {
             </thead>
             <tbody>
               {ledgerData.map((p, i) => (
-                <tr key={p.svc} className={p.isEligible ? "bg-success/5" : ""}>
+                <tr key={p.serviceNo} className={p.isEligible ? "bg-success/5" : ""}>
                   <td>
                     <div className="font-semibold">{p.name}</div>
-                    <div className="text-[0.65rem] text-muted-foreground font-mono">{p.svc} · {p.gender}</div>
+                    <div className="text-[0.65rem] text-muted-foreground font-mono">{p.serviceNo} · {p.gender}</div>
                   </td>
                   <td className="font-mono">{12 - (i % 5)} / 20</td>
                   <td className="font-mono">{8 - (i % 6)} / 15</td>

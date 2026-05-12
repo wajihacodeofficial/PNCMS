@@ -34,6 +34,8 @@ function createWindow() {
     height: 800,
     title: 'Pakistan Navy Civilian Management System (PNCMS)',
   })
+  
+  win.maximize()
 
   // Test active push message to Renderer-process.
   win.webContents.on('did-finish-load', () => {

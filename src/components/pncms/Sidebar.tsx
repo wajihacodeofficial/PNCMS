@@ -63,6 +63,7 @@ export const Sidebar = () => {
               <NavLink
                 key={to}
                 to={to}
+                end={to === '/settings'}
                 className={({ isActive }) =>
                   `relative flex items-center gap-3 px-5 py-2.5 text-[0.82rem] font-body font-medium transition-colors ${
                     isActive
