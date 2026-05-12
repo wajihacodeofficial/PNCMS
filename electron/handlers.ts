@@ -138,11 +138,11 @@ export function setupHandlers() {
   ipcMain.handle('upsert-disciplinary-action', async (_, data: any) => {
     const { id, svc, employeeId, ...rest } = data
     
+    const normalizedSvc = svc ? String(svc).trim() : null;
     let targetEmployeeId = employeeId;
-    if (!targetEmployeeId) {
-      if (!svc) throw new Error("Service Number is required to identify personnel");
-      const employee = await prisma.employee.findUnique({ where: { serviceNo: svc } })
-      if (!employee) throw new Error(`Personnel with Svc No "${svc}" not found in database`)
+    if (!targetEmployeeId && normalizedSvc) {
+      const employee = await prisma.employee.findUnique({ where: { serviceNo: normalizedSvc } })
+      if (!employee) throw new Error(`Personnel with Svc No "${normalizedSvc}" not found in database`)
       targetEmployeeId = employee.id;
     }
 
@@ -172,13 +172,17 @@ export function setupHandlers() {
   ipcMain.handle('create-leave', async (_, data: any) => {
     const { employeeId, svc, ...rest } = data
     
+    const normalizedSvc = svc ? String(svc).trim() : null;
     let targetId = employeeId;
-    if (!targetId && svc) {
-       const employee = await prisma.employee.findUnique({ where: { serviceNo: svc } });
+
+    if (!targetId && normalizedSvc) {
+       const employee = await prisma.employee.findUnique({ where: { serviceNo: normalizedSvc } });
        if (employee) targetId = employee.id;
     }
 
-    if (!targetId) throw new Error("Could not resolve personnel ID for leave record");
+    if (!targetId) {
+       throw new Error(`Could not resolve personnel ID for leave record. (Svc: "${normalizedSvc}", ID: "${employeeId}")`);
+    }
 
     const result = await prisma.leaveRecord.create({ 
       data: {
