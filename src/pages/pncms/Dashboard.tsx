@@ -12,6 +12,9 @@ import {
   FileDown,
   Clock,
   Gavel,
+  Building2,
+  ShieldCheck,
+  Settings,
 } from 'lucide-react';
 import { exportToPDF } from '@/lib/export';
 import { useState, useEffect } from 'react';
@@ -117,51 +120,90 @@ const Dashboard = () => {
       </div>
 
       <div className="grid grid-cols-12 gap-6 mt-6">
-        <Section title="Recent System Activity" className="col-span-8">
-          <div className="overflow-hidden -m-5">
-            <table className="data-table">
-              <thead>
-                <tr><th>Time</th><th>User</th><th>Action</th><th>Affected Record</th></tr>
-              </thead>
-              <tbody>
-                {logs.slice(0, 5).map((l: any) => (
-                  <tr key={l.id} className="hover:bg-muted/30">
-                    <td className="font-mono text-[0.6rem] text-muted-foreground">{format(new Date(l.time), 'HH:mm:ss')}</td>
-                    <td className="font-bold text-primary">{l.user}</td>
-                    <td><Badge variant={l.action === 'DELETE' ? 'danger' : 'info'} className="text-[0.6rem]">{l.action}</Badge></td>
-                    <td className="text-xs italic truncate max-w-[200px]">{l.entity}</td>
-                  </tr>
-                ))}
-                {logs.length === 0 && (
-                  <tr><td colSpan={4} className="text-center py-10 text-muted-foreground italic">No recent activity detected.</td></tr>
-                )}
-              </tbody>
-            </table>
-            <div className="bg-muted/20 p-3 border-t border-border flex justify-center">
-              <Btn variant="ghost" className="text-[0.65rem] font-bold h-7" onClick={() => navigate('/audit')}>View Full Audit Trail</Btn>
+        <Section title="Establishment Insights" className="col-span-8">
+          <div className="grid grid-cols-2 gap-6">
+            <div className="p-6 bg-accent/5 border border-accent/20 rounded-md">
+              <h4 className="text-xs font-bold text-primary uppercase tracking-wider mb-4 flex items-center gap-2">
+                <Building2 className="w-4 h-4" /> Unit Distribution
+              </h4>
+              <div className="space-y-3">
+                <div className="flex justify-between items-center text-sm">
+                  <span className="text-muted-foreground">Admin Offices</span>
+                  <span className="font-mono font-bold">04 Units</span>
+                </div>
+                <div className="flex justify-between items-center text-sm">
+                  <span className="text-muted-foreground">Operational Wings</span>
+                  <span className="font-mono font-bold">02 Units</span>
+                </div>
+                <div className="h-1 bg-muted rounded-full mt-2">
+                  <div className="h-full bg-accent w-2/3" />
+                </div>
+              </div>
             </div>
+            <div className="p-6 bg-primary/5 border border-primary/20 rounded-md">
+              <h4 className="text-xs font-bold text-primary uppercase tracking-wider mb-4 flex items-center gap-2">
+                <ShieldCheck className="w-4 h-4" /> Cadre Strength
+              </h4>
+              <div className="space-y-3">
+                <div className="flex justify-between items-center text-sm">
+                  <span className="text-muted-foreground">Ministerial Staff</span>
+                  <span className="font-mono font-bold">65%</span>
+                </div>
+                <div className="flex justify-between items-center text-sm">
+                  <span className="text-muted-foreground">Industrial Staff</span>
+                  <span className="font-mono font-bold">35%</span>
+                </div>
+                <div className="h-1 bg-muted rounded-full mt-2">
+                  <div className="h-full bg-primary w-3/4" />
+                </div>
+              </div>
+            </div>
+          </div>
+          <div className="mt-6 p-4 border border-dashed border-border rounded-md bg-muted/5 flex items-center justify-between">
+            <div className="flex items-center gap-3">
+               <div className="w-10 h-10 rounded-full bg-success/10 flex items-center justify-center">
+                 <Clock className="w-5 h-5 text-success" />
+               </div>
+               <div>
+                 <p className="text-xs font-bold text-primary">Daily Muster Status</p>
+                 <p className="text-[0.65rem] text-muted-foreground">All attendance records for {format(new Date(), 'dd MMM')} are validated.</p>
+               </div>
+            </div>
+            <Btn variant="outline" className="h-8 text-[0.65rem]" onClick={() => navigate('/attendance')}>View Muster</Btn>
           </div>
         </Section>
 
         <div className="col-span-4 space-y-6">
-          <Section title="Operational Readiness">
-            <div className="space-y-4">
-              <div>
-                <div className="flex justify-between text-[0.65rem] font-bold mb-1.5 uppercase">
-                  <span>Local DB Connectivity</span>
-                  <span className="text-success">Active</span>
+          <Section title="Direct Command Actions">
+            <div className="space-y-3">
+              <Btn variant="outline" className="w-full justify-start h-12 border-accent/20 hover:border-accent/50" onClick={() => navigate('/employment-records')}>
+                <Users className="w-5 h-5 mr-3 text-accent" />
+                <div className="text-left">
+                  <div className="text-[0.7rem] font-bold uppercase">Personnel Roster</div>
+                  <div className="text-[0.6rem] text-muted-foreground">Manage active service records</div>
                 </div>
-                <div className="h-1 bg-muted rounded-full overflow-hidden">
-                  <div className="h-full bg-success w-full animate-pulse" />
+              </Btn>
+              <Btn variant="outline" className="w-full justify-start h-12 border-accent/20 hover:border-accent/50" onClick={() => navigate('/leave')}>
+                <CalendarDays className="w-5 h-5 mr-3 text-accent" />
+                <div className="text-left">
+                  <div className="text-[0.7rem] font-bold uppercase">Leave Accounts</div>
+                  <div className="text-[0.6rem] text-muted-foreground">Absence & balance tracking</div>
                 </div>
-              </div>
-              <div className="p-4 bg-primary/5 rounded-sm border border-border">
-                <div className="text-[0.65rem] label-mil text-primary opacity-60 mb-2 uppercase">Sync Status</div>
-                <div className="flex items-center gap-2">
-                  <div className="w-2 h-2 rounded-full bg-success" />
-                  <span className="text-xs font-bold italic">Offline Storage Validated</span>
+              </Btn>
+              <Btn variant="outline" className="w-full justify-start h-12 border-accent/20 hover:border-accent/50" onClick={() => navigate('/overtime')}>
+                <Wallet className="w-5 h-5 mr-3 text-accent" />
+                <div className="text-left">
+                  <div className="text-[0.7rem] font-bold uppercase">Allowance Control</div>
+                  <div className="text-[0.6rem] text-muted-foreground">Sanctions & financial logs</div>
                 </div>
-              </div>
+              </Btn>
+              <Btn variant="outline" className="w-full justify-start h-12 border-accent/20 hover:border-accent/50" onClick={() => navigate('/settings')}>
+                <Settings className="w-5 h-5 mr-3 text-accent" />
+                <div className="text-left">
+                  <div className="text-[0.7rem] font-bold uppercase">System Configuration</div>
+                  <div className="text-[0.6rem] text-muted-foreground">Control security & parameters</div>
+                </div>
+              </Btn>
             </div>
           </Section>
         </div>

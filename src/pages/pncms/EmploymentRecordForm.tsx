@@ -59,29 +59,46 @@ const EmploymentRecordForm = () => {
     if (isEdit && personnel.length > 0) {
       const emp = (personnel as any[]).find((p) => p.id === id);
       if (emp) {
+        // Map letters carefully
+        const appointmentLetter = emp.letters?.find((l: any) => 
+          l.fileName?.toLowerCase().includes('appoint') || 
+          l.referenceNumber?.toLowerCase().includes('appoint') ||
+          (!l.referenceNumber?.toLowerCase().includes('join') && !l.fileName?.toLowerCase().includes('join'))
+        );
+        const joiningLetter = emp.letters?.find((l: any) => 
+          l.fileName?.toLowerCase().includes('join') || 
+          l.referenceNumber?.toLowerCase().includes('join')
+        );
+
         setForm({
           ...emp,
+          accountNo: emp.bankAccount || '',
+          joiningDate: emp.joiningCurrentUnitDate || '',
           phones: emp.phones?.length
-            ? emp.phones
+            ? emp.phones.map((p: any) => ({
+                number: p.phoneNumber || '',
+                brand: p.brand || '',
+                model: p.model || '',
+                imei1: p.imei1 || '',
+                imei2: p.imei2 || '',
+              }))
             : [{ number: '', brand: '', model: '', imei1: '', imei2: '' }],
-          letters: emp.letters?.length
-            ? emp.letters
-            : [
-                {
-                  type: 'Appointment',
-                  refNo: '',
-                  refDate: '',
-                  fileName: '',
-                  fileNo: '',
-                },
-                {
-                  type: 'Joining',
-                  refNo: '',
-                  refDate: '',
-                  fileName: '',
-                  fileNo: '',
-                },
-              ],
+          letters: [
+            {
+              type: 'Appointment',
+              refNo: appointmentLetter?.referenceNumber || '',
+              refDate: appointmentLetter?.referenceDate ? format(new Date(appointmentLetter.referenceDate), 'yyyy-MM-dd') : '',
+              fileName: appointmentLetter?.fileName || '',
+              fileNo: appointmentLetter?.fileNumber || '',
+            },
+            {
+              type: 'Joining',
+              refNo: joiningLetter?.referenceNumber || '',
+              refDate: joiningLetter?.referenceDate ? format(new Date(joiningLetter.referenceDate), 'yyyy-MM-dd') : '',
+              fileName: joiningLetter?.fileName || '',
+              fileNo: joiningLetter?.fileNumber || '',
+            },
+          ],
         });
       }
     }

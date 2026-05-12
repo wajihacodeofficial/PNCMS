@@ -136,23 +136,28 @@ export function setupHandlers() {
   })
 
   ipcMain.handle('upsert-disciplinary-action', async (_, data: any) => {
-    const { id, svc, ...rest } = data
-    const employee = await prisma.employee.findUnique({ where: { serviceNo: svc } })
-    if (!employee) throw new Error(`Personnel with Svc No ${svc} not found`)
+    const { id, svc, employeeId, ...rest } = data
+    
+    let targetEmployeeId = employeeId;
+    if (!targetEmployeeId) {
+      if (!svc) throw new Error("Service Number is required to identify personnel");
+      const employee = await prisma.employee.findUnique({ where: { serviceNo: svc } })
+      if (!employee) throw new Error(`Personnel with Svc No "${svc}" not found in database`)
+      targetEmployeeId = employee.id;
+    }
 
-    let result
+    if (!targetEmployeeId) throw new Error("Internal Error: Could not resolve database identifier for personnel");
+
     if (id) {
-      result = await prisma.disciplinaryAction.update({
+      return await prisma.disciplinaryAction.update({
         where: { id },
-        data: { ...rest, employeeId: employee.id }
+        data: { ...rest, employee: { connect: { id: targetEmployeeId } } }
       })
     } else {
-      result = await prisma.disciplinaryAction.create({
-        data: { ...rest, employeeId: employee.id }
+      return await prisma.disciplinaryAction.create({
+        data: { ...rest, employee: { connect: { id: targetEmployeeId } } }
       })
     }
-    notifyChange('disciplinary-actions')
-    return result
   })
 
   // Leave Handlers
@@ -165,7 +170,22 @@ export function setupHandlers() {
   })
 
   ipcMain.handle('create-leave', async (_, data: any) => {
-    const result = await prisma.leaveRecord.create({ data })
+    const { employeeId, svc, ...rest } = data
+    
+    let targetId = employeeId;
+    if (!targetId && svc) {
+       const employee = await prisma.employee.findUnique({ where: { serviceNo: svc } });
+       if (employee) targetId = employee.id;
+    }
+
+    if (!targetId) throw new Error("Could not resolve personnel ID for leave record");
+
+    const result = await prisma.leaveRecord.create({ 
+      data: {
+        ...rest,
+        employee: { connect: { id: targetId } }
+      }
+    })
     notifyChange('leaves')
     return result
   })

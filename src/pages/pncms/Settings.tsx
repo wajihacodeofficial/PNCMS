@@ -89,7 +89,7 @@ const Settings = () => {
       />
 
       <div className="grid grid-cols-12 gap-6">
-        <div className="col-span-8 space-y-6">
+        <div className="col-span-12 space-y-6">
           <Section title="Allowance Disbursement Rates">
             <div className="p-4 bg-accent/5 border border-accent/20 rounded-sm mb-6 flex items-center gap-3">
               <Landmark className="w-6 h-6 text-accent" />
@@ -230,42 +230,6 @@ const Settings = () => {
           </Section>
         </div>
 
-        <div className="col-span-4 space-y-6">
-          <Section title="Structural Controls">
-            <div className="space-y-3">
-              <Btn
-                variant="outline"
-                className="w-full justify-start h-12"
-                onClick={() => navigate('/settings/departments')}
-              >
-                <Building2 className="w-5 h-5 mr-3 text-accent" />
-                <div className="text-left">
-                  <div className="text-[0.7rem] font-bold uppercase">
-                    Manage Departments
-                  </div>
-                  <div className="text-[0.6rem] text-muted-foreground font-normal lowercase tracking-normal">
-                    Naval Units & Wings
-                  </div>
-                </div>
-              </Btn>
-              <Btn
-                variant="outline"
-                className="w-full justify-start h-12"
-                onClick={() => navigate('/settings/ranks')}
-              >
-                <ShieldCheck className="w-5 h-5 mr-3 text-accent" />
-                <div className="text-left">
-                  <div className="text-[0.7rem] font-bold uppercase">
-                    Manage Rank System
-                  </div>
-                  <div className="text-[0.6rem] text-muted-foreground font-normal lowercase tracking-normal">
-                    Civilian BPS Levels
-                  </div>
-                </div>
-              </Btn>
-            </div>
-          </Section>
-        </div>
       </div>
     </AppShell>
   );

@@ -55,7 +55,8 @@ const Discipline = () => {
 
   const [form, setForm] = useState<any>({
     svc: '', name: '', offense: 'Unauthorized Absence', action: 'Written Warning',
-    date: '', ref: '', status: 'Ongoing', details: '', remarks: '', authority: 'Cdr. Imtiaz Ali'
+    date: '', ref: '', status: 'Ongoing', details: '', remarks: '', authority: 'Cdr. Imtiaz Ali',
+    type: 'Regular Proceeding'
   });
 
   // Auto-fill personnel name from SVC number
@@ -77,10 +78,13 @@ const Discipline = () => {
       action: form.action,
       date: form.date,
       reference: form.ref,
+      caseId: form.ref,
+      type: form.type || 'Regular Proceeding',
       status: form.status,
       details: form.details,
       remarks: form.remarks,
-      authority: form.authority
+      authority: form.authority,
+      employeeId: (personnel as any[]).find(p => p.serviceNo === form.svc)?.id
     }, {
       onSuccess: () => {
         createLog({
@@ -291,6 +295,10 @@ const Discipline = () => {
               <div className="grid grid-cols-2 gap-4">
                 <Field label="Date" required><Input type="date" value={form.date} onChange={e => setForm({...form, date: e.target.value})} /></Field>
                 <Field label="Reference No" required><Input value={form.ref} onChange={e => setForm({...form, ref: e.target.value})} /></Field>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <Field label="Category/Type"><Input value={form.type} onChange={e => setForm({...form, type: e.target.value})} placeholder="e.g. Regular Proceeding" /></Field>
+                <Field label="Current Status"><Select value={form.status} onChange={e => setForm({...form, status: e.target.value})}><option>Ongoing</option><option>Closed</option><option>Under Review</option></Select></Field>
               </div>
               <Field label="Findings/Narrative"><textarea className="w-full p-3 bg-card border border-border rounded-sm text-sm min-h-[100px] outline-none focus:border-accent" value={form.details} onChange={e => setForm({...form, details: e.target.value})} /></Field>
               <Field label="Remarks"><textarea className="w-full p-3 bg-accent/5 border border-accent/20 rounded-sm text-sm min-h-[60px] outline-none focus:border-accent" value={form.remarks} onChange={e => setForm({...form, remarks: e.target.value})} /></Field>

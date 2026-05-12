@@ -24,7 +24,7 @@ const Departments = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [viewingDeptId, setViewingDeptId] = useState<string | null>(null);
-  const [formData, setFormData] = useState<any>({ name: '', location: '', navcom: '', hod: '', hodRank: '', sanctioned: 0 });
+  const [formData, setFormData] = useState<any>({ name: '', location: '', navcom: '', hodName: '', hodRank: '', approvedSanctionStrength: 0 });
 
   const handleOpenModal = (dept?: any, e?: React.MouseEvent) => {
     e?.stopPropagation();
@@ -34,13 +34,13 @@ const Departments = () => {
         name: dept.name,
         location: dept.location,
         navcom: dept.navcom,
-        hod: dept.hod,
-        hodRank: dept.hodRank,
-        sanctioned: dept.sanctioned || 0
+        hodName: dept.hodName || '',
+        hodRank: dept.hodRank || '',
+        approvedSanctionStrength: dept.approvedSanctionStrength || 0
       });
     } else {
       setEditingId(null);
-      setFormData({ name: '', location: '', navcom: '', hod: '', hodRank: '', sanctioned: 0 });
+      setFormData({ name: '', location: '', navcom: '', hodName: '', hodRank: '', approvedSanctionStrength: 0 });
     }
     setIsModalOpen(true);
   };
@@ -171,7 +171,7 @@ const Departments = () => {
             </thead>
             <tbody>
               {processedDepts.map((d) => {
-                const variance = d.born - (d.sanctioned || 0);
+                const variance = d.born - (d.approvedSanctionStrength || 0);
                 return (
                   <tr key={d.id} onClick={() => setViewingDeptId(d.id)} className="cursor-pointer hover:bg-primary/5 transition-colors group">
                     <td className="font-bold text-primary group-hover:italic">{d.name}</td>
@@ -179,12 +179,12 @@ const Departments = () => {
                     <td><Badge variant="neutral">{d.navcom}</Badge></td>
                     <td>
                       <div className="text-[0.65rem]">
-                        <p className="font-bold text-primary">{d.hod}</p>
+                        <p className="font-bold text-primary">{d.hodName}</p>
                         <p className="text-muted-foreground uppercase">{d.hodRank}</p>
                       </div>
                     </td>
                     <td className="font-mono font-bold">{d.born}</td>
-                    <td className="font-mono text-muted-foreground">{d.sanctioned || 0}</td>
+                    <td className="font-mono text-muted-foreground">{d.approvedSanctionStrength || 0}</td>
                     <td>
                        <div className={`text-[0.6rem] font-bold uppercase ${variance > 0 ? 'text-danger' : 'text-success'}`}>
                          {variance > 0 ? `+${variance} Excess` : variance < 0 ? `${Math.abs(variance)} Under` : 'Balanced'}
@@ -216,10 +216,10 @@ const Departments = () => {
                 <Field label="Unit Name" required><Input value={formData.name} onChange={e => setFormData({ ...formData, name: e.target.value })} /></Field>
                 <Field label="Location"><Input value={formData.location} onChange={e => setFormData({ ...formData, location: e.target.value })} placeholder="e.g. PNS DILAWAR" /></Field>
                 <Field label="Navcom (5-Digit)" required><Input value={formData.navcom} onChange={e => setFormData({ ...formData, navcom: e.target.value })} maxLength={5} /></Field>
-                <Field label="Sanctioned Strength"><Input type="number" value={formData.sanctioned} onChange={e => setFormData({ ...formData, sanctioned: parseInt(e.target.value) || 0 })} /></Field>
+                <Field label="Sanctioned Strength"><Input type="number" value={formData.approvedSanctionStrength} onChange={e => setFormData({ ...formData, approvedSanctionStrength: parseInt(e.target.value) || 0 })} /></Field>
               </div>
               <div className="grid grid-cols-2 gap-4 pt-4 border-t border-border">
-                <Field label="HOD / OIC Name"><Input value={formData.hod} onChange={e => setFormData({ ...formData, hod: e.target.value })} /></Field>
+                <Field label="HOD / OIC Name"><Input value={formData.hodName} onChange={e => setFormData({ ...formData, hodName: e.target.value })} /></Field>
                 <Field label="HOD Rank"><Input value={formData.hodRank} onChange={e => setFormData({ ...formData, hodRank: e.target.value })} /></Field>
               </div>
             </div>

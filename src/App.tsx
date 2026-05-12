@@ -19,7 +19,6 @@ import EmploymentRecordProfile from "./pages/pncms/EmploymentRecordProfile";
 import SanctionEntry from "./pages/pncms/SanctionEntry";
 import ReportPreview from "./pages/pncms/ReportPreview";
 import Backup from "./pages/pncms/Backup";
-import AuditLog from "./pages/pncms/AuditLog";
 import Notifications from "./pages/pncms/Notifications";
 import Help from "./pages/pncms/Help";
 import About from "./pages/pncms/About";
@@ -66,7 +65,6 @@ const App = () => (
           <Route path="/discipline" element={<Discipline />} />
           <Route path="/payments" element={<Payments />} />
           <Route path="/backup" element={<Backup />} />
-          <Route path="/audit" element={<AuditLog />} />
           <Route path="/notifications" element={<Notifications />} />
           <Route path="/help" element={<Help />} />
           <Route path="/about" element={<About />} />

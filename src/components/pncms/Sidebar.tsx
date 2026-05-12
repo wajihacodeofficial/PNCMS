@@ -29,9 +29,8 @@ const groups: { heading: string; items: { to: string; label: string; icon: React
     { to: "/settings/ranks", label: "Rank System", icon: ShieldCheck },
   ]},
   { heading: "System Controls", items: [
-    { to: "/reports", label: "Reports Hub", icon: FileBarChart2 },
-    { to: "/audit", label: "Audit Trail", icon: ShieldAlert },
-    { to: "/backup", label: "Backup & Restore", icon: DatabaseBackup },
+      { to: "/reports", label: "Reports Hub", icon: FileBarChart2 },
+      { to: "/backup", label: "Backup & Restore", icon: DatabaseBackup },
     { to: "/about", label: "About", icon: Info },
     { to: "/settings", label: "System Settings", icon: Settings },
   ]},
