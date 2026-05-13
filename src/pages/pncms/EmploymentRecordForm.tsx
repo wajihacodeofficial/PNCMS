@@ -60,14 +60,17 @@ const EmploymentRecordForm = () => {
       const emp = (personnel as any[]).find((p) => p.serviceNo === id);
       if (emp) {
         // Map letters carefully
-        const appointmentLetter = emp.letters?.find((l: any) => 
-          l.fileName?.toLowerCase().includes('appoint') || 
-          l.referenceNumber?.toLowerCase().includes('appoint') ||
-          (!l.referenceNumber?.toLowerCase().includes('join') && !l.fileName?.toLowerCase().includes('join'))
+        const appointmentLetter = emp.letters?.find(
+          (l: any) =>
+            l.fileName?.toLowerCase().includes('appoint') ||
+            l.referenceNumber?.toLowerCase().includes('appoint') ||
+            (!l.referenceNumber?.toLowerCase().includes('join') &&
+              !l.fileName?.toLowerCase().includes('join'))
         );
-        const joiningLetter = emp.letters?.find((l: any) => 
-          l.fileName?.toLowerCase().includes('join') || 
-          l.referenceNumber?.toLowerCase().includes('join')
+        const joiningLetter = emp.letters?.find(
+          (l: any) =>
+            l.fileName?.toLowerCase().includes('join') ||
+            l.referenceNumber?.toLowerCase().includes('join')
         );
 
         setForm({
@@ -87,14 +90,21 @@ const EmploymentRecordForm = () => {
             {
               type: 'Appointment',
               refNo: appointmentLetter?.referenceNumber || '',
-              refDate: appointmentLetter?.referenceDate ? format(new Date(appointmentLetter.referenceDate), 'yyyy-MM-dd') : '',
+              refDate: appointmentLetter?.referenceDate
+                ? format(
+                    new Date(appointmentLetter.referenceDate),
+                    'yyyy-MM-dd'
+                  )
+                : '',
               fileName: appointmentLetter?.fileName || '',
               fileNo: appointmentLetter?.fileNumber || '',
             },
             {
               type: 'Joining',
               refNo: joiningLetter?.referenceNumber || '',
-              refDate: joiningLetter?.referenceDate ? format(new Date(joiningLetter.referenceDate), 'yyyy-MM-dd') : '',
+              refDate: joiningLetter?.referenceDate
+                ? format(new Date(joiningLetter.referenceDate), 'yyyy-MM-dd')
+                : '',
               fileName: joiningLetter?.fileName || '',
               fileNo: joiningLetter?.fileNumber || '',
             },
@@ -428,7 +438,6 @@ const EmploymentRecordForm = () => {
                 >
                   <div className="grid grid-cols-5 gap-3 flex-1">
                     <Field label="Phone Number">
-
                       <Input
                         value={phone.number}
                         onChange={(e) =>
