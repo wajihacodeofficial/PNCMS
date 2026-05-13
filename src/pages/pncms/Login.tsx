@@ -84,7 +84,7 @@ const Login = () => {
         RESTRICTED · GOVERNMENT OF PAKISTAN · PNS DILAWAR COMMAND
       </div>
       <div className="absolute top-6 right-8 label-mil text-white/60 text-[0.65rem]">
-        SYSTEM v1.0 · BUILD 28042026
+        SYSTEM v1.0 · BUILD 15052026
       </div>
 
       <div className="absolute bottom-5 left-0 right-0 text-center label-mil text-white/60 text-[0.65rem] z-10">

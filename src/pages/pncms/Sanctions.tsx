@@ -10,7 +10,7 @@ import {
   Select,
 } from '@/components/pncms/ui-kit';
 import { Plus, AlertTriangle, Eye, Check, X, Search, FileText, History } from 'lucide-react';
-import { useSanctions, usePersonnel, useCreateSanction } from '@/hooks/use-api';
+import { useSanctions, usePersonnel, useCreateSanction, useUpdateSanction } from '@/hooks/use-api';
 import { toast } from 'sonner';
 import { format, parseISO } from 'date-fns';
 
@@ -168,10 +168,8 @@ const Sanctions = () => {
               </tr>
             </thead>
             <tbody>
-              {isLoading ? (
-                <tr><td colSpan={8} className="text-center py-10 text-muted-foreground italic">Fetching official authorizations...</td></tr>
-              ) : filteredSanctions.length === 0 ? (
-                <tr><td colSpan={8} className="text-center py-10 text-muted-foreground italic">No sanctions found for this cadre.</td></tr>
+              {filteredSanctions.length === 0 ? (
+                <tr><td colSpan={8} className="text-center py-10 text-muted-foreground italic">{isLoading ? 'Synchronizing official authorizations...' : 'No sanctions found for this cadre.'}</td></tr>
               ) : filteredSanctions.map((s: any) => (
                 <tr key={s.id} className="group hover:bg-muted/10 transition-colors">
                   <td className="font-mono text-xs font-semibold text-primary">{s.sanctionId}</td>

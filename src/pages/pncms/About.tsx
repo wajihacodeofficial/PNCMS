@@ -83,6 +83,7 @@ const About = () => (
               ['Project Code', 'CVS--2026-001'],
               ['Helpdesk', '+92-3177-760505'],
               ['Email', 'contact@codevertex.solutions'],
+              ['Website', 'www.codevertex.solutions'],
             ].map(([k, v]) => (
               <div
                 key={k}

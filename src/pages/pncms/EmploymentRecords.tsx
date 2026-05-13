@@ -84,6 +84,11 @@ const EmploymentRecords = () => {
   const { mutate: deleteEmployee } = useDeleteEmployee();
   const { mutate: createLog } = useCreateLog();
 
+  const handleDelete = (id: string, svc: string) => {
+    setDeleteId(id);
+    setDeleteSvc(svc);
+  };
+
   const confirmDelete = () => {
     if (!deleteId) return;
     deleteEmployee(deleteId, {
@@ -352,12 +357,6 @@ const EmploymentRecords = () => {
 
       <Section title={`Employment Records · ${isLoading ? '...' : filteredPersonnel.length} Personnel Found`}>
         <div className="overflow-x-auto -m-5 min-h-[400px]">
-          {isLoading ? (
-            <div className="p-20 text-center flex flex-col items-center gap-4">
-              <div className="w-10 h-10 border-4 border-accent border-t-transparent rounded-full animate-spin" />
-              <p className="label-mil">Syncing with personnel database...</p>
-            </div>
-          ) : (
             <table className="data-table">
               <thead>
                 <tr>
@@ -378,13 +377,12 @@ const EmploymentRecords = () => {
                 {filteredPersonnel.length === 0 && (
                   <tr>
                     <td colSpan={8} className="text-center py-12 text-muted-foreground italic">
-                      No matching records found.
+                      {isLoading ? "Syncing with personnel database..." : "No matching records found."}
                     </td>
                   </tr>
                 )}
               </tbody>
             </table>
-          )}
         </div>
       </Section>
       {deleteId && (

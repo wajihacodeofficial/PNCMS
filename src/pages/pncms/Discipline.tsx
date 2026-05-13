@@ -83,8 +83,7 @@ const Discipline = () => {
       status: form.status,
       details: form.details,
       remarks: form.remarks,
-      authority: form.authority,
-      svc: form.svc
+      authority: form.authority
     }, {
       onSuccess: () => {
         createLog({
@@ -185,41 +184,33 @@ const Discipline = () => {
         </div>
 
         <div className="overflow-x-auto -m-5 min-h-[300px]">
-          {isLoading ? (
-            <div className="p-20 text-center flex flex-col items-center gap-3">
-              <div className="w-8 h-8 border-2 border-accent border-t-transparent rounded-full animate-spin" />
-              <p className="label-mil">Accessing Disciplinary Database...</p>
-            </div>
-          ) : (
-            <table className="data-table">
-              <thead>
-                <tr><th>Svc No</th><th>Employee</th><th>Offense</th><th>Action</th><th>Date</th><th>Status</th><th className="text-right">Actions</th></tr>
-              </thead>
-              <tbody>
-                {filteredRecords.length === 0 ? (
-                  <tr><td colSpan={7} className="text-center py-20 text-muted-foreground italic">No disciplinary records found matching search.</td></tr>
-                ) : filteredRecords.map((r) => (
-                  <tr key={r.id} className="hover:bg-primary/5 cursor-pointer group" onClick={() => setSelectedCase(r)}>
-                    <td className="font-mono text-xs text-primary font-bold">{r.employee?.serviceNo}</td>
-                    <td className="font-semibold">{r.employee?.name}</td>
-                    <td className="text-xs">{r.offense}</td>
-                    <td><Badge variant={r.action?.includes('Suspension') ? 'danger' : 'warning'}>{r.action}</Badge></td>
-                    <td className="text-xs font-mono">{r.date}</td>
-                    <td><Badge variant={r.status === 'Closed' ? 'success' : 'warning'}>{r.status}</Badge></td>
-                    <td className="text-right" onClick={e => e.stopPropagation()}>
-                      <div className="flex justify-end gap-1">
-                        <button className="p-1.5 rounded-sm hover:bg-primary/10 text-primary" onClick={() => setSelectedCase(r)}><Eye className="w-4 h-4" /></button>
-                        <button className="p-1.5 rounded-sm hover:bg-primary/10 text-primary" onClick={() => handleEditAttempt(r)}><Edit3 className="w-4 h-4" /></button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          )}
+          <table className="data-table">
+            <thead>
+              <tr><th>Svc No</th><th>Employee</th><th>Offense</th><th>Action</th><th>Date</th><th>Status</th><th className="text-right">Actions</th></tr>
+            </thead>
+            <tbody>
+              {filteredRecords.length === 0 ? (
+                <tr><td colSpan={7} className="text-center py-20 text-muted-foreground italic">{isLoading ? 'Synchronizing records...' : 'No disciplinary records found matching search.'}</td></tr>
+              ) : filteredRecords.map((r) => (
+                <tr key={r.id} className="hover:bg-primary/5 cursor-pointer group" onClick={() => setSelectedCase(r)}>
+                  <td className="font-mono text-xs text-primary font-bold">{r.employee?.serviceNo}</td>
+                  <td className="font-semibold">{r.employee?.name}</td>
+                  <td className="text-xs">{r.offense}</td>
+                  <td><Badge variant={r.action?.includes('Suspension') ? 'danger' : 'warning'}>{r.action}</Badge></td>
+                  <td className="text-xs font-mono">{r.date}</td>
+                  <td><Badge variant={r.status === 'Closed' ? 'success' : 'warning'}>{r.status}</Badge></td>
+                  <td className="text-right" onClick={e => e.stopPropagation()}>
+                    <div className="flex justify-end gap-1">
+                      <button className="p-1.5 rounded-sm hover:bg-primary/10 text-primary" onClick={() => setSelectedCase(r)}><Eye className="w-4 h-4" /></button>
+                      <button className="p-1.5 rounded-sm hover:bg-primary/10 text-primary" onClick={() => handleEditAttempt(r)}><Edit3 className="w-4 h-4" /></button>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </div>
       </Section>
-n>
 
       {/* Case Detail Modal */}
       {selectedCase && (

@@ -29,14 +29,25 @@ import { format } from 'date-fns';
 
 const Dashboard = () => {
   const navigate = useNavigate();
-  const { data: stats = { personnelCount: 0, leaveCount: 0, pendingSanctions: 0 }, isLoading } = useDashboardStats();
+  const {
+    data: stats = { personnelCount: 0, leaveCount: 0, pendingSanctions: 0 },
+    isLoading,
+  } = useDashboardStats();
   const { data: logs = [] } = useLogs();
 
   const handleExportPDF = () => {
     const headers = [['Metric', 'Value', 'Subtitle']];
     const data = [
-      ['Total Personnel', stats.personnelCount.toString(), 'Active across directorates'],
-      ['Currently on Leave', stats.leaveCount.toString(), 'Personnel away today'],
+      [
+        'Total Personnel',
+        stats.personnelCount.toString(),
+        'Active across directorates',
+      ],
+      [
+        'Currently on Leave',
+        stats.leaveCount.toString(),
+        'Personnel away today',
+      ],
       ['Open Work Logs', stats.pendingSanctions.toString(), 'In current cycle'],
     ];
     exportToPDF('PNCMS Operational Brief', headers, data, 'pncms_brief');
@@ -95,7 +106,7 @@ const Dashboard = () => {
       <div className="grid grid-cols-3 gap-5">
         <StatCard
           label="Total Personnel"
-          value={isLoading ? '...' : stats.personnelCount}
+          value={stats.personnelCount || 0}
           sub="Unit Strength"
           icon={<Users className="w-5 h-5" />}
           accent="primary"
@@ -103,7 +114,7 @@ const Dashboard = () => {
         />
         <StatCard
           label="Currently on Leave"
-          value={isLoading ? '...' : stats.leaveCount}
+          value={stats.leaveCount || 0}
           sub="Absent today"
           icon={<CalendarDays className="w-5 h-5" />}
           accent="danger"
@@ -111,7 +122,7 @@ const Dashboard = () => {
         />
         <StatCard
           label="Open Work Logs"
-          value={isLoading ? '...' : stats.pendingSanctions}
+          value={stats.pendingSanctions || 0}
           sub="Active Overtime"
           icon={<ClipboardList className="w-5 h-5" />}
           accent="info"
@@ -132,7 +143,9 @@ const Dashboard = () => {
                   <span className="font-mono font-bold">04 Units</span>
                 </div>
                 <div className="flex justify-between items-center text-sm">
-                  <span className="text-muted-foreground">Operational Wings</span>
+                  <span className="text-muted-foreground">
+                    Operational Wings
+                  </span>
                   <span className="font-mono font-bold">02 Units</span>
                 </div>
                 <div className="h-1 bg-muted rounded-full mt-2">
@@ -146,11 +159,15 @@ const Dashboard = () => {
               </h4>
               <div className="space-y-3">
                 <div className="flex justify-between items-center text-sm">
-                  <span className="text-muted-foreground">Ministerial Staff</span>
+                  <span className="text-muted-foreground">
+                    Ministerial Staff
+                  </span>
                   <span className="font-mono font-bold">65%</span>
                 </div>
                 <div className="flex justify-between items-center text-sm">
-                  <span className="text-muted-foreground">Industrial Staff</span>
+                  <span className="text-muted-foreground">
+                    Industrial Staff
+                  </span>
                   <span className="font-mono font-bold">35%</span>
                 </div>
                 <div className="h-1 bg-muted rounded-full mt-2">
@@ -161,47 +178,90 @@ const Dashboard = () => {
           </div>
           <div className="mt-6 p-4 border border-dashed border-border rounded-md bg-muted/5 flex items-center justify-between">
             <div className="flex items-center gap-3">
-               <div className="w-10 h-10 rounded-full bg-success/10 flex items-center justify-center">
-                 <Clock className="w-5 h-5 text-success" />
-               </div>
-               <div>
-                 <p className="text-xs font-bold text-primary">Daily Muster Status</p>
-                 <p className="text-[0.65rem] text-muted-foreground">All attendance records for {format(new Date(), 'dd MMM')} are validated.</p>
-               </div>
+              <div className="w-10 h-10 rounded-full bg-success/10 flex items-center justify-center">
+                <Clock className="w-5 h-5 text-success" />
+              </div>
+              <div>
+                <p className="text-xs font-bold text-primary">
+                  Daily Muster Status
+                </p>
+                <p className="text-[0.65rem] text-muted-foreground">
+                  All attendance records for {format(new Date(), 'dd MMM')} are
+                  validated.
+                </p>
+              </div>
             </div>
-            <Btn variant="outline" className="h-8 text-[0.65rem]" onClick={() => navigate('/attendance')}>View Muster</Btn>
+            <Btn
+              variant="outline"
+              className="h-8 text-[0.65rem]"
+              onClick={() => navigate('/attendance')}
+            >
+              View Muster
+            </Btn>
           </div>
         </Section>
 
         <div className="col-span-4 space-y-6">
           <Section title="Direct Command Actions">
             <div className="space-y-3">
-              <Btn variant="outline" className="w-full justify-start h-12 border-accent/20 hover:border-accent/50" onClick={() => navigate('/employment-records')}>
+              <Btn
+                variant="outline"
+                className="w-full justify-start h-12 border-accent/20 hover:border-accent/50"
+                onClick={() => navigate('/employment-records')}
+              >
                 <Users className="w-5 h-5 mr-3 text-accent" />
                 <div className="text-left">
-                  <div className="text-[0.7rem] font-bold uppercase">Personnel Roster</div>
-                  <div className="text-[0.6rem] text-muted-foreground">Manage active service records</div>
+                  <div className="text-[0.7rem] font-bold uppercase">
+                    Personnel Roster
+                  </div>
+                  <div className="text-[0.6rem] text-muted-foreground">
+                    Manage active service records
+                  </div>
                 </div>
               </Btn>
-              <Btn variant="outline" className="w-full justify-start h-12 border-accent/20 hover:border-accent/50" onClick={() => navigate('/leave')}>
+              <Btn
+                variant="outline"
+                className="w-full justify-start h-12 border-accent/20 hover:border-accent/50"
+                onClick={() => navigate('/leave')}
+              >
                 <CalendarDays className="w-5 h-5 mr-3 text-accent" />
                 <div className="text-left">
-                  <div className="text-[0.7rem] font-bold uppercase">Leave Accounts</div>
-                  <div className="text-[0.6rem] text-muted-foreground">Absence & balance tracking</div>
+                  <div className="text-[0.7rem] font-bold uppercase">
+                    Leave Accounts
+                  </div>
+                  <div className="text-[0.6rem] text-muted-foreground">
+                    Absence & balance tracking
+                  </div>
                 </div>
               </Btn>
-              <Btn variant="outline" className="w-full justify-start h-12 border-accent/20 hover:border-accent/50" onClick={() => navigate('/overtime')}>
+              <Btn
+                variant="outline"
+                className="w-full justify-start h-12 border-accent/20 hover:border-accent/50"
+                onClick={() => navigate('/overtime')}
+              >
                 <Wallet className="w-5 h-5 mr-3 text-accent" />
                 <div className="text-left">
-                  <div className="text-[0.7rem] font-bold uppercase">Allowance Control</div>
-                  <div className="text-[0.6rem] text-muted-foreground">Sanctions & financial logs</div>
+                  <div className="text-[0.7rem] font-bold uppercase">
+                    Allowance Control
+                  </div>
+                  <div className="text-[0.6rem] text-muted-foreground">
+                    Sanctions & financial logs
+                  </div>
                 </div>
               </Btn>
-              <Btn variant="outline" className="w-full justify-start h-12 border-accent/20 hover:border-accent/50" onClick={() => navigate('/settings')}>
+              <Btn
+                variant="outline"
+                className="w-full justify-start h-12 border-accent/20 hover:border-accent/50"
+                onClick={() => navigate('/settings')}
+              >
                 <Settings className="w-5 h-5 mr-3 text-accent" />
                 <div className="text-left">
-                  <div className="text-[0.7rem] font-bold uppercase">System Configuration</div>
-                  <div className="text-[0.6rem] text-muted-foreground">Control security & parameters</div>
+                  <div className="text-[0.7rem] font-bold uppercase">
+                    System Configuration
+                  </div>
+                  <div className="text-[0.6rem] text-muted-foreground">
+                    Control security & parameters
+                  </div>
                 </div>
               </Btn>
             </div>
@@ -212,3 +272,5 @@ const Dashboard = () => {
   );
 };
 export default Dashboard;
+
+

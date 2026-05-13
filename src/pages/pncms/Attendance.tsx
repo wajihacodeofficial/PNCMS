@@ -211,20 +211,12 @@ const Attendance = () => {
               </div>
             }
           >
-            {isLoadingData ? (
-              <div className="p-20 text-center flex flex-col items-center gap-4">
-                <div className="w-10 h-10 border-4 border-accent border-t-transparent rounded-full animate-spin" />
-                <p className="label-mil">
-                  {isPersonnelLoading ? "Synchronizing Personnel Registry..." : "Retrieving Daily Muster Records..."}
-                </p>
-                <div className="text-[0.6rem] text-muted-foreground uppercase tracking-widest animate-pulse">Establishing Secure Connection</div>
-              </div>
-            ) : personnel.length === 0 ? (
+            {personnel.length === 0 ? (
               <div className="p-20 text-center flex flex-col items-center gap-4 text-muted-foreground">
                 <Users className="w-12 h-12 opacity-20" />
-                <h3 className="text-sm font-bold uppercase tracking-widest">No Personnel Records</h3>
-                <p className="text-xs">Add civilian staff in the Employment Record panel first.</p>
-                <Btn variant="outline" onClick={() => window.location.reload()}><RotateCcw className="w-4 h-4" /> Refresh System</Btn>
+                <h3 className="text-sm font-bold uppercase tracking-widest">{isLoadingData ? "Synchronizing Records..." : "No Personnel Records"}</h3>
+                <p className="text-xs">{isLoadingData ? "Please wait while the system establishes a secure connection." : "Add civilian staff in the Employment Record panel first."}</p>
+                {!isLoadingData && <Btn variant="outline" onClick={() => window.location.reload()}><RotateCcw className="w-4 h-4" /> Refresh System</Btn>}
               </div>
             ) : (
               <>

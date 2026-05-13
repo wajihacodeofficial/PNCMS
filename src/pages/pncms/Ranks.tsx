@@ -95,7 +95,7 @@ const Ranks = () => {
   const filteredRanks = processedRanks.filter(r => r.cadre === activeCadre);
   const rankIndividuals = viewingRank ? (personnel as any[]).filter(p => p.rankId === viewingRank.id) : [];
 
-  if (isRanksLoading) return <div className="p-8 text-center font-bold">Loading Rank Definitions...</div>;
+  // if (isRanksLoading) return <div className="p-8 text-center font-bold">Loading Rank Definitions...</div>;
 
   if (viewingRank) {
     return (
@@ -179,9 +179,17 @@ const Ranks = () => {
                   <td className="font-mono font-bold">{r.born}</td>
                   <td className="font-mono text-muted-foreground">{r.sanctioned || 0}</td>
                   <td>
-                    <div className={`text-[0.6rem] font-bold uppercase flex items-center gap-1.5`}>
-                       <div className={`w-1.5 h-1.5 rounded-full ${r.born > (r.sanctioned||0) ? 'bg-danger' : 'bg-success'}`} />
-                       {r.born > (r.sanctioned||0) ? 'Overstrength' : 'Within Limit'}
+                    <div className="text-[0.6rem] font-bold uppercase flex items-center gap-1.5">
+                       <div className={`w-1.5 h-1.5 rounded-full ${
+                         r.born > (r.sanctioned || 0) ? 'bg-warning' : 
+                         r.born < (r.sanctioned || 0) ? 'bg-danger' : 
+                         'bg-success'
+                       }`} />
+                       {
+                         r.born > (r.sanctioned || 0) ? 'Excess' : 
+                         r.born < (r.sanctioned || 0) ? 'Shortage' : 
+                         'Balanced'
+                       }
                     </div>
                   </td>
                   <td className="text-right" onClick={e=>e.stopPropagation()}>

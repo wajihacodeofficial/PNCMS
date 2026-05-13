@@ -18,7 +18,7 @@ const LeaveLedger = () => {
   }, []);
 
   const ledgerData = useMemo(() => {
-    const currentMonthDate = parseISO(`01 ${selectedMonth}`);
+    const currentMonthDate = new Date(`01 ${selectedMonth}`);
     const prevMonthDate = subMonths(currentMonthDate, 1);
     const prevMonthStr = format(prevMonthDate, "MMMM yyyy");
 
