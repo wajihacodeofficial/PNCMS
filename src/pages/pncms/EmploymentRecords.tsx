@@ -84,8 +84,6 @@ const EmploymentRecords = () => {
   const { mutate: deleteEmployee } = useDeleteEmployee();
   const { mutate: createLog } = useCreateLog();
 
-  const [deleteId, setDeleteId] = useState<string | null>(null);
-  const [deleteSvc, setDeleteSvc] = useState<string | null>(null);
   const [showNominalRollModal, setShowNominalRollModal] = useState(false);
   const [nominalFields, setNominalFields] = useState<Record<string, boolean>>({
     serviceNo: true,
