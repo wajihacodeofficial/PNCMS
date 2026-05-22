@@ -1,13 +1,13 @@
 import { AppShell, PageHeader } from "@/components/pncms/AppShell";
 import { StatCard, Section, Btn, Badge, Field, Input, Select, CompactToggle } from "@/components/pncms/ui-kit";
-import { Users, CheckCircle2, XCircle, Clock, Calendar, Save, ChevronDown, Search, Filter, RotateCcw, Download, FileSpreadsheet, ArrowUpDown, History, Eye, Lock, Unlock, X, ShieldAlert, AlertTriangle, FileBarChart2 } from "lucide-react";
+import { Users, CheckCircle2, XCircle, Clock, Calendar, Save, ChevronDown, Search, Filter, RotateCcw, Download, FileSpreadsheet, ArrowUpDown, History, Eye, Lock, Unlock, X, ShieldAlert, AlertTriangle, FileBarChart2, Trash2 } from "lucide-react";
 import { useState, useMemo, useEffect } from "react";
 import { toast } from "sonner";
 import { exportToPDF, exportToExcel } from "@/lib/export";
 import { logAction } from "@/lib/audit";
 import * as Tabs from "@radix-ui/react-tabs";
 import { format, parseISO, isWithinInterval, subDays } from "date-fns";
-import { usePersonnel, useAttendance, useDepartments, useMusterLock, useLockMuster, useUnlockMuster, useAllMusterLocks } from "@/hooks/use-api";
+import { usePersonnel, useAttendance, useDepartments, useMusterLock, useLockMuster, useUnlockMuster, useAllMusterLocks, useDeleteMuster, useBatchUpdateAttendance } from "@/hooks/use-api";
 import { api } from "@/lib/api";
 import { useQueryClient } from "@tanstack/react-query";
 
@@ -40,10 +40,14 @@ const Attendance = () => {
   const { data: allLocks = [] } = useAllMusterLocks();
   const { mutate: lockMuster } = useLockMuster();
   const { mutate: unlockMuster } = useUnlockMuster();
+  const { mutate: deleteMuster } = useDeleteMuster();
+  const { mutate: batchUpdate } = useBatchUpdateAttendance();
 
   const [showOverrideModal, setShowOverrideModal] = useState(false);
   const [overridePassword, setOverridePassword] = useState("");
+  const [modalAction, setModalAction] = useState<"override" | "unlock" | "delete" | "mark-all" | null>(null);
   const [pendingUpdate, setPendingUpdate] = useState<{empId: string, status: string} | null>(null);
+  const [targetDateForDelete, setTargetDateForDelete] = useState<string>("");
   const [isLocking, setIsLocking] = useState(false);
 
   const filteredHistory = useMemo(() => {
@@ -74,6 +78,7 @@ const Attendance = () => {
   const markAttendance = async (serviceNo: string, status: string) => {
     if (lock) {
       setPendingUpdate({ empId: serviceNo, status });
+      setModalAction("override");
       setShowOverrideModal(true);
       return;
     }
@@ -93,9 +98,7 @@ const Attendance = () => {
       await api.updateAttendance(selectedDate, pendingUpdate.empId, pendingUpdate.status, overridePassword);
       queryClient.invalidateQueries({ queryKey: ['attendance', selectedDate] });
       toast.success("Attendance updated with override");
-      setShowOverrideModal(false);
-      setOverridePassword("");
-      setPendingUpdate(null);
+      closeModal();
     } catch (error: any) {
       toast.error(error.message || "Invalid secret password");
     }
@@ -115,12 +118,16 @@ const Attendance = () => {
     });
   };
 
+  const handleUnlockClick = () => {
+    setModalAction("unlock");
+    setShowOverrideModal(true);
+  };
+
   const handleUnlock = () => {
     unlockMuster({ date: selectedDate, password: overridePassword }, {
       onSuccess: () => {
         toast.success(`Muster Roll for ${selectedDate} has been unlocked.`);
-        setShowOverrideModal(false);
-        setOverridePassword("");
+        closeModal();
         api.createLog({
           user: clerkName,
           action: "UNLOCK",
@@ -132,6 +139,61 @@ const Attendance = () => {
         toast.error(err.message || "Invalid secret password");
       }
     });
+  };
+
+  const handleMarkAllPresent = () => {
+    if (lock) {
+      setModalAction("mark-all");
+      setShowOverrideModal(true);
+      return;
+    }
+    executeMarkAllPresent();
+  };
+
+  const executeMarkAllPresent = (password?: string) => {
+    const updates = filteredList.map(p => ({ serviceNo: p.serviceNo, status: "P" }));
+    batchUpdate({ date: selectedDate, updates, overridePassword: password }, {
+      onSuccess: () => {
+        toast.success("All visible personnel marked present");
+        closeModal();
+      },
+      onError: (err: any) => {
+        toast.error(err.message || "Failed to update attendance");
+      }
+    });
+  };
+
+  const handleDeleteMusterClick = (date: string) => {
+    setTargetDateForDelete(date);
+    setModalAction("delete");
+    setShowOverrideModal(true);
+  };
+
+  const executeDeleteMuster = () => {
+    deleteMuster({ date: targetDateForDelete, password: overridePassword }, {
+      onSuccess: () => {
+        toast.success(`Muster Roll for ${targetDateForDelete} has been completely deleted.`);
+        closeModal();
+      },
+      onError: (err: any) => {
+        toast.error(err.message || "Invalid secret password");
+      }
+    });
+  };
+
+  const closeModal = () => {
+    setShowOverrideModal(false);
+    setOverridePassword("");
+    setPendingUpdate(null);
+    setModalAction(null);
+    setTargetDateForDelete("");
+  };
+
+  const handleModalSubmit = () => {
+    if (modalAction === "override") handleOverride();
+    else if (modalAction === "unlock") handleUnlock();
+    else if (modalAction === "delete") executeDeleteMuster();
+    else if (modalAction === "mark-all") executeMarkAllPresent(overridePassword);
   };
 
   const filteredList = useMemo(() => {
@@ -152,6 +214,27 @@ const Attendance = () => {
     } catch (e) {
       console.error("Date formatting error:", e);
       return "Invalid Date";
+    }
+  };
+
+  const exportHistoricalMuster = async (date: string) => {
+    try {
+      toast.info("Generating PDF...");
+      const historicalAttendance = await api.getAttendance(date);
+      const marksMap: Record<string, string> = {};
+      historicalAttendance.forEach((a: any) => {
+        marksMap[a.serviceNo] = a.status;
+      });
+
+      const rows = filteredList.map(p => [
+        p.serviceNo,
+        p.name,
+        marksMap[p.serviceNo] || "Pending"
+      ]);
+
+      exportToPDF(`Muster Roll - ${date}`, [["Svc No", "Name", "Status"]], rows, `muster_${date}`);
+    } catch (err) {
+      toast.error("Failed to generate PDF");
     }
   };
 
@@ -178,7 +261,7 @@ const Attendance = () => {
             </Btn>
             {activeTab === "daily" && (
               lock ? (
-                <Btn variant="gold" onClick={() => setShowOverrideModal(true)} className="bg-destructive hover:bg-destructive/90 text-white border-none">
+                <Btn variant="gold" onClick={handleUnlockClick} className="bg-destructive hover:bg-destructive/90 text-white border-none">
                   <Unlock className="w-4 h-4 mr-2" /> Unlock Muster Roll
                 </Btn>
               ) : (
@@ -226,6 +309,9 @@ const Attendance = () => {
                       <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                       <input placeholder="Search personnel..." className="w-full h-10 pl-10 pr-3 bg-muted/20 border border-border rounded-sm focus:outline-none focus:border-accent text-sm" value={search} onChange={(e) => setSearch(e.target.value)} />
                     </div>
+                    <Btn variant="outline" onClick={handleMarkAllPresent}>
+                      <CheckCircle2 className="w-4 h-4 mr-2" /> Mark All Present
+                    </Btn>
                   </div>
                 </div>
 
@@ -337,12 +423,19 @@ const Attendance = () => {
                            >
                              <Eye className="w-3.5 h-3.5 mr-1.5" /> View Roll
                            </Btn>
+                            <Btn 
+                              variant="outline" 
+                              className="h-8 text-[0.6rem] uppercase tracking-wider"
+                              onClick={() => exportHistoricalMuster(l.date)}
+                            >
+                              <Download className="w-3.5 h-3.5 mr-1.5" /> Export
+                            </Btn>
                            <Btn 
                              variant="outline" 
-                             className="h-8 text-[0.6rem] uppercase tracking-wider"
-                             onClick={() => exportToPDF(`Muster Roll - ${l.date}`, [["Svc No", "Name", "Status"]], [], `muster_${l.date}`)}
+                             className="h-8 text-[0.6rem] uppercase tracking-wider text-danger hover:text-danger hover:bg-danger/10"
+                             onClick={() => handleDeleteMusterClick(l.date)}
                            >
-                             <Download className="w-3.5 h-3.5 mr-1.5" /> Export
+                             <Trash2 className="w-3.5 h-3.5 mr-1.5" /> Delete
                            </Btn>
                          </div>
                        </td>
@@ -360,7 +453,7 @@ const Attendance = () => {
           <div className="bg-card max-w-md w-full rounded-md shadow-elevated border border-border overflow-hidden">
             <div className="bg-gradient-command px-6 py-4 flex items-center justify-between border-b border-white/10">
               <h2 className="text-lg text-white font-heading italic font-black uppercase tracking-tight">Security Verification</h2>
-              <button onClick={() => { setShowOverrideModal(false); setPendingUpdate(null); setOverridePassword(""); }} className="text-white/70 hover:text-white"><X className="w-6 h-6" /></button>
+              <button onClick={closeModal} className="text-white/70 hover:text-white"><X className="w-6 h-6" /></button>
             </div>
             <div className="p-8 text-center">
               <div className="w-16 h-16 rounded-full bg-accent/10 text-accent flex items-center justify-center mx-auto mb-4 border border-accent/20">
@@ -368,7 +461,11 @@ const Attendance = () => {
               </div>
               <h3 className="text-lg font-bold text-primary mb-2">Restricted Action</h3>
               <p className="text-sm text-muted-foreground mb-6">
-                This muster roll is <b>LOCKED</b>. Enter the administrative secret password to {pendingUpdate ? 'perform this update' : 'unlock this date'}.
+                {modalAction === "delete" 
+                  ? `This action will permanently delete the muster roll and all attendance records for ${targetDateForDelete}. Enter secret password to proceed.` 
+                  : modalAction === "unlock" || modalAction === "override" || modalAction === "mark-all"
+                    ? `This muster roll is LOCKED. Enter the administrative secret password to proceed.`
+                    : `Enter secret password to proceed.`}
               </p>
               <Input
                 type="password"
@@ -379,13 +476,15 @@ const Attendance = () => {
                 autoFocus
                 onKeyDown={(e) => {
                   if (e.key === 'Enter') {
-                    pendingUpdate ? handleOverride() : handleUnlock();
+                    handleModalSubmit();
                   }
                 }}
               />
               <div className="mt-8 flex gap-3">
-                <Btn variant="outline" className="flex-1" onClick={() => { setShowOverrideModal(false); setPendingUpdate(null); setOverridePassword(""); }}>Cancel</Btn>
-                <Btn variant="gold" className="flex-1" onClick={pendingUpdate ? handleOverride : handleUnlock}>Verify & Proceed</Btn>
+                <Btn variant="outline" className="flex-1" onClick={closeModal}>Cancel</Btn>
+                <Btn variant="gold" className="flex-1" onClick={handleModalSubmit}>
+                  {modalAction === "delete" ? "Delete Muster" : "Verify & Proceed"}
+                </Btn>
               </div>
             </div>
           </div>

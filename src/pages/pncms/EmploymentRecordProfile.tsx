@@ -53,7 +53,7 @@ import { Switch } from '@/components/ui/switch';
 import { exportToPDF } from '@/lib/export';
 import { toast } from 'sonner';
 import { 
-  useEmployee, 
+  usePersonnel, 
   useLeaves, 
   useDisciplinaryActions, 
   usePayments,
@@ -66,7 +66,8 @@ const EmploymentRecordProfile = () => {
   const navigate = useNavigate();
   const { id } = useParams();
   
-  const { data: employee, isLoading: isEmployeeLoading } = useEmployee(id || '');
+  const { data: personnel = [], isLoading: isEmployeeLoading } = usePersonnel();
+  const employee = useMemo(() => personnel.find((p: any) => p.serviceNo === id), [personnel, id]);
   const { data: allLeaves = [] } = useLeaves();
   const { data: allDisciplines = [] } = useDisciplinaryActions();
   const { data: allPayments = [] } = usePayments();
@@ -419,7 +420,7 @@ const EmploymentRecordProfile = () => {
     toast.success("Attendance Report Generated");
   };
 
-  if (isEmployeeLoading) return <div className="p-20 text-center font-black italic text-primary animate-pulse">ESTABLISHING SECURE CONNECTION TO PERSONNEL RECORDS...</div>;
+  if (isEmployeeLoading) return null; // Invisible fast-load since data is cached
   if (!profile) return <div className="p-20 text-center">Personnel Record Not Found.</div>;
 
   return (

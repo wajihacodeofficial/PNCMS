@@ -47,7 +47,7 @@ export function setupHandlers() {
 
   ipcMain.handle('upsert-employee', async (_, data: any) => {
     const { 
-      id, rankId, departmentId, phones, letters, 
+      id, rankId, departmentId, rankName, deptName, phones, letters, 
       accountNo, joiningDate, nokAddress, 
       updatedAt, createdAt, rank, department,
       ...rest 
@@ -57,8 +57,28 @@ export function setupHandlers() {
       ...rest,
       bankAccount: accountNo,
       joiningCurrentUnitDate: joiningDate,
-      rank: rankId ? { connect: { id: rankId } } : undefined,
-      department: departmentId ? { connect: { id: departmentId } } : undefined,
+    }
+
+    if (rankId) {
+      employeeData.rank = { connect: { id: rankId } }
+    } else if (rankName) {
+      employeeData.rank = {
+        connectOrCreate: {
+          where: { name: rankName },
+          create: { name: rankName }
+        }
+      }
+    }
+
+    if (departmentId) {
+      employeeData.department = { connect: { id: departmentId } }
+    } else if (deptName) {
+      employeeData.department = {
+        connectOrCreate: {
+          where: { name: deptName },
+          create: { name: deptName }
+        }
+      }
     }
 
     const phoneCreate = (phones || []).filter((p: any) => p.number).map((p: any) => ({
@@ -259,6 +279,44 @@ export function setupHandlers() {
     const result = await prisma.musterLock.delete({
       where: { date }
     })
+    notifyChange('attendance')
+    return result
+  })
+
+  ipcMain.handle('delete-muster', async (_, { date, password }: any) => {
+    const secret = await prisma.setting.findUnique({ where: { key: 'secret_password' } })
+    if (secret && secret.value !== password) {
+      throw new Error('Invalid secret password')
+    }
+    
+    // Use transaction to ensure both or neither are deleted
+    const result = await prisma.$transaction([
+      prisma.attendance.deleteMany({ where: { date } }),
+      prisma.musterLock.deleteMany({ where: { date } })
+    ]);
+    
+    notifyChange('attendance')
+    return result
+  })
+
+  ipcMain.handle('batch-update-attendance', async (_, { date, updates, overridePassword }: any) => {
+    const lock = await prisma.musterLock.findUnique({ where: { date } })
+    if (lock) {
+      const secret = await prisma.setting.findUnique({ where: { key: 'secret_password' } })
+      if (!overridePassword || (secret && secret.value !== overridePassword)) {
+        throw new Error('This muster is locked. Secret password required for updates.')
+      }
+    }
+
+    const txs = updates.map((update: any) => {
+      return prisma.attendance.upsert({
+        where: { date_serviceNo: { date, serviceNo: update.serviceNo } },
+        update: { status: update.status },
+        create: { date, serviceNo: update.serviceNo, status: update.status }
+      })
+    })
+
+    const result = await prisma.$transaction(txs)
     notifyChange('attendance')
     return result
   })

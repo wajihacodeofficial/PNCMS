@@ -135,6 +135,28 @@ export function useUnlockMuster() {
   })
 }
 
+export function useDeleteMuster() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: api.deleteMuster,
+    onSuccess: (_, { date }) => {
+      queryClient.invalidateQueries({ queryKey: ['attendance', date] })
+      queryClient.invalidateQueries({ queryKey: ['attendance', 'lock', date] })
+      queryClient.invalidateQueries({ queryKey: ['attendance', 'locks'] })
+    }
+  })
+}
+
+export function useBatchUpdateAttendance() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: api.batchUpdateAttendance,
+    onSuccess: (_, { date }) => {
+      queryClient.invalidateQueries({ queryKey: ['attendance', date] })
+    }
+  })
+}
+
 export function useRanks() {
   return useQuery({
     queryKey: ['ranks'],

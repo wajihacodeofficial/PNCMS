@@ -79,10 +79,55 @@ const EmploymentRecords = () => {
   const { data: ranks = [] } = useRanks();
   const { data: departments = [] } = useDepartments();
   const [isImporting, setIsImporting] = useState(false);
-
+  const fileInputRef = React.useRef<HTMLInputElement>(null);
   const { mutateAsync: upsertEmployee } = useUpsertEmployee();
   const { mutate: deleteEmployee } = useDeleteEmployee();
   const { mutate: createLog } = useCreateLog();
+
+  const [deleteId, setDeleteId] = useState<string | null>(null);
+  const [deleteSvc, setDeleteSvc] = useState<string | null>(null);
+  const [showNominalRollModal, setShowNominalRollModal] = useState(false);
+  const [nominalFields, setNominalFields] = useState<Record<string, boolean>>({
+    serviceNo: true,
+    name: true,
+    rank: true,
+    department: true,
+    bps: true,
+    cardType: false,
+    status: false,
+    cnic: false,
+    phoneNumber: false,
+    fatherName: false,
+    dob: false,
+    bloodGroup: false,
+    presentAddress: false,
+    permanentAddress: false,
+    joiningDate: false,
+    appointmentDate: false,
+    bankName: false,
+    accountNo: false,
+  });
+
+  const FIELD_MAP: Record<string, string> = {
+    serviceNo: "Service No",
+    name: "Name",
+    rank: "Rank",
+    department: "Department",
+    bps: "BPS",
+    cardType: "Card Type",
+    status: "Status",
+    cnic: "CNIC",
+    phoneNumber: "Phone Number",
+    fatherName: "Father's Name",
+    dob: "Date of Birth",
+    bloodGroup: "Blood Group",
+    presentAddress: "Present Address",
+    permanentAddress: "Permanent Address",
+    joiningDate: "Joining Date",
+    appointmentDate: "Appointment Date",
+    bankName: "Bank Name",
+    accountNo: "Bank Account No",
+  };
 
   const handleDelete = (id: string, svc: string) => {
     setDeleteId(id);
@@ -126,36 +171,53 @@ const EmploymentRecords = () => {
       const worksheet = workbook.getWorksheet(1);
       if (!worksheet) throw new Error("No worksheet found");
 
-      // Robust Header Mapping
-      const headerRow = worksheet.getRow(1);
-      const colMap: Record<string, number> = {};
-      
-      headerRow.eachCell((cell, colNumber) => {
-        const title = cell.text?.toLowerCase().trim();
-        if (!title) return;
+      let headerRowIndex = 1;
+      let colMap: Record<string, number> = {};
+      let foundHeaders: string[] = [];
 
-        if (title.includes('service') || title.includes('svc')) colMap.serviceNo = colNumber;
-        else if (title.includes('full name') || title === 'name') colMap.name = colNumber;
-        else if (title.includes('rank')) colMap.rankName = colNumber;
-        else if (title.includes('dept') || title.includes('department')) colMap.deptName = colNumber;
-        else if (title.includes('bps') || title.includes('grade')) colMap.bps = colNumber;
-        else if (title.includes('card') || title.includes('type')) colMap.cardType = colNumber;
-        else if (title.includes('status')) colMap.status = colNumber;
-        else if (title.includes('cnic')) colMap.cnic = colNumber;
-        else if (title.includes('phone') || title.includes('contact')) colMap.phoneNumber = colNumber;
-        else if (title.includes('father')) colMap.fatherName = colNumber;
-        else if (title.includes('dob') || title.includes('birth')) colMap.dob = colNumber;
-        else if (title.includes('blood')) colMap.bloodGroup = colNumber;
-        else if (title.includes('present')) colMap.presentAddress = colNumber;
-        else if (title.includes('permanent')) colMap.permanentAddress = colNumber;
-        else if (title.includes('join')) colMap.joiningDate = colNumber;
-        else if (title.includes('appoint')) colMap.appointmentDate = colNumber;
-        else if (title.includes('bank')) colMap.bankName = colNumber;
-        else if (title.includes('account')) colMap.accountNo = colNumber;
-      });
+      // Scan up to 10 rows to find the header row (skips document titles)
+      for (let i = 1; i <= 10; i++) {
+        const row = worksheet.getRow(i);
+        const tempMap: Record<string, number> = {};
+        const tempHeaders: string[] = [];
+        
+        row.eachCell((cell, colNumber) => {
+          const title = cell.text?.toLowerCase().trim();
+          if (!title) return;
+          tempHeaders.push(title);
+
+          if (title.includes('service') || title.includes('svc') || title.includes('sno') || title.includes('id') || title === 'no') tempMap.serviceNo = colNumber;
+          else if (title.includes('name')) tempMap.name = colNumber;
+          else if (title.includes('rank')) tempMap.rankName = colNumber;
+          else if (title.includes('dept') || title.includes('department')) tempMap.deptName = colNumber;
+          else if (title.includes('bps') || title.includes('grade')) tempMap.bps = colNumber;
+          else if (title.includes('card') || title.includes('type')) tempMap.cardType = colNumber;
+          else if (title.includes('status')) tempMap.status = colNumber;
+          else if (title.includes('cnic')) tempMap.cnic = colNumber;
+          else if (title.includes('phone') || title.includes('contact') || title.includes('mob')) tempMap.phoneNumber = colNumber;
+          else if (title.includes('father')) tempMap.fatherName = colNumber;
+          else if (title.includes('dob') || title.includes('birth')) tempMap.dob = colNumber;
+          else if (title.includes('blood')) tempMap.bloodGroup = colNumber;
+          else if (title.includes('present')) tempMap.presentAddress = colNumber;
+          else if (title.includes('permanent')) tempMap.permanentAddress = colNumber;
+          else if (title.includes('join')) tempMap.joiningDate = colNumber;
+          else if (title.includes('appoint')) tempMap.appointmentDate = colNumber;
+          else if (title.includes('bank')) tempMap.bankName = colNumber;
+          else if (title.includes('account')) tempMap.accountNo = colNumber;
+        });
+
+        if (tempMap.serviceNo && tempMap.name) {
+          colMap = tempMap;
+          headerRowIndex = i;
+          foundHeaders = tempHeaders;
+          break;
+        } else if (tempHeaders.length > foundHeaders.length) {
+          foundHeaders = tempHeaders;
+        }
+      }
 
       if (!colMap.serviceNo || !colMap.name) {
-        throw new Error("Missing critical headers: 'Service No' and 'Name' are required.");
+        throw new Error(`Could not find 'Service No' and 'Name' headers. Detected columns: ${foundHeaders.join(', ') || 'None'}`);
       }
 
       let successCount = 0;
@@ -163,7 +225,7 @@ const EmploymentRecords = () => {
 
       const rows: any[] = [];
       worksheet.eachRow((row, rowNumber) => {
-        if (rowNumber === 1) return;
+        if (rowNumber <= headerRowIndex) return;
         
         const getVal = (key: string) => colMap[key] ? row.getCell(colMap[key]).text?.toString().trim() : '';
 
@@ -180,7 +242,7 @@ const EmploymentRecords = () => {
             bps: getVal('bps'),
             cardType: getVal('cardType') || 'Ministerial',
             status: getVal('status') || 'Active',
-            cnic: getVal('cnic'),
+            cnic: getVal('cnic') || undefined,
             fatherName: getVal('fatherName'),
             dob: getVal('dob'),
             bloodGroup: getVal('bloodGroup'),
@@ -201,9 +263,11 @@ const EmploymentRecords = () => {
 
           await upsertEmployee({
             ...rowData,
+            rankName: rowData.rankName || "Unknown Rank",
+            deptName: rowData.deptName || "Unknown Department",
             rankId: rank?.id,
             departmentId: dept?.id,
-            bps: rowData.bps || rank?.bps,
+            bps: rowData.bps || rank?.bps || "BPS-1",
           });
           successCount++;
         } catch (err) {
@@ -256,6 +320,30 @@ const EmploymentRecords = () => {
     const data = filteredPersonnel.map(p => [p.serviceNo, p.rank?.name, p.name, p.department?.name, p.bps, p.status]);
     exportToExcel("Employment Records", headers, data, "Employment_Records");
   };
+
+  const handleExportNominalRoll = () => {
+    const selectedKeys = Object.keys(FIELD_MAP).filter(k => nominalFields[k]);
+    if (selectedKeys.length === 0) {
+      toast.error("Please select at least one field");
+      return;
+    }
+
+    const headers = selectedKeys.map(k => FIELD_MAP[k]);
+    
+    const data = filteredPersonnel.map(p => {
+      return selectedKeys.map(k => {
+        if (k === 'rank') return p.rank?.name || '';
+        if (k === 'department') return p.department?.name || '';
+        if (k === 'joiningDate' && p.joiningDate) return new Date(p.joiningDate).toLocaleDateString();
+        if (k === 'appointmentDate' && p.appointmentDate) return new Date(p.appointmentDate).toLocaleDateString();
+        if (k === 'dob' && p.dob) return new Date(p.dob).toLocaleDateString();
+        return p[k] || '';
+      });
+    });
+
+    exportToExcel("Nominal Roll", headers, data, "Nominal_Roll");
+    setShowNominalRollModal(false);
+  };
   
   return (
     <AppShell>
@@ -264,20 +352,24 @@ const EmploymentRecords = () => {
         subtitle="Civilian Staff Management & Personnel Files"
         actions={
           <>
-            <label className="cursor-pointer">
+            <div>
               <input 
+                ref={fileInputRef}
                 type="file" 
                 className="hidden" 
                 accept=".csv,.xlsx,.xls" 
                 onChange={handleImport} 
                 disabled={isImporting}
               />
-              <Btn variant="outline" className={isImporting ? "opacity-50 pointer-events-none" : ""}>
+              <Btn 
+                variant="outline" 
+                className={isImporting ? "opacity-50 pointer-events-none" : ""}
+                onClick={() => fileInputRef.current?.click()}
+              >
                 <Upload className={`w-4 h-4 mr-2 ${isImporting ? "animate-bounce" : ""}`} /> 
                 {isImporting ? "Processing..." : "Import Data"}
               </Btn>
-            </label>
-
+            </div>
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Btn variant="outline"><Download className="w-4 h-4 mr-2" /> Export records</Btn>
@@ -285,6 +377,8 @@ const EmploymentRecords = () => {
               <DropdownMenuContent>
                 <DropdownMenuItem onClick={handleExportPDF}>Export as PDF</DropdownMenuItem>
                 <DropdownMenuItem onClick={handleExportExcel}>Export as Excel</DropdownMenuItem>
+                <div className="h-px bg-border my-1" />
+                <DropdownMenuItem onClick={() => setShowNominalRollModal(true)}>Generate Nominal Roll</DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
             <Btn variant="gold" onClick={() => navigate("/employment-records/new")}><Plus className="w-4 h-4 mr-2" /> Add Record</Btn>
@@ -404,6 +498,39 @@ const EmploymentRecords = () => {
               <Btn variant="outline" className="flex-1" onClick={() => { setDeleteId(null); setDeleteSvc(null); }}>Abort Action</Btn>
               <Btn variant="danger" className="flex-1" onClick={confirmDelete}>
                 <Trash2 className="w-4 h-4 mr-2" /> Confirm Delete
+              </Btn>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showNominalRollModal && (
+        <div className="fixed inset-0 z-[100] bg-primary/60 backdrop-blur-sm flex items-center justify-center p-8 animate-in fade-in duration-200">
+          <div className="bg-card w-full max-w-2xl rounded-md shadow-elevated overflow-hidden border border-border animate-in zoom-in-95 duration-200">
+            <div className="bg-gradient-command px-6 py-4 flex items-center justify-between border-b border-white/10">
+              <h2 className="text-lg text-white font-heading italic font-black uppercase tracking-tight">Generate Nominal Roll</h2>
+              <button onClick={() => setShowNominalRollModal(false)} className="text-white/70 hover:text-white"><X className="w-6 h-6" /></button>
+            </div>
+            <div className="p-6">
+              <p className="text-sm text-muted-foreground mb-4">Select the specific fields you want to include in the Nominal Roll Excel report for the {filteredPersonnel.length} currently filtered personnel.</p>
+              <div className="grid grid-cols-3 gap-3 max-h-[60vh] overflow-y-auto pr-2">
+                {Object.entries(FIELD_MAP).map(([key, label]) => (
+                  <label key={key} className="flex items-center gap-2 p-3 bg-muted/30 border border-border rounded-md hover:bg-muted/50 cursor-pointer transition-colors">
+                    <input 
+                      type="checkbox" 
+                      className="accent-primary w-4 h-4"
+                      checked={nominalFields[key]} 
+                      onChange={(e) => setNominalFields(prev => ({ ...prev, [key]: e.target.checked }))} 
+                    />
+                    <span className="text-sm font-semibold">{label}</span>
+                  </label>
+                ))}
+              </div>
+            </div>
+            <div className="border-t border-border bg-muted/40 px-6 py-4 flex gap-3 justify-end">
+              <Btn variant="outline" onClick={() => setShowNominalRollModal(false)}>Cancel</Btn>
+              <Btn variant="gold" onClick={handleExportNominalRoll}>
+                <Download className="w-4 h-4 mr-2" /> Export Nominal Roll
               </Btn>
             </div>
           </div>

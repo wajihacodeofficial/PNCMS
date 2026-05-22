@@ -33,6 +33,9 @@ export const api = {
   getAllMusterLocks: () => ipcRenderer.invoke('get-all-muster-locks'),
   lockMuster: (data: { date: string; lockedBy: string }) => ipcRenderer.invoke('lock-muster', data),
   unlockMuster: (data: { date: string; password?: string }) => ipcRenderer.invoke('unlock-muster', data),
+  deleteMuster: (data: { date: string; password?: string }) => ipcRenderer.invoke('delete-muster', data),
+  batchUpdateAttendance: (data: { date: string; updates: any[]; overridePassword?: string }) => 
+    ipcRenderer.invoke('batch-update-attendance', data),
 
   // Master Data
   getRanks: () => ipcRenderer.invoke('get-ranks'),
