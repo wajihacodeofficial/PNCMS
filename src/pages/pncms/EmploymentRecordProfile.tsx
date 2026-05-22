@@ -50,7 +50,7 @@ import {
   parseISO,
 } from 'date-fns';
 import { Switch } from '@/components/ui/switch';
-import { exportToPDF } from '@/lib/export';
+import { exportToPDF, exportComprehensiveProfileToPDF } from '@/lib/export';
 import { toast } from 'sonner';
 import { 
   usePersonnel, 
@@ -376,22 +376,75 @@ const EmploymentRecordProfile = () => {
   ];
 
   const handlePDF = () => {
-    const headers = [["Service Event", "Date", "Unit/Location", "Reference", "Remarks"]];
-    const rows = [
-      ...transfers.map(t => [t.event, t.date, t.unit || t.toUnit || t.fromUnit, t.ref, t.remarks]),
-      ...attachments.map(a => [`Attachment: ${a.event}`, a.date, a.attachedTo, a.ref, ""]),
-      ...promotions.map(p => [`Promotion: ${p.promoted}`, p.date, "", p.ref, `From ${p.prev}`])
-    ];
+    // Calculate Attendance Stats
+    const present = initialAttendance.filter(a => a.s === 'Present').length;
+    const absent = initialAttendance.filter(a => a.s === 'Absent').length;
+    const leave = initialAttendance.filter(a => a.s !== 'Present' && a.s !== 'Absent' && a.s !== 'Weekend').length;
+
+    // Calculate Leave Balances
+    const clUsed = personLeaves.filter((l:any) => l.type === 'Casual Leave').reduce((sum: number, l: any) => sum + parseInt(l.days || '0'), 0);
+    const elUsed = personLeaves.filter((l:any) => l.type === 'Earned Leave').reduce((sum: number, l: any) => sum + parseInt(l.days || '0'), 0);
+
+    // Calculate Discipline Stats
+    const actionWise = personDisciplines.reduce((acc: any, d: any) => {
+      acc[d.action] = (acc[d.action] || 0) + 1;
+      return acc;
+    }, {});
     
-    exportToPDF(`Service Record Summary - Muhammad Tariq Khan`, headers, rows, `service_record_${id ?? '1042'}`, 
-      { period: "Career History", dept: "Administration", clerk: "Wajiha Zehra · DIL-ADM-04" },
-      [
-        { label: "SVC NO", value: id ?? "1042" },
-        { label: "NAME", value: "Muhammad Tariq Khan" },
-        { label: "RANK", value: "Assistant" }
+    // Total explanations could be mapped specifically or just include all discipline actions
+    const explanationsCount = personDisciplines.filter((d: any) => d.action?.toLowerCase().includes('explanation')).length;
+    if (explanationsCount > 0) {
+      actionWise["Total Explanations"] = explanationsCount;
+    }
+
+    const exportData = {
+      profile: {
+        svc: profile?.svc,
+        name: profile?.name,
+        rank: profile?.rank,
+        department: profile?.dept,
+        bps: profile?.bps,
+        cadre: profile?.cardType || "Ministerial",
+        status: profile?.status || "Active",
+        cnic: profile?.cnic || "N/A",
+        phone: profile?.phoneNumber || "N/A",
+        dob: profile?.dob || "N/A",
+        bloodGroup: profile?.bloodGroup || "N/A",
+        fatherName: profile?.fatherName || "N/A",
+        domicile: profile?.domicile || "Sindh",
+        presentAddress: profile?.presentAddress || "N/A",
+        permanentAddress: profile?.permanentAddress || "N/A"
+      },
+      nok: {
+        name: profile?.nokName || "N/A",
+        relation: profile?.nokRelation || "N/A",
+        contact: profile?.nokContact || "N/A"
+      },
+      financial: {
+        bankName: profile?.bankName || "N/A",
+        accountNo: profile?.accountNo || "N/A"
+      },
+      leaveBalances: {
+        clEnt: 15,
+        clRem: 15 - clUsed,
+        elEnt: 48,
+        elRem: 48 - elUsed
+      },
+      attendanceStats: {
+        present,
+        absent,
+        leave
+      },
+      disciplineStats: actionWise,
+      serviceHistory: [
+        ...transfers.map(t => [t.event, t.date, t.unit || t.toUnit || t.fromUnit, t.ref, t.remarks]),
+        ...attachments.map(a => [`Attachment: ${a.event}`, a.date, a.attachedTo, a.ref, ""]),
+        ...promotions.map(p => [`Promotion: ${p.promoted}`, p.date, "", p.ref, `From ${p.prev}`])
       ]
-    );
-    toast.success("Service Record PDF Generated");
+    };
+
+    exportComprehensiveProfileToPDF(exportData, `comprehensive_profile_${profile?.svc}`);
+    toast.success("Comprehensive Profile PDF Generated");
   };
 
   const handleExportAttendance = () => {
@@ -431,9 +484,6 @@ const EmploymentRecordProfile = () => {
         subtitle={`Service Record · ${profile?.svc || 'N/A'}`}
         actions={
           <>
-            <Btn variant="outline" onClick={() => window.print()}>
-              <Printer className="w-4 h-4" /> Print Profile
-            </Btn>
             <Btn variant="outline" onClick={handlePDF}>
               <Download className="w-4 h-4" /> Export PDF
             </Btn>

@@ -301,3 +301,143 @@ export const exportToExcel = async (sheetName: string, headers: string[], data: 
   anchor.click();
   window.URL.revokeObjectURL(url);
 };
+
+export const exportComprehensiveProfileToPDF = (
+  data: {
+    profile: any;
+    nok: any;
+    financial: any;
+    leaveBalances: any;
+    attendanceStats: any;
+    disciplineStats: any;
+    serviceHistory: any[][];
+  },
+  filename: string
+) => {
+  const doc = new jsPDF();
+  const pageWidth = doc.internal.pageSize.width;
+  const pageHeight = doc.internal.pageSize.height;
+
+  // Header Section
+  try { doc.addImage(LOGO_BASE64, 'PNG', 15, 10, 20, 20); } catch(e) {}
+  doc.setFontSize(22);
+  doc.setFont("helvetica", "bold");
+  doc.text("PAKISTAN NAVY", pageWidth / 2, 22, { align: 'center' });
+  doc.setFontSize(10);
+  doc.setFont("helvetica", "normal");
+  doc.text("CIVILIAN MANAGEMENT SYSTEM · COMPREHENSIVE PROFILE", pageWidth / 2, 30, { align: 'center' });
+  
+  doc.setLineWidth(0.5);
+  doc.line(15, 35, pageWidth - 15, 35);
+
+  let currentY = 45;
+
+  // Personal Info
+  doc.setFontSize(14);
+  doc.setFont("helvetica", "bold");
+  doc.text("1. PERSONAL DETAILS", 15, currentY);
+  currentY += 5;
+  
+  autoTable(doc, {
+    startY: currentY,
+    head: [["Attribute", "Details", "Attribute", "Details"]],
+    body: [
+      ["Service No", data.profile.svc || "N/A", "Name", data.profile.name || "N/A"],
+      ["Rank", data.profile.rank || "N/A", "Department", data.profile.department || "N/A"],
+      ["BPS / Cadre", `${data.profile.bps || "N/A"} / ${data.profile.cadre || "N/A"}`, "Status", data.profile.status || "N/A"],
+      ["CNIC", data.profile.cnic || "N/A", "Phone", data.profile.phone || "N/A"],
+      ["DOB", data.profile.dob || "N/A", "Blood Group", data.profile.bloodGroup || "N/A"],
+      ["Father's Name", data.profile.fatherName || "N/A", "Domicile", data.profile.domicile || "N/A"],
+      ["Present Addr", data.profile.presentAddress || "N/A", "Permanent Addr", data.profile.permanentAddress || "N/A"]
+    ],
+    theme: 'grid',
+    styles: { fontSize: 8, font: "helvetica" },
+    headStyles: { fillColor: [15, 23, 42], fontStyle: "bold" }
+  });
+  
+  currentY = (doc as any).lastAutoTable.finalY + 15;
+
+  // Next of Kin
+  doc.setFontSize(14);
+  doc.setFont("helvetica", "bold");
+  doc.text("2. NEXT OF KIN & FINANCIAL", 15, currentY);
+  currentY += 5;
+
+  autoTable(doc, {
+    startY: currentY,
+    head: [["NOK Name", "Relation", "NOK Contact", "Bank Name", "Account No"]],
+    body: [[
+      data.nok.name || "N/A", 
+      data.nok.relation || "N/A", 
+      data.nok.contact || "N/A",
+      data.financial.bankName || "N/A",
+      data.financial.accountNo || "N/A"
+    ]],
+    theme: 'grid',
+    styles: { fontSize: 8, font: "helvetica" },
+    headStyles: { fillColor: [15, 23, 42], fontStyle: "bold" }
+  });
+
+  currentY = (doc as any).lastAutoTable.finalY + 15;
+
+  // Attendance & Leave
+  doc.setFontSize(14);
+  doc.setFont("helvetica", "bold");
+  doc.text("3. ATTENDANCE & LEAVE STATUS", 15, currentY);
+  currentY += 5;
+
+  autoTable(doc, {
+    startY: currentY,
+    head: [["Year Present", "Year Absent", "Year Leave", "CL Balance", "EL Balance"]],
+    body: [[
+      data.attendanceStats.present.toString(),
+      data.attendanceStats.absent.toString(),
+      data.attendanceStats.leave.toString(),
+      `${data.leaveBalances.clRem} / ${data.leaveBalances.clEnt} Days`,
+      `${data.leaveBalances.elRem} / ${data.leaveBalances.elEnt} Days`
+    ]],
+    theme: 'grid',
+    styles: { fontSize: 8, font: "helvetica" },
+    headStyles: { fillColor: [15, 23, 42], fontStyle: "bold" }
+  });
+
+  currentY = (doc as any).lastAutoTable.finalY + 15;
+
+  // Disciplinary
+  doc.setFontSize(14);
+  doc.setFont("helvetica", "bold");
+  doc.text("4. DISCIPLINARY RECORD", 15, currentY);
+  currentY += 5;
+
+  const discBody = Object.keys(data.disciplineStats).map(key => [key, data.disciplineStats[key].toString()]);
+  if (discBody.length === 0) discBody.push(["Clear Record", "No actions found"]);
+
+  autoTable(doc, {
+    startY: currentY,
+    head: [["Action Type", "Count"]],
+    body: discBody,
+    theme: 'grid',
+    styles: { fontSize: 8, font: "helvetica" },
+    headStyles: { fillColor: [15, 23, 42], fontStyle: "bold" }
+  });
+
+  currentY = (doc as any).lastAutoTable.finalY + 15;
+  if (currentY > pageHeight - 40) { doc.addPage(); currentY = 20; }
+
+  // Service History
+  doc.setFontSize(14);
+  doc.setFont("helvetica", "bold");
+  doc.text("5. SERVICE HISTORY & TIMELINE", 15, currentY);
+  currentY += 5;
+
+  autoTable(doc, {
+    startY: currentY,
+    head: [["Event", "Date", "Location / Rank", "Reference", "Remarks"]],
+    body: data.serviceHistory.length > 0 ? data.serviceHistory : [["No history records found", "", "", "", ""]],
+    theme: 'grid',
+    styles: { fontSize: 8, font: "helvetica" },
+    headStyles: { fillColor: [15, 23, 42], fontStyle: "bold" }
+  });
+
+  doc.save(`${filename}.pdf`);
+};
