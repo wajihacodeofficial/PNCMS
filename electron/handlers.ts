@@ -223,6 +223,34 @@ export function setupHandlers() {
         employee: { connect: { serviceNo: targetSvc } }
       }
     })
+
+    // Automatically record attendance for approved leaves
+    if (result.status === 'Approved') {
+      try {
+        const start = new Date(result.startDate + 'T00:00:00Z')
+        const end = new Date(result.endDate + 'T00:00:00Z')
+        
+        const dates: string[] = []
+        let current = new Date(start)
+        while (current <= end) {
+          dates.push(current.toISOString().split('T')[0])
+          current.setDate(current.getDate() + 1)
+        }
+        
+        const txs = dates.map(date => {
+          return prisma.attendance.upsert({
+            where: { date_serviceNo: { date, serviceNo: targetSvc } },
+            update: { status: result.type },
+            create: { date, serviceNo: targetSvc, status: result.type }
+          })
+        })
+        await prisma.$transaction(txs)
+        notifyChange('attendance')
+      } catch (err) {
+        console.error('Error auto-marking leave attendance on create:', err)
+      }
+    }
+
     notifyChange('leaves')
     return result
   })
@@ -243,8 +271,40 @@ export function setupHandlers() {
       const result = await prisma.attendance.findMany({
         where: { date }
       })
-      console.log(`[IPC] Found ${result.length} attendance records`);
-      return result;
+
+      // Fetch all approved leave records overlapping with this date
+      const activeLeaves = await prisma.leaveRecord.findMany({
+        where: {
+          status: 'Approved',
+          startDate: { lte: date },
+          endDate: { gte: date }
+        }
+      })
+
+      const finalResult = [...result]
+      let changed = false
+
+      for (const leave of activeLeaves) {
+        const hasRecord = result.some(r => r.serviceNo === leave.serviceNo)
+        if (!hasRecord) {
+          const newRecord = await prisma.attendance.create({
+            data: {
+              date,
+              serviceNo: leave.serviceNo,
+              status: leave.type
+            }
+          })
+          finalResult.push(newRecord)
+          changed = true
+        }
+      }
+
+      if (changed) {
+        notifyChange('attendance')
+      }
+
+      console.log(`[IPC] Found ${finalResult.length} attendance records`);
+      return finalResult;
     } catch (err) {
       console.error(`[IPC] Error fetching attendance:`, err);
       throw err;
