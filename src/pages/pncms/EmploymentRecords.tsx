@@ -32,10 +32,12 @@ const RecordRow = React.memo(({ p, onNavigate, onDelete }: { p: any; onNavigate:
     <td><Badge variant={p.cardType === "Industrial" ? "warning" : "info"}>{p.cardType}</Badge></td>
     <td className="font-mono text-xs">{p.bps}</td>
     <td>
-      <Badge variant={p.status === "Active" ? "success" : p.status === "On Leave" ? "warning" : "danger"}>
+      <Badge variant={p.status === "Active" ? "success" : p.status === "On Leave" ? "warning" : p.status === "Absent" ? "danger" : "danger"}>
         {p.status}
       </Badge>
     </td>
+    <td className="text-xs text-muted-foreground">{p.attachedTo || '—'}</td>
+    <td className="text-xs text-muted-foreground max-w-[160px] truncate" title={p.remarks || ''}>{p.remarks || '—'}</td>
     <td className="text-right">
       <div className="flex justify-end gap-1">
         <Btn variant="ghost" className="p-1.5 h-auto text-info" title="View Profile" onClick={() => onNavigate(`/employment-records/${p.serviceNo}`)}>
@@ -308,14 +310,14 @@ const EmploymentRecords = () => {
   }, [personnel, search, rankFilter, deptFilter, cardFilter, statusFilter]);
 
   const handleExportPDF = () => {
-    const headers = [["Service No", "Rank", "Name", "Department", "BPS", "Status"]];
-    const data = filteredPersonnel.map(p => [p.serviceNo, p.rank?.name, p.name, p.department?.name, p.bps, p.status]);
+    const headers = [["Service No", "Rank", "Name", "Department", "BPS", "Status", "Attached To", "Remarks"]];
+    const data = filteredPersonnel.map(p => [p.serviceNo, p.rank?.name, p.name, p.department?.name, p.bps, p.status, p.attachedTo || '', p.remarks || '']);
     exportToPDF("Employment Records", headers, data, "Employment_Records");
   };
 
   const handleExportExcel = () => {
-    const headers = ["Service No", "Rank", "Name", "Department", "BPS", "Status"];
-    const data = filteredPersonnel.map(p => [p.serviceNo, p.rank?.name, p.name, p.department?.name, p.bps, p.status]);
+    const headers = ["Service No", "Rank", "Name", "Department", "BPS", "Status", "Attached To", "Remarks"];
+    const data = filteredPersonnel.map(p => [p.serviceNo, p.rank?.name, p.name, p.department?.name, p.bps, p.status, p.attachedTo || '', p.remarks || '']);
     exportToExcel("Employment Records", headers, data, "Employment_Records");
   };
 
@@ -439,6 +441,7 @@ const EmploymentRecords = () => {
                   <option>All Status</option>
                   <option>Active</option>
                   <option>On Leave</option>
+                  <option>Absent</option>
                   <option>Suspended</option>
                 </Select>
               </Field>
@@ -459,6 +462,8 @@ const EmploymentRecords = () => {
                   <th>Card Type</th>
                   <th>BPS</th>
                   <th>Status</th>
+                  <th>Attached To</th>
+                  <th>Remarks</th>
                   <th className="text-right">Actions</th>
                 </tr>
               </thead>
@@ -468,7 +473,7 @@ const EmploymentRecords = () => {
                 ))}
                 {filteredPersonnel.length === 0 && (
                   <tr>
-                    <td colSpan={8} className="text-center py-12 text-muted-foreground italic">
+                    <td colSpan={10} className="text-center py-12 text-muted-foreground italic">
                       {isLoading ? "Syncing with personnel database..." : "No matching records found."}
                     </td>
                   </tr>

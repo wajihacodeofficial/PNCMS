@@ -14,19 +14,19 @@ const LeaveDashboard = () => {
   const [historySearch, setHistorySearch] = useState("");
 
   const today = new Date();
-  
+
   const currentOnLeave = useMemo(() => {
     return (leaves as any[])
-      .filter(l => l.status === 'Approved' && isWithinInterval(today, { 
-        start: parseISO(l.startDate), 
-        end: parseISO(l.endDate) 
+      .filter(l => l.status === 'Approved' && isWithinInterval(today, {
+        start: parseISO(l.startDate),
+        end: parseISO(l.endDate)
       }))
-      .map(l => ({ 
+      .map(l => ({
         svc: l.employee?.serviceNo || 'N/A',
-        name: l.employee?.name || 'Unknown', 
-        type: l.type.toUpperCase(), 
-        from: format(parseISO(l.startDate), 'dd-MMM-yy'), 
-        days: l.days 
+        name: l.employee?.name || 'Unknown',
+        type: l.type.toUpperCase(),
+        from: format(parseISO(l.startDate), 'dd-MMM-yy'),
+        days: l.days
       }))
       .sort((a, b) => a.svc.localeCompare(b.svc));
   }, [leaves]);
@@ -51,7 +51,7 @@ const LeaveDashboard = () => {
   const handleExportCurrent = () => {
     const headers = [["Svc No", "Employee", "Type", "From", "Days"]];
     const rows = currentOnLeave.map(p => [p.svc, p.name, p.type, p.from, p.days]);
-    exportToPDF("Currently On-Leave Personnel", headers, rows, "current_leaves", { 
+    exportToPDF("Currently On-Leave Personnel", headers, rows, "current_leaves", {
       period: format(today, "dd MMM yyyy"),
       dept: "All Departments",
       clerk: "Admin Staff"
@@ -69,8 +69,8 @@ const LeaveDashboard = () => {
 
   return (
     <AppShell>
-      <PageHeader 
-        title="Leave Command Centre" 
+      <PageHeader
+        title="Leave Command Centre"
         subtitle="Civilian Leave Operations · Monthly Overview"
         actions={
           <div className="flex gap-3">
@@ -81,14 +81,9 @@ const LeaveDashboard = () => {
         }
       />
 
-      <div className="grid grid-cols-2 gap-4 mb-6">
-        <StatCard label="Currently on Leave" value={currentOnLeave.length} sub="active absence" icon={<Calendar className="w-5 h-5"/>} accent="danger" />
-        <StatCard label="Pending Applications" value={pendingCount} sub="awaiting verification" icon={<Clock className="w-5 h-5"/>} accent="warning" />
-      </div>
-
       <div className="grid grid-cols-12 gap-6">
         <div className="col-span-8">
-          <Section 
+          <Section
             title="Leave History Search"
             actions={
               <div className="flex items-center gap-2">
@@ -108,9 +103,9 @@ const LeaveDashboard = () => {
             <div className="space-y-4">
               <div className="relative">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                <Input 
-                  placeholder="Enter Service Number to search through all records..." 
-                  className="pl-10 w-full h-11 border-accent" 
+                <Input
+                  placeholder="Enter Service Number to search through all records..."
+                  className="pl-10 w-full h-11 border-accent"
                   value={historySearch}
                   onChange={(e) => setHistorySearch(e.target.value)}
                 />

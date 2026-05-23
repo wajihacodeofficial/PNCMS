@@ -4,10 +4,10 @@ import { LOGO_BASE64 } from './logo-base64';
 import * as ExcelJS from 'exceljs';
 
 export const exportToPDF = (
-  title: string, 
-  headers: string[][], 
-  data: any[][], 
-  filename: string, 
+  title: string,
+  headers: string[][],
+  data: any[][],
+  filename: string,
   metadata?: { period: string; dept: string; clerk: string },
   summary?: { label: string; value: string }[]
 ) => {
@@ -25,11 +25,11 @@ export const exportToPDF = (
   doc.setFontSize(22);
   doc.setFont("helvetica", "bold");
   doc.text("PAKISTAN NAVY", pageWidth / 2, 22, { align: 'center' });
-  
+
   doc.setFontSize(10);
   doc.setFont("helvetica", "normal");
   doc.text("CIVILIAN MANAGEMENT SYSTEM · RESTRICTED", pageWidth / 2, 30, { align: 'center' });
-  
+
   doc.setFontSize(14);
   doc.setFont("helvetica", "bold");
   doc.text(title || "Payment Bill", pageWidth / 2, 42, { align: 'center' });
@@ -105,7 +105,7 @@ export const exportToPDF = (
 
   doc.setDrawColor(0, 0, 0);
   doc.setLineWidth(0.5);
-  
+
   // Prep By
   doc.line(p1, finalY, p1 + sigWidth, finalY);
   doc.setFontSize(7); doc.setFont("helvetica", "bold");
@@ -171,7 +171,7 @@ export const exportToExcel = async (sheetName: string, headers: string[], data: 
   // Titles
   const startCol = 3;
   const endCol = Math.max(headers.length, 6);
-  
+
   const titleCell = worksheet.getCell(1, startCol);
   titleCell.value = 'PAKISTAN NAVY';
   titleCell.font = { name: 'Arial', size: 18, bold: true };
@@ -311,6 +311,7 @@ export const exportComprehensiveProfileToPDF = (
     attendanceStats: any;
     disciplineStats: any;
     serviceHistory: any[][];
+    leaveRows?: any[][];
   },
   filename: string
 ) => {
@@ -319,14 +320,14 @@ export const exportComprehensiveProfileToPDF = (
   const pageHeight = doc.internal.pageSize.height;
 
   // Header Section
-  try { doc.addImage(LOGO_BASE64, 'PNG', 15, 10, 20, 20); } catch(e) {}
+  try { doc.addImage(LOGO_BASE64, 'PNG', 15, 10, 20, 20); } catch (e) { }
   doc.setFontSize(22);
   doc.setFont("helvetica", "bold");
   doc.text("PAKISTAN NAVY", pageWidth / 2, 22, { align: 'center' });
   doc.setFontSize(10);
   doc.setFont("helvetica", "normal");
   doc.text("CIVILIAN MANAGEMENT SYSTEM · COMPREHENSIVE PROFILE", pageWidth / 2, 30, { align: 'center' });
-  
+
   doc.setLineWidth(0.5);
   doc.line(15, 35, pageWidth - 15, 35);
 
@@ -337,7 +338,7 @@ export const exportComprehensiveProfileToPDF = (
   doc.setFont("helvetica", "bold");
   doc.text("1. PERSONAL DETAILS", 15, currentY);
   currentY += 5;
-  
+
   autoTable(doc, {
     startY: currentY,
     head: [["Attribute", "Details", "Attribute", "Details"]],
@@ -354,7 +355,7 @@ export const exportComprehensiveProfileToPDF = (
     styles: { fontSize: 8, font: "helvetica" },
     headStyles: { fillColor: [15, 23, 42], fontStyle: "bold" }
   });
-  
+
   currentY = (doc as any).lastAutoTable.finalY + 15;
 
   // Next of Kin
@@ -367,8 +368,8 @@ export const exportComprehensiveProfileToPDF = (
     startY: currentY,
     head: [["NOK Name", "Relation", "NOK Contact", "Bank Name", "Account No"]],
     body: [[
-      data.nok.name || "N/A", 
-      data.nok.relation || "N/A", 
+      data.nok.name || "N/A",
+      data.nok.relation || "N/A",
       data.nok.contact || "N/A",
       data.financial.bankName || "N/A",
       data.financial.accountNo || "N/A"
@@ -388,20 +389,41 @@ export const exportComprehensiveProfileToPDF = (
 
   autoTable(doc, {
     startY: currentY,
-    head: [["Year Present", "Year Absent", "Year Leave", "CL Balance", "EL Balance"]],
+    head: [["Year Present", "Year Absent", "Year Leave", "CL Balance", "LFP Balance"]],
     body: [[
       data.attendanceStats.present.toString(),
       data.attendanceStats.absent.toString(),
       data.attendanceStats.leave.toString(),
       `${data.leaveBalances.clRem} / ${data.leaveBalances.clEnt} Days`,
-      `${data.leaveBalances.elRem} / ${data.leaveBalances.elEnt} Days`
+      `${data.leaveBalances.lfpRem} / ${data.leaveBalances.lfpEnt} Days`
     ]],
     theme: 'grid',
     styles: { fontSize: 8, font: "helvetica" },
     headStyles: { fillColor: [15, 23, 42], fontStyle: "bold" }
   });
 
-  currentY = (doc as any).lastAutoTable.finalY + 15;
+  currentY = (doc as any).lastAutoTable.finalY + 10;
+
+  // Leave History
+  if (data.leaveRows && data.leaveRows.length > 0) {
+    if (currentY > pageHeight - 40) { doc.addPage(); currentY = 20; }
+    doc.setFontSize(11);
+    doc.setFont("helvetica", "bold");
+    doc.text("Detailed Leave History", 15, currentY);
+    currentY += 5;
+
+    autoTable(doc, {
+      startY: currentY,
+      head: [["Leave Type", "Start Date", "End Date", "Days", "Status"]],
+      body: data.leaveRows,
+      theme: 'grid',
+      styles: { fontSize: 8, font: "helvetica" },
+      headStyles: { fillColor: [71, 85, 105], fontStyle: "bold" }
+    });
+    currentY = (doc as any).lastAutoTable.finalY + 15;
+  } else {
+    currentY = (doc as any).lastAutoTable.finalY + 15;
+  }
 
   // Disciplinary
   doc.setFontSize(14);
@@ -440,4 +462,551 @@ export const exportComprehensiveProfileToPDF = (
   });
 
   doc.save(`${filename}.pdf`);
+  y = drawSectionHeader("SECTION 07 · NEXT OF KIN & FINANCIAL", y);
+  drawFieldLine("Next of Kin Name:", 15, y, 110);
+  drawFieldLine("Relation to NOK:", 115, y, pageWidth - 15);
+  y += 10;
+  drawFieldLine("NOK CNIC Number:", 15, y, 110);
+  drawFieldLine("NOK Contact Number:", 115, y, pageWidth - 15);
+  y += 10;
+  drawFieldLine("NOK Home Address:", 15, y, pageWidth - 15);
+  y += 10;
+  drawFieldLine("Bank Name:", 15, y, 110);
+  drawFieldLine("Bank Account Number:", 115, y, pageWidth - 15);
+  y += 14;
+
+  // Section 8: Declarations and signatures
+  doc.setFontSize(12);
+  doc.setFont("helvetica", "bold");
+  doc.text("UNDERTAKING / DECLARATION BY APPLICANT", 15, y);
+  y += 6;
+  
+  const undertakingText = "I hereby declare that the particulars provided above are correct to the best of my knowledge and belief, and nothing has been concealed. I understand that any false declaration will render me liable to disciplinary action under service rules.";
+  y = drawJustifiedText(undertakingText, 15, y, pageWidth - 30, 12);
+  y += 15;
+
+  // Signatures
+  const sigWidth = 45;
+  const p1 = 15;
+  const p2 = (pageWidth / 2) - (sigWidth / 2);
+  const p3 = pageWidth - 15 - sigWidth;
+
+  doc.setDrawColor(0, 0, 0);
+  doc.setLineWidth(0.5);
+
+  doc.line(p1, y, p1 + sigWidth, y);
+  doc.setFontSize(12); doc.setFont("helvetica", "bold");
+  doc.text("Signature of Applicant", p1 + sigWidth / 2, y + 5, { align: 'center' });
+  doc.setFontSize(12); doc.setFont("helvetica", "normal");
+  doc.text("Date: ____/____/20___", p1 + sigWidth / 2, y + 10, { align: 'center' });
+
+  doc.line(p2, y, p2 + sigWidth, y);
+  doc.setFontSize(12); doc.setFont("helvetica", "bold");
+  doc.text("Countersigned by Clerk", p2 + sigWidth / 2, y + 5, { align: 'center' });
+  doc.setFontSize(12); doc.setFont("helvetica", "normal");
+  doc.text("Establishment Section", p2 + sigWidth / 2, y + 10, { align: 'center' });
+
+  doc.line(p3, y, p3 + sigWidth, y);
+  doc.setFontSize(12); doc.setFont("helvetica", "bold");
+  doc.text("Officer In-Charge", p3 + sigWidth / 2, y + 5, { align: 'center' });
+  doc.setFontSize(12); doc.setFont("helvetica", "normal");
+  doc.text("Signature & Stamp", p3 + sigWidth / 2, y + 10, { align: 'center' });
+
+  doc.setFontSize(12);
+  doc.setTextColor(0, 0, 0);
+  doc.text("Page 2 of 2 · Pakistan Navy Civilian Management System", pageWidth / 2, pageHeight - 10, { align: 'center' });
+
+  doc.save(`${filename}.pdf`);
 };
+
+export const exportBlankEmployeeRecordForm = (filename: string) => {
+  const doc = new jsPDF();
+  const pageWidth = doc.internal.pageSize.width;
+  const pageHeight = doc.internal.pageSize.height;
+
+  const drawHeader = (pageNum: number) => {
+    try {
+      doc.addImage(LOGO_BASE64, 'PNG', 15, 10, 20, 20);
+    } catch (e) {}
+
+    doc.setFontSize(18);
+    doc.setFont("helvetica", "bold");
+    doc.setTextColor(0, 0, 0);
+    doc.text("PAKISTAN NAVY", pageWidth / 2, 18, { align: 'center' });
+    
+    doc.setFontSize(12);
+    doc.setFont("helvetica", "normal");
+    doc.setTextColor(0, 0, 0);
+    doc.text("CIVILIAN PERSONNEL MANAGEMENT SYSTEM · RESTRICTED", pageWidth / 2, 24, { align: 'center' });
+    
+    doc.setFontSize(12);
+    doc.setFont("helvetica", "bold");
+    doc.setTextColor(0, 0, 0);
+    doc.text("EMPLOYEE ENROLLMENT & RECORD FORM", pageWidth / 2, 32, { align: 'center' });
+
+    doc.setFontSize(12);
+    doc.setFont("helvetica", "normal");
+    doc.setTextColor(0, 0, 0);
+    doc.text("Ref: PN-CMS/FORM-01/2026", pageWidth - 15, 15, { align: 'right' });
+    doc.text("Form Version: 2.0", pageWidth - 15, 20, { align: 'right' });
+
+    doc.setLineWidth(0.5);
+    doc.setDrawColor(0, 0, 0);
+    doc.line(15, 36, pageWidth - 15, 36);
+  };
+
+  // Helper for justified text blocks
+  const drawJustifiedText = (text: string, x: number, yStart: number, width: number, fontSize: number = 12) => {
+    doc.setFontSize(fontSize);
+    doc.setFont("helvetica", "normal");
+    doc.setTextColor(0, 0, 0);
+    
+    const words = text.split(" ");
+    let lines: string[][] = [];
+    let currentLine: string[] = [];
+    
+    words.forEach(word => {
+      const testLine = [...currentLine, word].join(" ");
+      const testWidth = doc.getTextWidth(testLine);
+      if (testWidth > width && currentLine.length > 0) {
+        lines.push(currentLine);
+        currentLine = [word];
+      } else {
+        currentLine.push(word);
+      }
+    });
+    if (currentLine.length > 0) {
+      lines.push(currentLine);
+    }
+    
+    let currY = yStart;
+    lines.forEach((lineWords, lineIdx) => {
+      const isLastLine = lineIdx === lines.length - 1;
+      if (isLastLine || lineWords.length === 1) {
+        doc.text(lineWords.join(" "), x, currY);
+      } else {
+        const totalWordsWidth = lineWords.reduce((sum, w) => sum + doc.getTextWidth(w), 0);
+        const remainingSpace = width - totalWordsWidth;
+        const spaceWidth = remainingSpace / (lineWords.length - 1);
+        
+        let currX = x;
+        lineWords.forEach((word, wordIdx) => {
+          doc.text(word, currX, currY);
+          currX += doc.getTextWidth(word) + spaceWidth;
+        });
+      }
+      currY += fontSize * 0.45; // line height spacing (approx 5.4mm for font 12)
+    });
+    return currY;
+  };
+
+  // --- PAGE 1 ---
+  drawHeader(1);
+  
+  // Picture Box at top right (Passport size: 35mm x 45mm)
+  const picWidth = 35;
+  const picHeight = 45;
+  const picX = pageWidth - 15 - picWidth;
+  const picY = 40;
+  doc.setLineWidth(0.3);
+  doc.setDrawColor(0, 0, 0);
+  doc.rect(picX, picY, picWidth, picHeight);
+
+  // Text inside the box
+  doc.setFontSize(12);
+  doc.setFont("helvetica", "normal");
+  doc.setTextColor(0, 0, 0);
+  doc.text("PASTE", picX + picWidth / 2, picY + 20, { align: 'center' });
+  doc.text("PHOTO HERE", picX + picWidth / 2, picY + 26, { align: 'center' });
+
+  // Text under the picture box
+  doc.setFontSize(12);
+  doc.setFont("helvetica", "normal");
+  doc.setTextColor(0, 0, 0);
+  doc.text("image in white bg", picX + picWidth / 2, picY + picHeight + 6, { align: 'center' });
+  doc.text("passport size", picX + picWidth / 2, picY + picHeight + 12, { align: 'center' });
+
+  let y = 105;
+
+  const drawSectionHeader = (title: string, yPos: number) => {
+    doc.setFillColor(0, 0, 0); // Solid black color header block
+    doc.rect(15, yPos, pageWidth - 30, 8, "F");
+    doc.setFontSize(12);
+    doc.setFont("helvetica", "bold");
+    doc.setTextColor(255, 255, 255); // White text inside black header block
+    doc.text(title, 20, yPos + 5.5);
+    doc.setTextColor(0, 0, 0); // Reset
+    return yPos + 14;
+  };
+
+  const drawFieldLine = (label: string, xStart: number, yPos: number, endX: number) => {
+    doc.setFontSize(12);
+    doc.setFont("helvetica", "bold");
+    doc.setTextColor(0, 0, 0);
+    doc.text(label, xStart, yPos);
+    
+    doc.setFont("helvetica", "normal");
+    doc.setLineWidth(0.2);
+    doc.setDrawColor(0, 0, 0);
+    const labelWidth = doc.getTextWidth(label);
+    const lineStart = xStart + labelWidth + 2;
+    if (lineStart < endX) {
+      doc.line(lineStart, yPos + 1.5, endX, yPos + 1.5);
+    }
+  };
+
+  // Section 1: Service Details
+  y = drawSectionHeader("SECTION 01 · SERVICE DETAILS", y);
+  drawFieldLine("Service No:", 15, y, 70);
+  drawFieldLine("Rank/Designation:", 80, y, 140);
+  drawFieldLine("BPS Grade:", 145, y, pageWidth - 15);
+  y += 10;
+  drawFieldLine("Department:", 15, y, 90);
+  drawFieldLine("Cadre (Card Type):", 95, y, pageWidth - 15);
+  y += 10;
+  drawFieldLine("Attached From/To:", 15, y, 110);
+  drawFieldLine("Attached To Ref No:", 115, y, pageWidth - 15);
+  y += 14;
+
+  // Section 2: Appointment & Joining
+  y = drawSectionHeader("SECTION 02 · APPOINTMENT & JOINING", y);
+  drawFieldLine("Date of Appointment:", 15, y, 105);
+  drawFieldLine("Date of Joining (Unit):", 110, y, pageWidth - 15);
+  y += 12;
+
+  // Letter Ref Numbers only
+  doc.setFontSize(12);
+  doc.setFont("helvetica", "bold");
+  doc.text("Appointment Letter Ref No:", 15, y);
+  doc.text("Joining Letter Ref No:", 110, y);
+  y += 8;
+
+  drawFieldLine("Ref No:", 15, y, 105);
+  drawFieldLine("Ref No:", 110, y, pageWidth - 15);
+  y += 14;
+
+  // Section 3: Personal Details
+  y = drawSectionHeader("SECTION 03 · PERSONAL DETAILS", y);
+  drawFieldLine("Full Name (Block Letters):", 15, y, 110);
+  drawFieldLine("Father's Name:", 115, y, pageWidth - 15);
+  y += 10;
+  drawFieldLine("Mother's Name:", 15, y, 110);
+  drawFieldLine("CNIC Number:", 115, y, pageWidth - 15);
+  y += 10;
+  drawFieldLine("Date of Birth:", 15, y, 75);
+  drawFieldLine("Gender (M/F):", 80, y, 130);
+  drawFieldLine("Blood Group:", 135, y, pageWidth - 15);
+  y += 10;
+  drawFieldLine("Marital Status:", 15, y, 75);
+  drawFieldLine("Religion:", 80, y, 130);
+  drawFieldLine("Place of Birth:", 135, y, pageWidth - 15);
+  y += 10;
+  drawFieldLine("Personal Phone Number:", 15, y, 110);
+  drawFieldLine("Emergency Contact:", 115, y, pageWidth - 15);
+
+  // Footer for page 1
+  doc.setFontSize(12);
+  doc.setTextColor(0, 0, 0);
+  doc.text("Page 1 of 2 · Pakistan Navy Civilian Management System", pageWidth / 2, pageHeight - 10, { align: 'center' });
+
+  // --- PAGE 2 ---
+  doc.addPage();
+  drawHeader(2);
+  y = 45;
+
+  // Section 4: Address & Domicile
+  y = drawSectionHeader("SECTION 04 · ADDRESS & DOMICILE DETAILS", y);
+  drawFieldLine("Present Address (Residential):", 15, y, pageWidth - 15);
+  y += 10;
+  drawFieldLine("Permanent Address (Hometown):", 15, y, pageWidth - 15);
+  y += 10;
+  drawFieldLine("Domicile Province:", 15, y, 110);
+  drawFieldLine("Domicile District:", 115, y, pageWidth - 15);
+  y += 14;
+
+  // Section 5: Education & Skills
+  y = drawSectionHeader("SECTION 05 · EDUCATION & SKILLS", y);
+  drawFieldLine("Highest Qualification:", 15, y, 110);
+  drawFieldLine("Languages Spoken:", 115, y, pageWidth - 15);
+  y += 14;
+
+  // Section 6: Physical Profile
+  y = drawSectionHeader("SECTION 06 · PHYSICAL PROFILE & MEDICAL", y);
+  drawFieldLine("Height:", 15, y, 60);
+  drawFieldLine("Weight:", 65, y, 110);
+  drawFieldLine("Distinguishing Marks:", 115, y, pageWidth - 15);
+  y += 10;
+  drawFieldLine("Medical Category (Standard AYE etc.):", 15, y, 110);
+  y += 14;
+
+  // Section 7: Next of Kin & Financial
+  y = drawSectionHeader("SECTION 07 · NEXT OF KIN & FINANCIAL", y);
+  drawFieldLine("Next of Kin Name:", 15, y, 110);
+  drawFieldLine("Relation to NOK:", 115, y, pageWidth - 15);
+  y += 10;
+  drawFieldLine("NOK CNIC Number:", 15, y, 110);
+  drawFieldLine("NOK Contact Number:", 115, y, pageWidth - 15);
+  y += 10;
+  drawFieldLine("NOK Home Address:", 15, y, pageWidth - 15);
+  y += 10;
+  drawFieldLine("Bank Name:", 15, y, 110);
+  drawFieldLine("Bank Account Number:", 115, y, pageWidth - 15);
+  y += 14;
+
+  // Section 8: Declarations and signatures
+  doc.setFontSize(12);
+  doc.setFont("helvetica", "bold");
+  doc.text("UNDERTAKING / DECLARATION BY APPLICANT", 15, y);
+  y += 6;
+  
+  const undertakingText = "I hereby declare that the particulars provided above are correct to the best of my knowledge and belief, and nothing has been concealed. I understand that any false declaration will render me liable to disciplinary action under service rules.";
+  y = drawJustifiedText(undertakingText, 15, y, pageWidth - 30, 12);
+  y += 15;
+
+  // Signatures
+  const sigWidth = 45;
+  const p1 = 15;
+  const p2 = (pageWidth / 2) - (sigWidth / 2);
+  const p3 = pageWidth - 15 - sigWidth;
+
+  doc.setDrawColor(0, 0, 0);
+  doc.setLineWidth(0.5);
+
+  doc.line(p1, y, p1 + sigWidth, y);
+  doc.setFontSize(12); doc.setFont("helvetica", "bold");
+  doc.text("Signature of Applicant", p1 + sigWidth / 2, y + 5, { align: 'center' });
+  doc.setFontSize(12); doc.setFont("helvetica", "normal");
+  doc.text("Date: ____/____/20___", p1 + sigWidth / 2, y + 10, { align: 'center' });
+
+  doc.line(p2, y, p2 + sigWidth, y);
+  doc.setFontSize(12); doc.setFont("helvetica", "bold");
+  doc.text("Countersigned by Clerk", p2 + sigWidth / 2, y + 5, { align: 'center' });
+  doc.setFontSize(12); doc.setFont("helvetica", "normal");
+  doc.text("Establishment Section", p2 + sigWidth / 2, y + 10, { align: 'center' });
+
+  doc.line(p3, y, p3 + sigWidth, y);
+  doc.setFontSize(12); doc.setFont("helvetica", "bold");
+  doc.text("Officer In-Charge", p3 + sigWidth / 2, y + 5, { align: 'center' });
+  doc.setFontSize(12); doc.setFont("helvetica", "normal");
+  doc.text("Signature & Stamp", p3 + sigWidth / 2, y + 10, { align: 'center' });
+
+  doc.setFontSize(12);
+  doc.setTextColor(0, 0, 0);
+  doc.text("Page 2 of 2 · Pakistan Navy Civilian Management System", pageWidth / 2, pageHeight - 10, { align: 'center' });
+
+  doc.save(`${filename}.pdf`);
+};
+
+export const exportBlankLeaveRequestForm = (filename: string) => {
+  const doc = new jsPDF();
+  const pageWidth = doc.internal.pageSize.width;
+  const pageHeight = doc.internal.pageSize.height;
+
+  // Header
+  try {
+    doc.addImage(LOGO_BASE64, 'PNG', 15, 10, 20, 20);
+  } catch (e) {}
+
+  doc.setFontSize(18);
+  doc.setFont("helvetica", "bold");
+  doc.setTextColor(0, 0, 0);
+  doc.text("PAKISTAN NAVY", pageWidth / 2, 18, { align: 'center' });
+  
+  doc.setFontSize(12);
+  doc.setFont("helvetica", "normal");
+  doc.setTextColor(0, 0, 0);
+  doc.text("CIVILIAN PERSONNEL ESTABLISHMENT · RESTRICTED", pageWidth / 2, 24, { align: 'center' });
+  
+  doc.setFontSize(12);
+  doc.setFont("helvetica", "bold");
+  doc.setTextColor(0, 0, 0);
+  doc.text("APPLICATION FOR LEAVE (CIVILIAN STAFF)", pageWidth / 2, 32, { align: 'center' });
+
+  doc.setFontSize(12);
+  doc.setFont("helvetica", "normal");
+  doc.setTextColor(0, 0, 0);
+  doc.text("Form Ref: PN-CMS/LEAVE-01", pageWidth - 15, 15, { align: 'right' });
+  doc.text("Date: _____________", pageWidth - 15, 20, { align: 'right' });
+
+  doc.setLineWidth(0.5);
+  doc.setDrawColor(0, 0, 0);
+  doc.line(15, 36, pageWidth - 15, 36);
+
+  let y = 43;
+
+  const drawSectionHeader = (title: string, yPos: number) => {
+    doc.setFillColor(0, 0, 0);
+    doc.rect(15, yPos, pageWidth - 30, 7, "F");
+    doc.setFontSize(12);
+    doc.setFont("helvetica", "bold");
+    doc.setTextColor(255, 255, 255);
+    doc.text(title, 20, yPos + 5);
+    doc.setTextColor(0, 0, 0); // Reset
+    return yPos + 11;
+  };
+
+  const drawFieldLine = (label: string, xStart: number, yPos: number, endX: number) => {
+    doc.setFontSize(12);
+    doc.setFont("helvetica", "bold");
+    doc.setTextColor(0, 0, 0);
+    doc.text(label, xStart, yPos);
+    
+    doc.setFont("helvetica", "normal");
+    doc.setLineWidth(0.2);
+    doc.setDrawColor(0, 0, 0);
+    const labelWidth = doc.getTextWidth(label);
+    const lineStart = xStart + labelWidth + 2;
+    if (lineStart < endX) {
+      doc.line(lineStart, yPos + 1.5, endX, yPos + 1.5);
+    }
+  };
+
+  // Section 1: Applicant Details
+  y = drawSectionHeader("PART I · APPLICANT DATA", y);
+  drawFieldLine("Service No:", 15, y, 70);
+  drawFieldLine("Name:", 80, y, 150);
+  drawFieldLine("Rank/Designation:", 155, y, pageWidth - 15);
+  y += 9;
+  drawFieldLine("Department/Section:", 15, y, 110);
+  drawFieldLine("BPS Grade:", 115, y, pageWidth - 15);
+  y += 13;
+
+  // Section 2: Leave Particulars
+  y = drawSectionHeader("PART II · LEAVE DETAILS REQUESTED", y);
+  
+  // Leave checkboxes
+  doc.setFontSize(12);
+  doc.setFont("helvetica", "bold");
+  doc.text("Type of Leave Requested:", 15, y);
+  y += 6;
+
+  // Checkbox draws - 3 options only
+  doc.rect(20, y - 3.5, 4, 4);
+  doc.text("Casual Leave (CL)", 26, y);
+  
+  doc.rect(85, y - 3.5, 4, 4);
+  doc.text("Leave on Full Pay (LFP)", 91, y);
+  
+  doc.rect(155, y - 3.5, 4, 4);
+  doc.text("Other Leave", 161, y);
+  
+  y += 8;
+  drawFieldLine("If Other Leave, Specify Type:", 15, y, pageWidth - 15);
+  
+  y += 10;
+  drawFieldLine("Leave Period From (Date):", 15, y, 80);
+  drawFieldLine("To (Date):", 85, y, 140);
+  drawFieldLine("Total Days Requested:", 145, y, pageWidth - 15);
+  y += 9;
+  drawFieldLine("Address during Leave Period:", 15, y, pageWidth - 15);
+  y += 9;
+  drawFieldLine("Contact Number (during leave):", 15, y, 110);
+  y += 14;
+
+  // Section 3: Leave Balance Verification (By Clerical Office)
+  y = drawSectionHeader("PART III · LEAVE BALANCE VERIFICATION (FOR ESTABLISHMENT USE ONLY)", y);
+  
+  doc.setFontSize(12);
+  doc.setFont("helvetica", "normal");
+  doc.text("Leave record of the applicant has been verified from the Leave Ledger. Current balance is as under:", 15, y);
+  y += 6;
+
+  // Draw small ledger table — spacious layout to avoid overlaps
+  const headerHeight = 8;
+  const row1Height = 15; // Extra height for the casual labor footnote
+  const row2Height = 10;
+  const tableHeight = headerHeight + row1Height + row2Height;
+  const tableBottom = y + tableHeight;
+
+  doc.setLineWidth(0.3);
+  doc.setDrawColor(0, 0, 0);
+
+  // Horizontal lines
+  doc.line(15, y, pageWidth - 15, y);                                      // Top border
+  doc.line(15, y + headerHeight, pageWidth - 15, y + headerHeight);          // Header bottom
+  doc.line(15, y + headerHeight + row1Height, pageWidth - 15, y + headerHeight + row1Height); // Row 1 bottom
+  doc.line(15, tableBottom, pageWidth - 15, tableBottom);                    // Row 2 bottom
+
+  // Vertical lines
+  doc.line(15,           y, 15,           tableBottom);
+  doc.line(60,           y, 60,           tableBottom);
+  doc.line(105,          y, 105,          tableBottom);
+  doc.line(150,          y, 150,          tableBottom);
+  doc.line(pageWidth - 15, y, pageWidth - 15, tableBottom);
+
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(12);
+  doc.text("Leave Category",          18, y + 5.5);
+  doc.text("Annual Entitlement",       63, y + 5.5);
+  doc.text("Leave Availed (So Far)",  108, y + 5.5);
+  doc.text("Balance Available",        153, y + 5.5);
+
+  doc.setFont("helvetica", "normal");
+  doc.text("Casual Leave (CL)", 18, y + headerHeight + 6);
+  doc.text("Leave on Full Pay (LFP)", 18, y + headerHeight + row1Height + 6.5);
+
+  // CL entitlement: 20 days for all ranks
+  doc.text("20 Days", 63, y + headerHeight + 5);
+  doc.setFontSize(7); // small font as requested
+  doc.text("(15 days for Casual Labour only)", 63, y + headerHeight + 11);
+  doc.setFontSize(12);
+
+  doc.text("48 Days", 63, y + headerHeight + row1Height + 6.5);
+
+  doc.text("________________ Days", 108, y + headerHeight + 6);
+  doc.text("________________ Days", 108, y + headerHeight + row1Height + 6.5);
+
+  doc.text("________________ Days", 153, y + headerHeight + 6);
+  doc.text("________________ Days", 153, y + headerHeight + row1Height + 6.5);
+
+  y = tableBottom + 8; // Spacing after table bottom to avoid overlap
+  drawFieldLine("Verification Clerk Signature:", 15, y, 100);
+  drawFieldLine("Date of Check:", 105, y, pageWidth - 15);
+  y += 14;
+
+  // Section 4: Recommendation and Sanction
+  y = drawSectionHeader("PART IV · RECOMMENDATION & SANCTION AUTHORITY", y);
+  y += 4;
+  
+  // Head of Dept Recommendation
+  doc.setFontSize(12);
+  doc.setFont("helvetica", "bold");
+  doc.text("1. Recommendation of Head of Department:", 15, y);
+  y += 6;
+  doc.rect(20, y - 3.5, 4, 4);
+  doc.text("Recommended", 26, y);
+  doc.rect(70, y - 3.5, 4, 4);
+  doc.text("Not Recommended", 76, y);
+  y += 12;
+  
+  doc.setLineWidth(0.5);
+  doc.setDrawColor(0, 0, 0);
+  doc.line(15, y, 80, y);
+  doc.line(120, y, 195, y);
+  doc.setFontSize(12);
+  doc.text("Signature of HOD", 40, y + 5, { align: 'center' });
+  doc.text("Designation / Stamp", 150, y + 5, { align: 'center' });
+
+  y += 13;
+  // Sanction Authority (OIC Civilians)
+  doc.setFontSize(12);
+  doc.setFont("helvetica", "bold");
+  doc.text("2. Decision of Sanctioning Authority (OIC Civilians):", 15, y);
+  y += 6;
+  doc.rect(20, y - 3.5, 4, 4);
+  doc.text("Sanctioned / Approved", 26, y);
+  doc.rect(80, y - 3.5, 4, 4);
+  doc.text("Regretted / Disapproved", 86, y);
+  y += 14;
+
+  doc.line(120, y, 195, y);
+  doc.text("Signature & Stamp of OIC Civilians", 157, y + 5, { align: 'center' });
+
+  // Footer
+  doc.setFontSize(12);
+  doc.setTextColor(0, 0, 0);
+  doc.text("Printed on: " + new Date().toLocaleDateString() + " · Pakistan Navy Civilian Management System", pageWidth / 2, pageHeight - 10, { align: 'center' });
+
+  doc.save(`${filename}.pdf`);
+};
+

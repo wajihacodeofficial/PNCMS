@@ -52,10 +52,11 @@ import {
 import { Switch } from '@/components/ui/switch';
 import { exportToPDF, exportComprehensiveProfileToPDF } from '@/lib/export';
 import { toast } from 'sonner';
-import { 
-  usePersonnel, 
-  useLeaves, 
-  useDisciplinaryActions, 
+import {
+  usePersonnel,
+  useEmployee,
+  useLeaves,
+  useDisciplinaryActions,
   usePayments,
   useUpsertDisciplinaryAction,
   useCreateLog
@@ -65,9 +66,11 @@ import {
 const EmploymentRecordProfile = () => {
   const navigate = useNavigate();
   const { id } = useParams();
-  
+
   const { data: personnel = [], isLoading: isEmployeeLoading } = usePersonnel();
   const employee = useMemo(() => personnel.find((p: any) => p.serviceNo === id), [personnel, id]);
+  // Fetch full employee record including real DB attendance (muster roll records)
+  const { data: employeeWithAttendance } = useEmployee(id || '');
   const { data: allLeaves = [] } = useLeaves();
   const { data: allDisciplines = [] } = useDisciplinaryActions();
   const { data: allPayments = [] } = usePayments();
@@ -210,7 +213,7 @@ const EmploymentRecordProfile = () => {
 
   const personLeaves = useMemo(() => {
     return allLeaves.filter((l: any) => l.serviceNo === employee?.serviceNo).map((l: any) => ({
-      type: l.type === 'CL' ? 'Casual Leave' : l.type === 'RL' ? 'Recreational Leave' : l.type === 'SL' ? 'Sick Leave' : 'Other Leave',
+      type: l.type === 'CL' ? 'Casual Leave' : l.type === 'LFP' ? 'Leave on Full Pay' : l.type === 'SL' ? 'Sick Leave' : 'Other Leave',
       start: l.startDate,
       end: l.endDate,
       days: l.days,
@@ -226,49 +229,21 @@ const EmploymentRecordProfile = () => {
     return allPayments.filter((p: any) => p.serviceNo === employee?.serviceNo);
   }, [allPayments, employee]);
 
-  // NEW: State for Leave Records to sync with Attendance
-  const [leaveRecords, setLeaveRecords] = useState<any[]>([]);
-
-  useEffect(() => {
-    if (personLeaves.length > 0) {
-      setLeaveRecords(personLeaves);
-    }
-  }, [personLeaves]);
-
   const initialAttendance = useMemo(() => {
-    const start = new Date('2024-05-16');
-    const end = new Date();
-    const days = Math.max(
-      0,
-      Math.floor((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24))
-    );
-
-    return Array.from({ length: days + 1 }).map((_, i) => {
-      const d = subDays(end, i);
-      const isWeekend = d.getDay() === 0 || d.getDay() === 6;
-
-      // Check if this date falls within any leave record
-      let status = isWeekend ? 'Weekend' : 'Present';
-      const activeLeave = leaveRecords.find((l) => {
-        const lStart = new Date(l.start);
-        const lEnd = new Date(l.end);
-        // Normalize time to midnight for accurate comparison
-        lStart.setHours(0, 0, 0, 0);
-        lEnd.setHours(23, 59, 59, 999);
-        return d >= lStart && d <= lEnd;
+    const dbAttendance: any[] = (employeeWithAttendance as any)?.attendance || [];
+    if (dbAttendance.length === 0) return [];
+    return dbAttendance
+      .map((a: any, i: number) => ({
+        id: a.id || i.toString(),
+        d: format(parseISO(a.date), 'dd-MMM-yyyy'),
+        s: a.status,
+      }))
+      .sort((a: any, b: any) => {
+        const dateA = parse(a.d, 'dd-MMM-yyyy', new Date());
+        const dateB = parse(b.d, 'dd-MMM-yyyy', new Date());
+        return dateB.getTime() - dateA.getTime();
       });
-
-      if (activeLeave) {
-        status = activeLeave.type;
-      }
-
-      return {
-        id: i.toString(),
-        d: format(d, 'dd-MMM-yyyy'),
-        s: status,
-      };
-    });
-  }, [leaveRecords]);
+  }, [employeeWithAttendance]);
 
   const [attendanceSearch, setAttendanceSearch] = useState('');
   const [attendanceDateFilter, setAttendanceDateFilter] = useState('');
@@ -281,7 +256,7 @@ const EmploymentRecordProfile = () => {
         const target = format(parseISO(attendanceDateFilter), 'dd-MMM-yyyy');
         matchesDate = a.d === target;
       }
-      
+
       let matchesStatus = true;
       if (attendanceStatusFilter !== 'All') {
         if (attendanceStatusFilter === 'Leave') {
@@ -292,7 +267,7 @@ const EmploymentRecordProfile = () => {
       }
 
       const matchesSearch = !attendanceSearch || (a.d || "").toLowerCase().includes(attendanceSearch.toLowerCase());
-      
+
       return matchesDate && matchesStatus && matchesSearch;
     });
 
@@ -311,7 +286,7 @@ const EmploymentRecordProfile = () => {
     fields: { key: string; label: string; type?: string }[];
     data: any;
     onSave: (data: any) => void;
-  }>({ isOpen: false, title: '', fields: [], data: {}, onSave: () => {} });
+  }>({ isOpen: false, title: '', fields: [], data: {}, onSave: () => { } });
 
   const [showLeaveDetails, setShowLeaveDetails] = useState(false);
 
@@ -376,26 +351,36 @@ const EmploymentRecordProfile = () => {
   ];
 
   const handlePDF = () => {
-    // Calculate Attendance Stats
-    const present = initialAttendance.filter(a => a.s === 'Present').length;
-    const absent = initialAttendance.filter(a => a.s === 'Absent').length;
-    const leave = initialAttendance.filter(a => a.s !== 'Present' && a.s !== 'Absent' && a.s !== 'Weekend').length;
+    const present = initialAttendance.filter(a => a.s === 'P' || a.s === 'Present').length;
+    const absent = initialAttendance.filter(a => a.s === 'A' || a.s === 'Absent').length;
+    const leave = initialAttendance.filter(a =>
+      !['P', 'Present', 'A', 'Absent', 'Weekend'].includes(a.s)
+    ).length;
 
-    // Calculate Leave Balances
-    const clUsed = personLeaves.filter((l:any) => l.type === 'Casual Leave').reduce((sum: number, l: any) => sum + parseInt(l.days || '0'), 0);
-    const elUsed = personLeaves.filter((l:any) => l.type === 'Earned Leave').reduce((sum: number, l: any) => sum + parseInt(l.days || '0'), 0);
+    const clUsed = personLeaves.filter((l: any) =>
+      l.type === 'Casual Leave'
+    ).reduce((sum: number, l: any) => sum + parseInt(l.days || '0'), 0);
+    const lfpUsed = personLeaves.filter((l: any) =>
+      l.type === 'Leave on Full Pay'
+    ).reduce((sum: number, l: any) => sum + parseInt(l.days || '0'), 0);
 
-    // Calculate Discipline Stats
     const actionWise = personDisciplines.reduce((acc: any, d: any) => {
       acc[d.action] = (acc[d.action] || 0) + 1;
       return acc;
     }, {});
-    
-    // Total explanations could be mapped specifically or just include all discipline actions
-    const explanationsCount = personDisciplines.filter((d: any) => d.action?.toLowerCase().includes('explanation')).length;
-    if (explanationsCount > 0) {
-      actionWise["Total Explanations"] = explanationsCount;
-    }
+    const explanationsCount = personDisciplines.filter((d: any) =>
+      d.action?.toLowerCase().includes('explanation')
+    ).length;
+    if (explanationsCount > 0) actionWise["Total Explanations"] = explanationsCount;
+
+    const allLeavesForPDF = (employeeWithAttendance as any)?.leaves || [];
+    const leaveRows = allLeavesForPDF.map((l: any) => [
+      l.type || '—',
+      l.startDate || '—',
+      l.endDate || '—',
+      `${l.days || 0} days`,
+      l.status || '—',
+    ]);
 
     const exportData = {
       profile: {
@@ -427,14 +412,11 @@ const EmploymentRecordProfile = () => {
       leaveBalances: {
         clEnt: 15,
         clRem: 15 - clUsed,
-        elEnt: 48,
-        elRem: 48 - elUsed
+        lfpEnt: 48,
+        lfpRem: 48 - lfpUsed
       },
-      attendanceStats: {
-        present,
-        absent,
-        leave
-      },
+      attendanceStats: { present, absent, leave },
+      leaveRows,
       disciplineStats: actionWise,
       serviceHistory: [
         ...transfers.map(t => [t.event, t.date, t.unit || t.toUnit || t.fromUnit, t.ref, t.remarks]),
@@ -450,18 +432,18 @@ const EmploymentRecordProfile = () => {
   const handleExportAttendance = () => {
     const headers = [["Date", "Status", "Remarks"]];
     const rows: string[][] = [];
-    
+
     Object.entries(groupedAttendance).forEach(([month, records]) => {
-      rows.push([[month.toUpperCase(), "", ""] as any]); // Month header
+      rows.push([[month.toUpperCase(), "", ""] as any]);
       records.forEach(a => {
         rows.push([a.d, a.s, ""]);
       });
     });
 
     exportToPDF(
-      `Attendance Statement - ${profile?.name}`, 
-      headers, 
-      rows, 
+      `Attendance Statement - ${profile?.name}`,
+      headers,
+      rows,
       `attendance_${profile?.svc}`,
       { period: "Historical Record", dept: profile?.dept, clerk: "Wajiha Zehra · DIL-ADM-04" },
       [
@@ -473,7 +455,7 @@ const EmploymentRecordProfile = () => {
     toast.success("Attendance Report Generated");
   };
 
-  if (isEmployeeLoading) return null; // Invisible fast-load since data is cached
+  if (isEmployeeLoading) return null; 
   if (!profile) return <div className="p-20 text-center">Personnel Record Not Found.</div>;
 
   return (
@@ -506,19 +488,19 @@ const EmploymentRecordProfile = () => {
               <div className="w-32 h-40 mx-auto bg-muted rounded-sm flex items-center justify-center mb-4 shadow-inner border border-border">
                 <User className="w-16 h-16 text-muted-foreground/20" />
               </div>
-                <div className="flex flex-col">
-                  <h2 className="text-2xl font-heading font-black text-white italic tracking-tight">
-                    {profile?.name || 'Unknown Personnel'}
-                  </h2>
-                  <div className="flex items-center gap-2 mt-1">
-                    <Badge variant="warning" className="text-[0.65rem] px-2 py-0.5">
-                      {profile?.rank || 'N/A'}
-                    </Badge>
-                    <Badge variant="neutral" className="text-[0.65rem] px-2 py-0.5">
-                      {profile?.svc || 'N/A'}
-                    </Badge>
-                  </div>
+              <div className="flex flex-col">
+                <h2 className="text-2xl font-heading font-black text-white italic tracking-tight">
+                  {profile?.name || 'Unknown Personnel'}
+                </h2>
+                <div className="flex items-center gap-2 mt-1">
+                  <Badge variant="warning" className="text-[0.65rem] px-2 py-0.5">
+                    {profile?.rank || 'N/A'}
+                  </Badge>
+                  <Badge variant="neutral" className="text-[0.65rem] px-2 py-0.5">
+                    {profile?.svc || 'N/A'}
+                  </Badge>
                 </div>
+              </div>
 
               <div className="mt-4 p-2 bg-muted/30 rounded-sm">
                 <div className="flex items-center justify-center gap-2 text-xs font-bold text-accent uppercase">
@@ -638,46 +620,75 @@ const EmploymentRecordProfile = () => {
               </div>
 
               <Section title="Basic Personnel Details">
-                <div className="grid grid-cols-2 gap-x-12 gap-y-3 text-sm">
+                <div className="grid grid-cols-3 gap-x-8 gap-y-3 text-sm">
                   <DataRow label="Father's Name" value={profile.fatherName} />
+                  <DataRow label="Mother's Name" value={profile.motherName} />
                   <DataRow label="CNIC" value={profile.cnic} />
+                  
                   <DataRow label="DOB" value={profile.dob} />
                   <DataRow label="Gender" value={profile.gender} />
+                  <DataRow label="Marital Status" value={profile.maritalStatus} />
+                  
                   <DataRow label="Blood Group" value={profile.bloodGroup} />
-                  <DataRow label="Domicile" value={profile.domicile} />
-                  <DataRow
-                    label="Permanent Addr."
-                    value={profile.permAddr}
-                  />
-                  <DataRow
-                    label="Present Addr."
-                    value={profile.presAddr}
-                  />
+                  <DataRow label="Religion" value={profile.religion} />
+                  <DataRow label="Place of Birth" value={profile.placeOfBirth} />
+
+                  <DataRow label="Domicile Province" value={profile.domicile} />
+                  <DataRow label="Domicile District" value={profile.domicileDistrict} />
+                  <DataRow label="Phone Number" value={profile.phoneNumber} />
                 </div>
               </Section>
 
               <div className="grid grid-cols-2 gap-5">
-                <Section title="Next of Kin (NOK) Details">
+                <Section title="Education & Professional Skills">
+                  <div className="space-y-3 text-sm">
+                    <DataRow label="Highest Qualification" value={profile.qualification} />
+                    <DataRow label="Languages" value={profile.languages} />
+                    <DataRow label="IT & Technical Skills" value={profile.itSkills} />
+                  </div>
+                </Section>
+
+                <Section title="Physical & Medical Profile">
+                  <div className="space-y-3 text-sm">
+                    <div className="grid grid-cols-2 gap-3">
+                      <DataRow label="Height" value={profile.height} />
+                      <DataRow label="Weight" value={profile.weight} />
+                    </div>
+                    <DataRow label="Medical Category" value={profile.medicalCategory} />
+                    <DataRow label="Distinguishing Marks" value={profile.distinguishingMarks} />
+                  </div>
+                </Section>
+              </div>
+
+              <Section title="Addresses">
+                <div className="space-y-3 text-sm">
+                  <DataRow label="Present Address" value={profile.presentAddress} />
+                  <DataRow label="Permanent Address" value={profile.permanentAddress} />
+                </div>
+              </Section>
+
+              <div className="grid grid-cols-2 gap-5">
+                <Section title="Next of Kin & Emergency Details">
                   <div className="space-y-3 text-sm">
                     <DataRow label="NOK Name" value={profile.nokName} />
                     <DataRow label="Relation" value={profile.nokRelation} />
                     <DataRow label="NOK Contact" value={profile.nokContact} />
                     <DataRow label="NOK CNIC" value={profile.nokCnic} />
+                    <DataRow label="NOK Address" value={profile.nokAddress} />
+                    <hr className="border-border my-2" />
+                    <DataRow label="Emergency Contact" value={profile.emergencyContact} />
+                    <DataRow label="Emergency Relation" value={profile.emergencyContactRelation} />
                   </div>
                 </Section>
 
                 <Section title="Financial & Bank Details">
                   <div className="space-y-3 text-sm">
-                    <DataRow
-                      label="Bank Name"
-                      value={profile.bankName}
-                    />
+                    <DataRow label="Bank Name" value={profile.bankName} />
                     <DataRow label="Account No" value={profile.bankAccount} />
                     <DataRow label="Branch" value={profile.bankBranch} />
-                    <AccountTypeRow
-                      label="Account Type"
-                      value={profile.accountType}
-                    />
+                    <AccountTypeRow label="Account Type" value={profile.accountType} />
+                    <DataRow label="Pension Account" value={profile.pensionAccount} />
+                    <DataRow label="GPF Account" value={profile.gpfAccount} />
                   </div>
                 </Section>
               </div>
@@ -1159,21 +1170,21 @@ const EmploymentRecordProfile = () => {
               className="space-y-5 animate-in fade-in slide-in-from-right-2"
             >
               <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-                <Section 
+                <Section
                   title="Attendance History (Since Joining PNS Dilawar)"
                   actions={
                     <div className="flex items-center gap-3">
                       <div className="relative">
                         <Calendar className="absolute left-2 top-1/2 -translate-y-1/2 w-3 h-3 text-accent" />
-                        <input 
-                          type="date" 
+                        <input
+                          type="date"
                           className="h-8 pl-7 pr-2 bg-muted/20 border border-border rounded-sm text-[0.65rem] focus:outline-none focus:border-accent font-bold"
                           value={attendanceDateFilter}
                           onChange={(e) => setAttendanceDateFilter(e.target.value)}
                         />
                       </div>
-                      <Select 
-                        className="h-8 text-[0.65rem] w-32" 
+                      <Select
+                        className="h-8 text-[0.65rem] w-32"
                         value={attendanceStatusFilter}
                         onChange={(e) => setAttendanceStatusFilter(e.target.value)}
                       >
@@ -1251,7 +1262,7 @@ const EmploymentRecordProfile = () => {
                       <div className="flex justify-between items-center p-3 bg-muted/20 rounded-sm">
                         <div>
                           <p className="text-xs font-bold text-primary">
-                            Earned Leave (EL)
+                            Leave on Full Pay (LFP)
                           </p>
                           <p className="text-[0.65rem] text-muted-foreground">
                             Used: 10 · Remaining: 38
@@ -1352,13 +1363,13 @@ const EmploymentRecordProfile = () => {
                                       (x) => {
                                         upsertDiscipline({ ...x, svc: profile.svc }, {
                                           onSuccess: () => {
-                                             createLog({
-                                               user: localStorage.getItem("username") || "Admin",
-                                               action: "UPDATE",
-                                               entity: `Discipline: ${profile.svc} - ${x.action}`,
-                                               result: "Success"
-                                             });
-                                             toast.success("Discipline record updated");
+                                            createLog({
+                                              user: localStorage.getItem("username") || "Admin",
+                                              action: "UPDATE",
+                                              entity: `Discipline: ${profile.svc} - ${x.action}`,
+                                              result: "Success"
+                                            });
+                                            toast.success("Discipline record updated");
                                           }
                                         });
                                       }
@@ -1370,9 +1381,8 @@ const EmploymentRecordProfile = () => {
                                 </button>
                                 <button
                                   onClick={() => {
-                                    if(confirm("Are you sure you want to delete this record?")) {
-                                       // We need a delete mutation if we want to support this
-                                       toast.error("Delete not implemented for individual discipline records yet");
+                                    if (confirm("Are you sure you want to delete this record?")) {
+                                      toast.error("Delete not implemented for individual discipline records yet");
                                     }
                                   }}
                                   className="p-1 rounded bg-muted hover:bg-destructive/20 text-destructive"
@@ -1448,7 +1458,7 @@ const EmploymentRecordProfile = () => {
                   Complete Leave Account
                 </h3>
                 <p className="text-xs text-white/70 font-mono mt-1">
-                  Muhammad Tariq Khan · -1042
+                  {profile.name} · {profile.svc}
                 </p>
               </div>
               <button
@@ -1482,7 +1492,7 @@ const EmploymentRecordProfile = () => {
                     </td>
                   </tr>
                   <tr>
-                    <td className="font-bold">Earned Leave (EL)</td>
+                    <td className="font-bold">Leave on Full Pay (LFP)</td>
                     <td className="text-center font-mono">48 days</td>
                     <td className="text-center font-mono text-destructive">
                       10 days
@@ -1520,7 +1530,7 @@ const EmploymentRecordProfile = () => {
                 </h4>
                 <div className="space-y-6">
                   {Object.entries(
-                    leaveRecords.reduce((acc: any, curr: any) => {
+                    personLeaves.reduce((acc: any, curr: any) => {
                       const year = (curr.start || "").split('-')[0] || "N/A";
                       if (!acc[year]) acc[year] = [];
                       acc[year].push(curr);

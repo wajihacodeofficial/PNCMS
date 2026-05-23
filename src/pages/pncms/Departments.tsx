@@ -87,7 +87,9 @@ const Departments = () => {
 
   const processedDepts = useMemo(() => {
     return (depts as any[]).map(d => {
-      const bornCount = (personnel as any[]).filter(p => p.departmentId === d.id).length;
+      const bornCount = personnel.length > 0
+        ? (personnel as any[]).filter(p => p.departmentId === d.id).length
+        : (d.bornStrength || 0);
       return { ...d, born: bornCount };
     });
   }, [depts, personnel]);

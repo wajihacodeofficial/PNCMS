@@ -10,7 +10,36 @@ function notifyChange(topic: string) {
   })
 }
 
+async function updateStrengths(tx: any) {
+  const departments = await tx.department.findMany({ select: { id: true } })
+  const ranks = await tx.rank.findMany({ select: { id: true } })
+
+  for (const dept of departments) {
+    const count = await tx.employee.count({
+      where: { departmentId: dept.id }
+    })
+    await tx.department.update({
+      where: { id: dept.id },
+      data: { bornStrength: count }
+    })
+  }
+
+  for (const r of ranks) {
+    const count = await tx.employee.count({
+      where: { rankId: r.id }
+    })
+    await tx.rank.update({
+      where: { id: r.id },
+      data: { bornStrength: count }
+    })
+  }
+}
+
 export function setupHandlers() {
+  // Sync strengths on startup
+  updateStrengths(prisma).catch(err => {
+    console.error('[Startup] Failed to sync rank & department strengths:', err)
+  })
 
   // Employee Handlers
   ipcMain.handle('get-personnel', async () => {
@@ -20,6 +49,8 @@ export function setupHandlers() {
         include: {
           rank: true,
           department: true,
+          phones: true,
+          letters: true,
         },
       })
       console.log(`[IPC] Successfully retrieved ${result.length} personnel records`);
@@ -41,6 +72,8 @@ export function setupHandlers() {
         disciplinaryActions: true,
         payments: true,
         attendance: true,
+        phones: true,
+        letters: true,
       },
     })
   })
@@ -48,7 +81,7 @@ export function setupHandlers() {
   ipcMain.handle('upsert-employee', async (_, data: any) => {
     const { 
       id, rankId, departmentId, rankName, deptName, phones, letters, 
-      accountNo, joiningDate, nokAddress, 
+      accountNo, joiningDate, 
       updatedAt, createdAt, rank, department,
       ...rest 
     } = data
@@ -62,10 +95,11 @@ export function setupHandlers() {
     if (rankId) {
       employeeData.rank = { connect: { id: rankId } }
     } else if (rankName) {
+      const trimmedRankName = rankName.trim()
       employeeData.rank = {
         connectOrCreate: {
-          where: { name: rankName },
-          create: { name: rankName }
+          where: { name: trimmedRankName },
+          create: { name: trimmedRankName }
         }
       }
     }
@@ -73,10 +107,11 @@ export function setupHandlers() {
     if (departmentId) {
       employeeData.department = { connect: { id: departmentId } }
     } else if (deptName) {
+      const trimmedDeptName = deptName.trim()
       employeeData.department = {
         connectOrCreate: {
-          where: { name: deptName },
-          create: { name: deptName }
+          where: { name: trimmedDeptName },
+          create: { name: trimmedDeptName }
         }
       }
     }
@@ -101,7 +136,7 @@ export function setupHandlers() {
       await tx.employeePhone.deleteMany({ where: { serviceNo: data.serviceNo } })
       await tx.employeeLetter.deleteMany({ where: { serviceNo: data.serviceNo } })
 
-      return await tx.employee.upsert({
+      const emp = await tx.employee.upsert({
         where: { serviceNo: data.serviceNo },
         update: {
           ...employeeData,
@@ -114,16 +149,27 @@ export function setupHandlers() {
           letters: { create: letterCreate }
         }
       })
+
+      await updateStrengths(tx)
+      return emp
     })
     notifyChange('personnel')
+    notifyChange('ranks')
+    notifyChange('departments')
     return result
   })
 
   ipcMain.handle('delete-employee', async (_, serviceNo: string) => {
-    const result = await prisma.employee.delete({
-      where: { serviceNo }
+    const result = await prisma.$transaction(async (tx) => {
+      const deletedEmp = await tx.employee.delete({
+        where: { serviceNo }
+      })
+      await updateStrengths(tx)
+      return deletedEmp
     })
     notifyChange('personnel')
+    notifyChange('ranks')
+    notifyChange('departments')
     return result
   })
 

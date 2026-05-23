@@ -32,22 +32,42 @@ const EmploymentRecordForm = () => {
     cardType: 'Ministerial',
     bps: 'BPS-07',
     status: 'Active',
+    attachedTo: '',
+    attachedToRef: '',
+    remarks: '',
     appointmentDate: '',
     joiningDate: '',
     dob: '',
     cnic: '',
     fatherName: '',
+    motherName: '',
     gender: 'Male',
     bloodGroup: 'A+',
+    maritalStatus: 'Single',
+    religion: 'Islam',
+    placeOfBirth: '',
     presentAddress: '',
     permanentAddress: '',
+    domicile: '',
+    domicileDistrict: '',
+    qualification: 'Matric',
+    languages: 'Urdu, English',
+    itSkills: '',
+    height: '',
+    weight: '',
+    distinguishingMarks: '',
+    medicalCategory: 'AYE',
     accountNo: '',
     bankName: 'NBP',
+    pensionAccount: '',
+    gpfAccount: '',
     nokName: '',
     nokContact: '',
     nokRelation: '',
     nokAddress: '',
     nokCnic: '',
+    emergencyContact: '',
+    emergencyContactRelation: '',
     phones: [{ number: '', brand: '', model: '', imei1: '', imei2: '' }],
     letters: [
       { type: 'Appointment', refNo: '', refDate: '', fileName: '', fileNo: '' },
@@ -77,6 +97,24 @@ const EmploymentRecordForm = () => {
           ...emp,
           accountNo: emp.bankAccount || '',
           joiningDate: emp.joiningCurrentUnitDate || '',
+          attachedToRef: emp.attachedToRef || '',
+          maritalStatus: emp.maritalStatus || 'Single',
+          religion: emp.religion || 'Islam',
+          motherName: emp.motherName || '',
+          placeOfBirth: emp.placeOfBirth || '',
+          height: emp.height || '',
+          weight: emp.weight || '',
+          distinguishingMarks: emp.distinguishingMarks || '',
+          medicalCategory: emp.medicalCategory || 'AYE',
+          qualification: emp.qualification || 'Matric',
+          emergencyContact: emp.emergencyContact || '',
+          emergencyContactRelation: emp.emergencyContactRelation || '',
+          pensionAccount: emp.pensionAccount || '',
+          gpfAccount: emp.gpfAccount || '',
+          domicileDistrict: emp.domicileDistrict || '',
+          languages: emp.languages || 'Urdu, English',
+          itSkills: emp.itSkills || '',
+          nokAddress: emp.nokAddress || '',
           phones: emp.phones?.length
             ? emp.phones.map((p: any) => ({
                 number: p.phoneNumber || '',
@@ -246,22 +284,25 @@ const EmploymentRecordForm = () => {
                   className="bg-muted/50 font-bold text-primary"
                 />
               </Field>
-              <Field label="Status">
-                <Select
-                  value={form.status}
-                  onChange={(e) => setForm({ ...form, status: e.target.value })}
-                >
-                  <option>Active</option>
-                  <option>On Leave</option>
-                  <option>Suspended</option>
-                  <option>Retired</option>
-                </Select>
+              <Field label="Attached To">
+                <Input
+                  value={form.attachedTo}
+                  onChange={(e) => setForm({ ...form, attachedTo: e.target.value })}
+                  placeholder="e.g. Naval Dockyard"
+                />
+              </Field>
+              <Field label="Attached To Ref No">
+                <Input
+                  value={form.attachedToRef}
+                  onChange={(e) => setForm({ ...form, attachedToRef: e.target.value })}
+                  placeholder="Attachment reference number"
+                />
               </Field>
             </div>
           </Section>
 
           <Section title="02 · Appointment & Joining">
-            <div className="grid grid-cols-3 gap-4">
+            <div className="grid grid-cols-2 gap-4">
               <Field label="Date of Appointment" required>
                 <Input
                   type="date"
@@ -280,13 +321,6 @@ const EmploymentRecordForm = () => {
                   }
                 />
               </Field>
-              <Field label="Date of Retirement (Auto)">
-                <Input
-                  value={retirementDate}
-                  disabled
-                  className="bg-muted/50 font-bold text-primary"
-                />
-              </Field>
             </div>
             <div className="mt-6 grid grid-cols-2 gap-6">
               {['Appointment', 'Joining'].map((type) => (
@@ -295,60 +329,25 @@ const EmploymentRecordForm = () => {
                   className="space-y-3 p-4 border border-border rounded-sm bg-muted/10"
                 >
                   <h4 className="heading-mil text-[0.7rem] text-primary">
-                    {type} Letter Metadata
+                    {type} Letter Ref No
                   </h4>
-                  <div className="grid grid-cols-2 gap-3">
-                    <Field label="Ref Number">
-                      <Input
-                        value={
-                          form.letters.find((l: any) => l.type === type)?.refNo
-                        }
-                        onChange={(e) =>
-                          handleLetterChange(type, 'refNo', e.target.value)
-                        }
-                      />
-                    </Field>
-                    <Field label="Ref Date">
-                      <Input
-                        type="date"
-                        value={
-                          form.letters.find((l: any) => l.type === type)
-                            ?.refDate
-                        }
-                        onChange={(e) =>
-                          handleLetterChange(type, 'refDate', e.target.value)
-                        }
-                      />
-                    </Field>
-                    <Field label="File Name">
-                      <Input
-                        value={
-                          form.letters.find((l: any) => l.type === type)
-                            ?.fileName
-                        }
-                        onChange={(e) =>
-                          handleLetterChange(type, 'fileName', e.target.value)
-                        }
-                      />
-                    </Field>
-                    <Field label="File Number">
-                      <Input
-                        value={
-                          form.letters.find((l: any) => l.type === type)?.fileNo
-                        }
-                        onChange={(e) =>
-                          handleLetterChange(type, 'fileNo', e.target.value)
-                        }
-                      />
-                    </Field>
-                  </div>
+                  <Field label="Ref Number">
+                    <Input
+                      value={
+                        form.letters.find((l: any) => l.type === type)?.refNo
+                      }
+                      onChange={(e) =>
+                        handleLetterChange(type, 'refNo', e.target.value)
+                      }
+                    />
+                  </Field>
                 </div>
               ))}
             </div>
           </Section>
 
           <Section title="03 · Personal Details">
-            <div className="grid grid-cols-3 gap-4 mb-4">
+            <div className="grid grid-cols-3 gap-4">
               <Field label="Full Name" required>
                 <Input
                   value={form.name}
@@ -363,10 +362,19 @@ const EmploymentRecordForm = () => {
                   }
                 />
               </Field>
+              <Field label="Mother's Name">
+                <Input
+                  value={form.motherName}
+                  onChange={(e) =>
+                    setForm({ ...form, motherName: e.target.value })
+                  }
+                />
+              </Field>
               <Field label="CNIC" required>
                 <Input
                   value={form.cnic}
                   onChange={(e) => setForm({ ...form, cnic: e.target.value })}
+                  placeholder="xxxxx-xxxxxxx-x"
                 />
               </Field>
               <Field label="Date of Birth" required>
@@ -396,7 +404,42 @@ const EmploymentRecordForm = () => {
                   <option>B+</option>
                   <option>O+</option>
                   <option>AB+</option>
+                  <option>A-</option>
+                  <option>B-</option>
+                  <option>O-</option>
+                  <option>AB-</option>
                 </Select>
+              </Field>
+              <Field label="Marital Status">
+                <Select
+                  value={form.maritalStatus}
+                  onChange={(e) =>
+                    setForm({ ...form, maritalStatus: e.target.value })
+                  }
+                >
+                  <option>Single</option>
+                  <option>Married</option>
+                  <option>Widowed</option>
+                  <option>Divorced</option>
+                </Select>
+              </Field>
+              <Field label="Religion">
+                <Input
+                  value={form.religion}
+                  onChange={(e) =>
+                    setForm({ ...form, religion: e.target.value })
+                  }
+                  placeholder="e.g. Islam"
+                />
+              </Field>
+              <Field label="Place of Birth">
+                <Input
+                  value={form.placeOfBirth}
+                  onChange={(e) =>
+                    setForm({ ...form, placeOfBirth: e.target.value })
+                  }
+                  placeholder="e.g. Karachi"
+                />
               </Field>
               <Field label="Phone Number">
                 <Input
@@ -408,14 +451,17 @@ const EmploymentRecordForm = () => {
                 />
               </Field>
             </div>
+          </Section>
 
-            <div className="grid grid-cols-2 gap-4">
+          <Section title="04 · Address & Domicile">
+            <div className="grid grid-cols-2 gap-4 mb-4">
               <Field label="Present Address">
                 <Input
                   value={form.presentAddress}
                   onChange={(e) =>
                     setForm({ ...form, presentAddress: e.target.value })
                   }
+                  placeholder="Current residential address"
                 />
               </Field>
               <Field label="Permanent Address">
@@ -424,12 +470,105 @@ const EmploymentRecordForm = () => {
                   onChange={(e) =>
                     setForm({ ...form, permanentAddress: e.target.value })
                   }
+                  placeholder="Home town address"
+                />
+              </Field>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <Field label="Domicile Province">
+                <Input
+                  value={form.domicile}
+                  onChange={(e) =>
+                    setForm({ ...form, domicile: e.target.value })
+                  }
+                  placeholder="e.g. Punjab"
+                />
+              </Field>
+              <Field label="Domicile District">
+                <Input
+                  value={form.domicileDistrict}
+                  onChange={(e) =>
+                    setForm({ ...form, domicileDistrict: e.target.value })
+                  }
+                  placeholder="e.g. Rawalpindi"
                 />
               </Field>
             </div>
           </Section>
 
-          <Section title="04 · Phone Support">
+          <Section title="05 · Education & Skills">
+            <div className="grid grid-cols-3 gap-4">
+              <Field label="Highest Qualification">
+                <Select
+                  value={form.qualification}
+                  onChange={(e) =>
+                    setForm({ ...form, qualification: e.target.value })
+                  }
+                >
+                  <option>Matric</option>
+                  <option>Intermediate</option>
+                  <option>Bachelor</option>
+                  <option>Master</option>
+                  <option>PhD</option>
+                  <option>Diploma</option>
+                  <option>Other</option>
+                </Select>
+              </Field>
+              <Field label="Languages Spoken">
+                <Input
+                  value={form.languages}
+                  onChange={(e) =>
+                    setForm({ ...form, languages: e.target.value })
+                  }
+                  placeholder="e.g. Urdu, English"
+                />
+              </Field>
+
+            </div>
+          </Section>
+
+          <Section title="06 · Physical Profile">
+            <div className="grid grid-cols-4 gap-4">
+              <Field label="Height">
+                <Input
+                  value={form.height}
+                  onChange={(e) =>
+                    setForm({ ...form, height: e.target.value })
+                  }
+                  placeholder={"e.g. 5'8\""}
+                />
+              </Field>
+              <Field label="Weight">
+                <Input
+                  value={form.weight}
+                  onChange={(e) =>
+                    setForm({ ...form, weight: e.target.value })
+                  }
+                  placeholder="e.g. 70 kg"
+                />
+              </Field>
+              <Field label="Distinguishing Marks">
+                <Input
+                  value={form.distinguishingMarks}
+                  onChange={(e) =>
+                    setForm({ ...form, distinguishingMarks: e.target.value })
+                  }
+                  placeholder="e.g. Mole on right cheek"
+                />
+              </Field>
+              <Field label="Medical Category">
+                <Input
+                  value={form.medicalCategory}
+                  onChange={(e) =>
+                    setForm({ ...form, medicalCategory: e.target.value })
+                  }
+                  placeholder="e.g. AYE"
+                />
+              </Field>
+            </div>
+          </Section>
+
+          <Section title="07 · Phone Support">
             <div className="space-y-4">
               {form.phones.map((phone: any, idx: number) => (
                 <div
@@ -535,7 +674,9 @@ const EmploymentRecordForm = () => {
                 onChange={(e) => setForm({ ...form, bankName: e.target.value })}
               />
             </Field>
+
           </Section>
+
           <Section title="Next of Kin">
             <Field label="Name">
               <Input
@@ -571,6 +712,16 @@ const EmploymentRecordForm = () => {
                 onChange={(e) =>
                   setForm({ ...form, nokAddress: e.target.value })
                 }
+              />
+            </Field>
+          </Section>
+
+          <Section title="Emergency Contact">
+            <Field label="Emergency Contact Name">
+              <Input
+                value={form.emergencyContact}
+                onChange={(e) => setForm({ ...form, emergencyContact: e.target.value })}
+                placeholder="Contact person name"
               />
             </Field>
           </Section>

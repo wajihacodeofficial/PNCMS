@@ -16,7 +16,7 @@ import {
   ShieldCheck,
   Settings,
 } from 'lucide-react';
-import { exportToPDF } from '@/lib/export';
+import { exportToPDF, exportBlankEmployeeRecordForm, exportBlankLeaveRequestForm } from '@/lib/export';
 import { useState, useEffect } from 'react';
 import {
   DropdownMenu,
@@ -263,6 +263,36 @@ const Dashboard = () => {
                     Control security & parameters
                   </div>
                 </div>
+              </Btn>
+            </div>
+          </Section>
+
+          <Section title="Forms & Templates">
+            <p className="text-[0.65rem] text-muted-foreground mb-4">
+              Download standard blank service forms to print and fill manually by hand.
+            </p>
+            <div className="space-y-3">
+              <Btn
+                variant="outline"
+                className="w-full justify-between h-10 border-border hover:border-accent"
+                onClick={() => exportBlankEmployeeRecordForm('blank_employee_record_form')}
+              >
+                <div className="flex items-center">
+                  <FileDown className="w-4 h-4 mr-3 text-accent" />
+                  <span className="text-[0.7rem] font-bold uppercase">Employee Record Form</span>
+                </div>
+                <Badge variant="info" className="text-[0.55rem]">PDF</Badge>
+              </Btn>
+              <Btn
+                variant="outline"
+                className="w-full justify-between h-10 border-border hover:border-accent"
+                onClick={() => exportBlankLeaveRequestForm('blank_leave_request_form')}
+              >
+                <div className="flex items-center">
+                  <FileDown className="w-4 h-4 mr-3 text-accent" />
+                  <span className="text-[0.7rem] font-bold uppercase">Leave Request Form</span>
+                </div>
+                <Badge variant="info" className="text-[0.55rem]">PDF</Badge>
               </Btn>
             </div>
           </Section>

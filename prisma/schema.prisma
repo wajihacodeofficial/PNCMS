@@ -39,6 +39,26 @@ model Employee {
   retirementDate         DateTime?
   lastPromotion          String?
   unitLocation           String?
+  attachedTo             String?
+  remarks                String?
+  maritalStatus          String?
+  religion               String?
+  motherName             String?
+  placeOfBirth           String?
+  height                 String?
+  weight                 String?
+  distinguishingMarks    String?
+  medicalCategory        String?
+  qualification          String?
+  emergencyContact       String?
+  emergencyContactRelation String?
+  pensionAccount         String?
+  gpfAccount             String?
+  domicileDistrict       String?
+  languages              String?
+  itSkills               String?
+  nokAddress             String?
+  attachedToRef          String?
   createdAt              DateTime             @default(now())
   updatedAt              DateTime             @updatedAt
   attendance             Attendance[]
@@ -54,14 +74,15 @@ model Employee {
 }
 
 model Rank {
-  id         String     @id @default(cuid())
-  name       String     @unique
-  createdAt  DateTime   @default(now())
-  updatedAt  DateTime   @updatedAt
-  bps        String?
-  cadre      String?
-  sanctioned Int?       @default(0)
-  employees  Employee[]
+  id           String     @id @default(cuid())
+  name         String     @unique
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+  bps          String?
+  cadre        String?
+  sanctioned   Int?       @default(0)
+  bornStrength Int?       @default(0)
+  employees    Employee[]
 }
 
 model Department {
