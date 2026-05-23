@@ -906,14 +906,21 @@ export const exportBlankLeaveRequestForm = (filename: string) => {
   // Section 3: Leave Balance Verification (By Clerical Office)
   y = drawSectionHeader("PART III · LEAVE BALANCE VERIFICATION (FOR ESTABLISHMENT USE ONLY)", y);
   
-  doc.setFontSize(12);
+  doc.setFontSize(9);
   doc.setFont("helvetica", "normal");
   doc.text("Leave record of the applicant has been verified from the Leave Ledger. Current balance is as under:", 15, y);
-  y += 6;
+  y += 7;
 
-  // Draw small ledger table — spacious layout to avoid overlaps
+  // Draw ledger table with 4 columns — proper widths to avoid overlap
+  // Columns: Leave Category (15-65), Annual Entitlement (65-105), Leave Availed (105-150), Balance Available (150-195)
+  const col1 = 15;
+  const col2 = 65;
+  const col3 = 105;
+  const col4 = 150;
+  const colEnd = pageWidth - 15;
+
   const headerHeight = 8;
-  const row1Height = 15; // Extra height for the casual labor footnote
+  const row1Height = 14;
   const row2Height = 10;
   const tableHeight = headerHeight + row1Height + row2Height;
   const tableBottom = y + tableHeight;
@@ -922,46 +929,49 @@ export const exportBlankLeaveRequestForm = (filename: string) => {
   doc.setDrawColor(0, 0, 0);
 
   // Horizontal lines
-  doc.line(15, y, pageWidth - 15, y);                                      // Top border
-  doc.line(15, y + headerHeight, pageWidth - 15, y + headerHeight);          // Header bottom
-  doc.line(15, y + headerHeight + row1Height, pageWidth - 15, y + headerHeight + row1Height); // Row 1 bottom
-  doc.line(15, tableBottom, pageWidth - 15, tableBottom);                    // Row 2 bottom
+  doc.line(col1, y, colEnd, y);
+  doc.line(col1, y + headerHeight, colEnd, y + headerHeight);
+  doc.line(col1, y + headerHeight + row1Height, colEnd, y + headerHeight + row1Height);
+  doc.line(col1, tableBottom, colEnd, tableBottom);
 
   // Vertical lines
-  doc.line(15,           y, 15,           tableBottom);
-  doc.line(60,           y, 60,           tableBottom);
-  doc.line(105,          y, 105,          tableBottom);
-  doc.line(150,          y, 150,          tableBottom);
-  doc.line(pageWidth - 15, y, pageWidth - 15, tableBottom);
+  doc.line(col1,   y, col1,   tableBottom);
+  doc.line(col2,   y, col2,   tableBottom);
+  doc.line(col3,   y, col3,   tableBottom);
+  doc.line(col4,   y, col4,   tableBottom);
+  doc.line(colEnd, y, colEnd, tableBottom);
 
+  // Table headers — 8pt bold
   doc.setFont("helvetica", "bold");
-  doc.setFontSize(12);
-  doc.text("Leave Category",          18, y + 5.5);
-  doc.text("Annual Entitlement",       63, y + 5.5);
-  doc.text("Leave Availed (So Far)",  108, y + 5.5);
-  doc.text("Balance Available",        153, y + 5.5);
+  doc.setFontSize(8);
+  doc.text("Leave Category",        col1 + 3, y + 5.5);
+  doc.text("Annual Entitlement",    col2 + 3, y + 5.5);
+  doc.text("Leave Availed",         col3 + 3, y + 3.5);
+  doc.text("(So Far)",              col3 + 3, y + 7);
+  doc.text("Balance Available",     col4 + 3, y + 5.5);
 
+  // Row 1: Casual Leave
   doc.setFont("helvetica", "normal");
-  doc.text("Casual Leave (CL)", 18, y + headerHeight + 6);
-  doc.text("Leave on Full Pay (LFP)", 18, y + headerHeight + row1Height + 6.5);
+  doc.setFontSize(9);
+  doc.text("Casual Leave (CL)", col1 + 3, y + headerHeight + 5);
+  doc.text("20 Days", col2 + 3, y + headerHeight + 5);
+  doc.setFontSize(6);
+  doc.text("(15 days for Casual Labour only)", col2 + 3, y + headerHeight + 10);
+  doc.setFontSize(9);
+  doc.text("_________ Days", col3 + 3, y + headerHeight + 5);
+  doc.text("_________ Days", col4 + 3, y + headerHeight + 5);
 
-  // CL entitlement: 20 days for all ranks
-  doc.text("20 Days", 63, y + headerHeight + 5);
-  doc.setFontSize(7); // small font as requested
-  doc.text("(15 days for Casual Labour only)", 63, y + headerHeight + 11);
-  doc.setFontSize(12);
+  // Row 2: LFP
+  doc.text("Leave on Full Pay (LFP)", col1 + 3, y + headerHeight + row1Height + 6.5);
+  doc.text("48 Days", col2 + 3, y + headerHeight + row1Height + 6.5);
+  doc.text("_________ Days", col3 + 3, y + headerHeight + row1Height + 6.5);
+  doc.text("_________ Days", col4 + 3, y + headerHeight + row1Height + 6.5);
 
-  doc.text("48 Days", 63, y + headerHeight + row1Height + 6.5);
-
-  doc.text("________________ Days", 108, y + headerHeight + 6);
-  doc.text("________________ Days", 108, y + headerHeight + row1Height + 6.5);
-
-  doc.text("________________ Days", 153, y + headerHeight + 6);
-  doc.text("________________ Days", 153, y + headerHeight + row1Height + 6.5);
-
-  y = tableBottom + 8; // Spacing after table bottom to avoid overlap
-  drawFieldLine("Verification Clerk Signature:", 15, y, 100);
-  drawFieldLine("Date of Check:", 105, y, pageWidth - 15);
+  y = tableBottom + 8;
+  doc.setFontSize(9);
+  doc.setFont("helvetica", "bold");
+  doc.text("Verification Clerk Signature: ________________________", col1, y);
+  doc.text("Date of Check: ________________________", col3, y);
   y += 14;
 
   // Section 4: Recommendation and Sanction
@@ -969,43 +979,50 @@ export const exportBlankLeaveRequestForm = (filename: string) => {
   y += 4;
   
   // Head of Dept Recommendation
-  doc.setFontSize(12);
+  doc.setFontSize(10);
   doc.setFont("helvetica", "bold");
   doc.text("1. Recommendation of Head of Department:", 15, y);
-  y += 6;
+  y += 7;
+  doc.setFontSize(9);
   doc.rect(20, y - 3.5, 4, 4);
   doc.text("Recommended", 26, y);
-  doc.rect(70, y - 3.5, 4, 4);
-  doc.text("Not Recommended", 76, y);
+  doc.rect(75, y - 3.5, 4, 4);
+  doc.text("Not Recommended", 81, y);
   y += 12;
   
   doc.setLineWidth(0.5);
   doc.setDrawColor(0, 0, 0);
-  doc.line(15, y, 80, y);
-  doc.line(120, y, 195, y);
-  doc.setFontSize(12);
-  doc.text("Signature of HOD", 40, y + 5, { align: 'center' });
-  doc.text("Designation / Stamp", 150, y + 5, { align: 'center' });
+  doc.line(15, y, 85, y);
+  doc.line(110, y, pageWidth - 15, y);
+  doc.setFontSize(8);
+  doc.setFont("helvetica", "normal");
+  doc.text("Signature of HOD", 50, y + 5, { align: 'center' });
+  doc.text("Designation / Stamp", (110 + pageWidth - 15) / 2, y + 5, { align: 'center' });
 
-  y += 13;
+  y += 14;
   // Sanction Authority (OIC Civilians)
-  doc.setFontSize(12);
+  doc.setFontSize(10);
   doc.setFont("helvetica", "bold");
   doc.text("2. Decision of Sanctioning Authority (OIC Civilians):", 15, y);
-  y += 6;
+  y += 7;
+  doc.setFontSize(9);
   doc.rect(20, y - 3.5, 4, 4);
   doc.text("Sanctioned / Approved", 26, y);
-  doc.rect(80, y - 3.5, 4, 4);
-  doc.text("Regretted / Disapproved", 86, y);
+  doc.rect(85, y - 3.5, 4, 4);
+  doc.text("Regretted / Disapproved", 91, y);
   y += 14;
 
-  doc.line(120, y, 195, y);
-  doc.text("Signature & Stamp of OIC Civilians", 157, y + 5, { align: 'center' });
+  doc.line(110, y, pageWidth - 15, y);
+  doc.setFontSize(8);
+  doc.setFont("helvetica", "normal");
+  doc.text("Signature & Stamp of OIC Civilians", (110 + pageWidth - 15) / 2, y + 5, { align: 'center' });
 
-  // Footer
-  doc.setFontSize(12);
+  // Footer — positioned at bottom of page, well below all content
+  doc.setFontSize(7);
+  doc.setFont("helvetica", "normal");
+  doc.setTextColor(100, 100, 100);
+  doc.text("Printed on: " + new Date().toLocaleDateString() + " · Pakistan Navy Civilian Management System", pageWidth / 2, pageHeight - 8, { align: 'center' });
   doc.setTextColor(0, 0, 0);
-  doc.text("Printed on: " + new Date().toLocaleDateString() + " · Pakistan Navy Civilian Management System", pageWidth / 2, pageHeight - 10, { align: 'center' });
 
   doc.save(`${filename}.pdf`);
 };
