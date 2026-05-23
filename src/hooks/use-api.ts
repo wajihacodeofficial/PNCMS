@@ -65,6 +65,7 @@ export function useLeaves() {
   return useQuery({
     queryKey: ['leaves'],
     queryFn: api.getLeaves,
+    refetchInterval: 5000, // refresh every 5 seconds for up‑to‑date on‑leave list
   })
 }
 export function useCreateLeave() {
