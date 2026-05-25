@@ -71,20 +71,20 @@ const Payments = () => {
 
   const handleBatchPDF = () => {
     const label   = selectedCadre === 'Ministerial' ? 'Late-Sitting' : 'Overtime';
-    const headers = [['#', 'Employee', 'Cadre', 'Payable Hrs', 'Rate', 'Amount', 'Status']];
+    const headers = [['#', 'Employee', 'Cadre', 'Payable Hrs', 'Rate', 'Amount', 'Status', 'From', 'To']];
     const rows    = currentRoster.map((r, i) => [
-      i + 1, r.name, selectedCadre, `${r.payable.toFixed(1)}h`, r.rate, r.amount.toLocaleString(), r.currentStatus,
+      i + 1, r.name, selectedCadre, `${r.payable.toFixed(1)}h`, r.rate, r.amount.toLocaleString(), r.currentStatus, startOfMonth, endOfMonth,
     ]);
-    rows.push(['', '', '', '', 'GRAND TOTAL', totalAmount.toLocaleString(), ''] as any);
+    rows.push(['', '', '', '', '', 'GRAND TOTAL', totalAmount.toLocaleString(), '', ''] as any);
     exportToPDF(`${label} Payment Bill`, headers, rows, `bill_${label.toLowerCase()}`);
     toast.success('PDF Bill Generated');
   };
 
   const handleBatchExcel = async () => {
     const label   = selectedCadre === 'Ministerial' ? 'Late-Sitting' : 'Overtime';
-    const headers = ['#', 'Svc No', 'Employee', 'Department', 'Payable Hrs', 'Rate/hr', 'Net Amount', 'Status'];
+    const headers = ['#', 'Svc No', 'Employee', 'Department', 'Payable Hrs', 'Rate/hr', 'Net Amount', 'Status', 'From', 'To'];
     const rows    = currentRoster.map((r, i) => [
-      i + 1, r.employee?.serviceNo, r.name, r.dept, r.payable.toFixed(1), r.rate, r.amount, r.currentStatus,
+      i + 1, r.employee?.serviceNo, r.name, r.dept, r.payable.toFixed(1), r.rate, r.amount, r.currentStatus, startOfMonth, endOfMonth,
     ]);
     await exportToExcel(`${label} Payments`, headers, rows, `payments_${label.toLowerCase()}`);
     toast.success('Excel Exported');
@@ -143,18 +143,31 @@ const Payments = () => {
         <div className="overflow-x-auto -m-5">
           <table className="data-table">
             <thead>
-              <tr><th>Svc No</th><th>Personnel</th><th>Payable Hrs</th><th>Net Amount</th><th>Status</th><th className="text-right">Actions</th></tr>
+              <tr>
+                <th>Svc No</th>
+                <th>Personnel</th>
+                <th>Payable Hrs</th>
+                <th>Net Amount</th>
+                <th>Status</th>
+                <th>From</th>
+                <th>To</th>
+                <th className="text-right">Actions</th>
+              </tr>
             </thead>
             <tbody>
               {currentRoster.length === 0 ? (
-                <tr><td colSpan={6} className="text-center py-10 text-muted-foreground italic">No approved sanctions found for this cadre.</td></tr>
+                <tr><td colSpan={9} className="text-center py-10 text-muted-foreground italic">No approved sanctions found for this cadre.</td></tr>
               ) : currentRoster.map(r => (
                 <tr key={r.id} className="hover:bg-muted/5 group">
                   <td className="font-mono text-xs font-bold text-primary">{r.employee?.serviceNo}</td>
-                  <td><div className="font-bold">{r.name}</div><div className="text-[0.6rem] opacity-50 uppercase">{r.dept}</div></td>
+                  <td className="font-bold">{r.name}</td>
+                  <td className="text-[0.6rem] opacity-50 uppercase">{r.dept}</td>
                   <td className="font-mono font-black text-primary">{r.payable.toFixed(1)}h</td>
+                  <td className="font-mono text-xs text-muted-foreground">Rs. {r.rate}</td>
                   <td className="font-mono font-black text-accent">Rs. {r.amount.toLocaleString()}</td>
                   <td><Badge variant="warning">{r.currentStatus}</Badge></td>
+                  <td className="text-xs font-mono">{startOfMonth}</td>
+                  <td className="text-xs font-mono">{endOfMonth}</td>
                   <td className="text-right">
                     <button onClick={() => setSelectedPerson(r)} className="p-2 rounded-sm bg-primary/10 text-primary hover:bg-primary hover:text-white transition-all shadow-sm">
                       <Eye className="w-4 h-4" />
@@ -164,7 +177,7 @@ const Payments = () => {
               ))}
             </tbody>
             <tfoot className="bg-primary text-white">
-              <tr><td colSpan={5} className="px-5 py-4 text-right font-heading font-black italic uppercase text-accent">Total Disbursement</td><td className="px-5 py-4 text-right text-xl font-heading font-black text-accent italic">Rs. {totalAmount.toLocaleString()}</td></tr>
+              <tr><td colSpan={9} className="px-5 py-4 text-right font-heading font-black italic uppercase text-accent">Total Disbursement</td><td className="px-5 py-4 text-right text-xl font-heading font-black text-accent italic">Rs. {totalAmount.toLocaleString()}</td></tr>
             </tfoot>
           </table>
         </div>

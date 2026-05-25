@@ -121,18 +121,23 @@ model EmployeeLetter {
 }
 
 model Sanction {
-  id         String   @id @default(cuid())
-  sanctionId String   @unique
-  amount     Float?
-  hours      Float?
-  period     String?
-  reason     String?
-  date       String?
-  status     String   @default("Pending")
-  timeline   String?  @default("[]")
-  serviceNo  String
-  createdAt  DateTime @default(now())
-  employee   Employee @relation(fields: [serviceNo], references: [serviceNo], onDelete: Cascade)
+  id            String    @id @default(cuid())
+  sanctionId    String    @unique
+  amount        Float?
+  hours         Float?
+  period        String?
+  reason        String?
+  date          String?
+  status        String    @default("Pending")
+  timeline      String?   @default("[]")
+  serviceNo     String
+  limit         Int?
+  action        String?
+  rank          String?
+  dateInitiated DateTime?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  employee      Employee  @relation(fields: [serviceNo], references: [serviceNo], onDelete: Cascade)
 }
 
 model WorkLog {
@@ -172,7 +177,7 @@ model DisciplinaryAction {
   serviceNo  String
   timeline   String?  @default("[]")
   createdAt  DateTime @default(now())
-  employee   Employee @relation(fields: [serviceNo], references: [serviceNo], onDelete: Cascade)
+  employee  Employee @relation(fields: [serviceNo], references: [serviceNo], onDelete: Cascade)
 }
 
 model Payment {

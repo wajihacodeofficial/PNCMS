@@ -37,7 +37,7 @@ const SanctionEntry = () => {
       sanctionId: `SN-${Date.now()}`
     }, {
       onSuccess: () => {
-        toast.success(isFinal ? "Sanction Approved & Recorded" : "Sanction Request Saved");
+        toast.success(`Sanction for ${selectedEmployee?.name || form.svc} (${selectedEmployee?.rank?.name || ''}) ${isFinal ? "Approved & Recorded" : "Saved Draft"}`);
         navigate("/sanctions");
       }
     });

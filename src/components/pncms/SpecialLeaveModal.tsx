@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogClose } from '@/components/ui/dialog';
 import { Btn, Input, Field } from '@/components/pncms/ui-kit';
-import { useCreateLeave, usePersonnel } from '@/hooks/use-api';
+import { useCreateLeave, usePersonnel, useCreateSanction } from '@/hooks/use-api';
 import { toast } from 'sonner';
 
 interface SpecialLeaveModalProps {
@@ -11,6 +11,7 @@ interface SpecialLeaveModalProps {
 
 export const SpecialLeaveModal = ({ open, onClose }: SpecialLeaveModalProps) => {
   const { mutate: createLeave } = useCreateLeave();
+  const { mutate: createSanction } = useCreateSanction();
   const { data: personnel = [] } = usePersonnel();
   const [svc, setSvc] = useState('');
   const [applyAll, setApplyAll] = useState(false);
@@ -23,6 +24,9 @@ export const SpecialLeaveModal = ({ open, onClose }: SpecialLeaveModalProps) => 
   const [reason, setReason] = useState('');
 
   const handleSubmit = () => {
+    // Find employee details for toast messages
+    const selectedEmployee = personnel.find(p => p.serviceNo === svc);
+
     if (!startDate || !endDate) {
       toast.error('Start and End dates are required');
       return;
@@ -39,11 +43,31 @@ export const SpecialLeaveModal = ({ open, onClose }: SpecialLeaveModalProps) => 
       refNo: refNo || undefined,
     };
     if (applyAll) {
-      // Bulk create for all personnel
       personnel.forEach((person: any) => {
-        createLeave({ ...payload, svc: person.serviceNo }, {
+        const personPayload = { ...payload, svc: person.serviceNo };
+        // Create leave record
+        createLeave(personPayload, {
           onError: (err: any) => {
             toast.error(`Failed for ${person.serviceNo}: ${err.message}`);
+          },
+          onSuccess: () => {
+            // Also create a sanction entry for this person
+            createSanction({
+              svc: person.serviceNo,
+              hours: days,
+              period: `${new Date(startDate).toISOString().slice(0, 7)}`,
+              reason: reason || title,
+              status: 'Approved',
+              date: new Date().toISOString().split('T')[0],
+              sanctionId: `SN-${Date.now()}`,
+            }, {
+              onError: (err: any) => {
+                toast.error(`Sanction error for ${person.serviceNo}: ${err.message}`);
+              },
+              onSuccess: () => {
+                // No individual toast for bulk; summarize after loop
+              },
+            });
           },
         });
       });
@@ -56,8 +80,25 @@ export const SpecialLeaveModal = ({ open, onClose }: SpecialLeaveModalProps) => 
       }
       createLeave({ ...payload, svc }, {
         onSuccess: () => {
-          toast.success('Special/Gazetted leave recorded');
-          onClose();
+          // Create associated sanction entry
+          createSanction({
+            svc,
+            hours: days,
+            period: `${new Date(startDate).toISOString().slice(0, 7)}`,
+            reason: reason || title,
+            status: 'Approved',
+            date: new Date().toISOString().split('T')[0],
+            sanctionId: `SN-${Date.now()}`,
+          }, {
+            onSuccess: () => {
+              toast.success(`Sanction recorded for ${selectedEmployee?.name || svc} (${selectedEmployee?.rank?.name || ''})`);
+              onClose();
+            },
+            onError: (err: any) => {
+              toast.error(err.message || 'Failed to create sanction');
+            },
+          });
+          // Leave toast can be omitted as sanction toast conveys success
         },
         onError: (err: any) => {
           toast.error(err.message || 'Failed to record special leave');
@@ -105,7 +146,7 @@ export const SpecialLeaveModal = ({ open, onClose }: SpecialLeaveModalProps) => 
           <DialogClose asChild>
             <Btn variant="outline" onClick={onClose}>Cancel</Btn>
           </DialogClose>
-          <Btn variant="primary" onClick={handleSubmit}>Add Leave</Btn>
+          <Btn variant="primary" onClick={handleSubmit} type="button">Add Leave</Btn>
         </DialogFooter>
       </DialogContent>
     </Dialog>

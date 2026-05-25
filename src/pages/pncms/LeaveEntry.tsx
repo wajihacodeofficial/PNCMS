@@ -106,6 +106,7 @@ const LeaveEntry = () => {
       return;
     }
 
+    console.log('Submitting leave', { selectedSvc, fromDate, toDate, leaveType, calculatedDays, status });
     createLeave(
       {
         svc: selectedSvc,
@@ -117,6 +118,7 @@ const LeaveEntry = () => {
       },
       {
         onSuccess: () => {
+          console.log('Leave successfully recorded');
           createLog({
             user: localStorage.getItem('username') || 'Admin',
             action: 'CREATE',
@@ -129,6 +131,7 @@ const LeaveEntry = () => {
           navigate('/leave');
         },
         onError: (err: any) => {
+          console.error('Leave creation error', err);
           toast.error(err.message || 'Failed to record leave');
         },
       }
@@ -149,6 +152,7 @@ const LeaveEntry = () => {
               variant="primary"
               onClick={() => handleRecordLeave('Pending')}
               disabled={isOverLimit || isGenderRestricted}
+              type="button"
             >
               <Save className="w-4 h-4" /> Save Draft
             </Btn>
@@ -156,6 +160,7 @@ const LeaveEntry = () => {
               variant="gold"
               onClick={() => handleRecordLeave('Approved')}
               disabled={isOverLimit || isGenderRestricted}
+              type="button"
             >
               <FileCheck2 className="w-4 h-4" /> Record Leave
             </Btn>

@@ -37,6 +37,9 @@ const OvertimeSystem = () => {
   const [clerkName, setClerkName] = useState("Wajiha Zehra");
   const [formSvc, setFormSvc] = useState("");
   const [formHours, setFormHours] = useState("");
+  const [formRank, setFormRank] = useState("");
+  const [formDateInitiated, setFormDateInitiated] = useState("");
+  const [formAction, setFormAction] = useState("");
 
   const rates = useMemo(() => ({
     Ministerial: parseInt(settings.rate_ministerial || "380"),
@@ -67,13 +70,20 @@ const OvertimeSystem = () => {
       toast.error("Employee not found");
       return;
     }
+    // Auto‑fill rank from employee record
+    const rankName = emp.rank?.name || '';
+    setFormRank(rankName);
 
     createSanction({
       svc: formSvc,
-      hours: parseInt(formHours),
+      hours: parseInt(formHours), // legacy field, keep for compatibility
+      limit: parseInt(formHours),
+      rank: rankName,
+      dateInitiated: formDateInitiated ? new Date(formDateInitiated).toISOString() : undefined,
+      action: formAction,
       period: "May 2026",
       status: "Pending",
-      cadre: selectedCadre
+      cadre: selectedCadre,
     }, {
       onSuccess: () => {
         createLog({
@@ -147,10 +157,11 @@ const OvertimeSystem = () => {
 
   const approvedSanctions = useMemo(() => filteredSanctions.filter(s => s.status === 'Approved'), [filteredSanctions]);
 
-  // Roster Logic (Mocking performance data for the bill based on approved sanctions)
+  // Roster Logic – use approved limit (allowance) hours instead of generic hours
   const rosterData = useMemo(() => {
     return approvedSanctions.map((s: any) => {
-      const gross = Math.floor(Math.random() * (s.hours - 10)) + 10; // Random mock performance
+      const limitHours = s.limit ?? s.hours;
+      const gross = Math.floor(Math.random() * (limitHours - 10)) + 10; // Random mock performance
       const leave = Math.floor(Math.random() * 5);
       const payable = gross - leave;
       return {
@@ -200,7 +211,7 @@ const OvertimeSystem = () => {
           <Section title="Sanction Register" actions={<div className="flex gap-2"><Btn variant="gold" className="h-9" onClick={() => setIsAddingSanction(true)}><Plus className="w-4 h-4" /> New Request</Btn></div>}>
             <div className="overflow-x-auto -m-5">
               <table className="data-table">
-                <thead><tr><th>Sanction ID</th><th>Personnel</th><th>Limit</th><th>Status</th><th className="text-right">Action</th></tr></thead>
+                <thead><tr><th>Sanction ID</th><th>Personnel</th><th>Rank</th><th>Limit (h)</th><th>Action</th><th>Status</th><th className="text-right">Action</th></tr></thead>
                 <tbody>
                   {filteredSanctions.map((s: any) => (
                     <tr key={s.id} className="group hover:bg-muted/5">
@@ -209,7 +220,9 @@ const OvertimeSystem = () => {
                         <div className="font-bold">{s.employee?.name}</div>
                         <div className="text-[0.65rem] text-muted-foreground font-mono">{s.employee?.serviceNo}</div>
                       </td>
-                      <td className="font-bold">{s.hours}h</td>
+                      <td>{s.rank || ''}</td>
+                      <td className="font-bold">{s.limit ?? s.hours}h</td>
+                      <td>{s.action || ''}</td>
                       <td><Badge variant={s.status.toLowerCase() as any}>{s.status}</Badge></td>
                       <td className="text-right">
                         <div className="flex justify-end gap-1">
@@ -226,7 +239,7 @@ const OvertimeSystem = () => {
                     </tr>
                   ))}
                   {filteredSanctions.length === 0 && (
-                    <tr><td colSpan={5} className="text-center py-20 text-muted-foreground italic">No sanctions recorded for this cadre.</td></tr>
+                    <tr><td colSpan={7} className="text-center py-20 text-muted-foreground italic">No sanctions recorded for this cadre.</td></tr>
                   )}
                 </tbody>
               </table>
@@ -296,9 +309,18 @@ const OvertimeSystem = () => {
                     className="bg-muted/50"
                   />
                 </Field>
-                <Field label="Max Hours" required>
-                  <Input type="number" value={formHours} onChange={(e) => setFormHours(e.target.value)} placeholder="Limit for period" />
-                </Field>
+                 <Field label="Rank" required>
+                   <Input value={formRank} disabled className="bg-muted/50" />
+                 </Field>
+                 <Field label="Date Initiated" required>
+                   <Input type="date" value={formDateInitiated} onChange={(e) => setFormDateInitiated(e.target.value)} />
+                 </Field>
+                 <Field label="Limit (Hours)" required>
+                   <Input type="number" value={formHours} onChange={(e) => setFormHours(e.target.value)} placeholder="Limit for period" />
+                 </Field>
+                 <Field label="Action" required>
+                   <Input value={formAction} onChange={(e) => setFormAction(e.target.value)} placeholder="Describe work to be done" />
+                 </Field>
              </div>
              <div className="bg-muted/30 p-5 flex justify-end gap-3 border-t border-border">
                 <Btn variant="outline" onClick={() => setIsAddingSanction(false)}>Cancel</Btn>

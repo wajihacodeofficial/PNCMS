@@ -5,7 +5,7 @@ import { StatCard, Section, Btn, Badge, Input, Field } from "@/components/pncms/
 import { Calendar, Clock, UserPlus, ListChecks, Flag, ShieldCheck, ClipboardList, PieChart, Users, Search, RotateCcw, FileDown, AlertCircle } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useState, useEffect, useMemo, useRef } from "react";
-import { format, isWithinInterval, parseISO, eachDayOfInterval, isWeekend, startOfMonth, endOfMonth } from "date-fns";
+import { format, isWithinInterval, parseISO, eachDayOfInterval, isWeekend, startOfMonth, endOfMonth, differenceInCalendarDays } from "date-fns";
 import { exportToPDF } from "@/lib/export";
 import { toast } from "sonner";
 import { useLeaves, useBatchUpdateAttendance } from "@/hooks/use-api";
@@ -71,13 +71,18 @@ const LeaveDashboard = () => {
         const start = parseISO(l.startDate);
         const end = parseISO(l.endDate);
         const weekend = eachDayOfInterval({ start, end }).some(isWeekend);
+        const totalDays = l.days;
+        // Calculate remaining days from today (inclusive) if today is within or before the leave period
+        const today = new Date();
+        const daysLeft = today > end ? 0 : differenceInCalendarDays(end, today) + 1;
         return {
           svc: l.employee?.serviceNo || 'N/A',
           name: l.employee?.name || 'Unknown',
           type: l.type.toUpperCase(),
           from: format(start, 'dd-MMM-yy'),
           to: format(end, 'dd-MMM-yy'),
-          days: l.days,
+          days: totalDays,
+          daysLeft,
           start,
           end,
           isWeekend: weekend,
@@ -104,21 +109,21 @@ const LeaveDashboard = () => {
   const pendingCount = (leaves as any[]).filter(l => l.status === 'Submitted' || l.status === 'Pending').length;
 
   const handleExportCurrent = () => {
-  // Export the monthly leave record (active on‑leave) for the current month
+    // Export the monthly leave record (active on‑leave) for the current month
     const headers = [["Svc No", "Employee", "Type", "From", "To", "Days"]];
     const rows = currentOnLeave.map(p => [p.svc, p.name, p.type, p.from, p.to, p.days]);
-  const start = format(startOfMonth(today), "dd MMM yyyy");
-  const end = format(endOfMonth(today), "dd MMM yyyy");
-  const filename = `monthly_leave_${format(today, "yyyy_MM")}`;
-  exportToPDF(
-    "Monthly Leave Record",
-    headers,
-    rows,
-    filename,
-    { period: `${start} – ${end}`, dept: "All Departments", clerk: "Admin Staff" }
-  );
-  toast.success("Monthly Leave Record Exported");
-};
+    const start = format(startOfMonth(today), "dd MMM yyyy");
+    const end = format(endOfMonth(today), "dd MMM yyyy");
+    const filename = `monthly_leave_${format(today, "yyyy_MM")}`;
+    exportToPDF(
+      "Monthly Leave Record",
+      headers,
+      rows,
+      filename,
+      { period: `${start} – ${end}`, dept: "All Departments", clerk: "Admin Staff" }
+    );
+    toast.success("Monthly Leave Record Exported");
+  }
 
   const handleExportHistory = () => {
     if (historyResults.length === 0) return;
@@ -156,117 +161,57 @@ const LeaveDashboard = () => {
       />
 
       <div className="grid grid-cols-12 gap-6">
-        <div className="col-span-8">
-          <Section
-            title="Leave History Search"
-            actions={
-              <div className="flex items-center gap-2">
-                {historyResults.length > 0 && (
-                  <Btn variant="ghost" className="h-8 text-xs text-primary" onClick={handleExportHistory}>
-                    <FileDown className="w-3.5 h-3.5 mr-1" /> Export History
-                  </Btn>
-                )}
-                {historySearch && (
-                  <button onClick={() => setHistorySearch("")} className="text-muted-foreground hover:text-primary transition-colors">
-                    <RotateCcw className="w-4 h-4" />
-                  </button>
-                )}
-              </div>
-            }
-          >
-            <div className="space-y-4">
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                <Input
-                  placeholder="Enter Service Number to search through all records..."
-                  className="pl-10 w-full h-11 border-accent"
-                  value={historySearch}
-                  onChange={(e) => setHistorySearch(e.target.value)}
-                />
-              </div>
-
-              <div className="grid grid-cols-2 gap-3 max-h-[500px] overflow-y-auto pr-1">
-                {historyResults.length > 0 ? (
-                  historyResults.map((l, i) => (
-                    <div key={i} className="p-4 bg-muted/20 border border-border rounded-sm space-y-2 group hover:border-accent/50 transition-all">
-                      <div className="flex justify-between items-start">
-                        <div>
-                          <div className="text-xs font-bold text-primary uppercase">{l.type} LEAVE</div>
-                          <div className="text-[0.6rem] text-muted-foreground font-mono">{l.from} to {l.to}</div>
-                        </div>
-                        <Badge variant={l.status === 'Approved' ? 'success' : 'pending'}>{l.status}</Badge>
-                      </div>
-                      <div className="flex justify-between items-center pt-2 border-t border-border/50">
-                        <span className="text-xs font-black text-primary italic">{l.days} DAYS</span>
-                        <span className="text-[0.6rem] text-muted-foreground uppercase">{format(parseISO(l.timestamp), 'dd MMM yyyy')}</span>
-                      </div>
-                    </div>
-                  ))
-                ) : historySearch ? (
-                  <div className="col-span-2 text-center py-20 opacity-50">
-                    <Search className="w-12 h-12 mx-auto mb-3 text-muted-foreground" />
-                    <p className="text-sm font-bold uppercase tracking-widest">No matching records found</p>
-                    <p className="text-xs mt-1 text-muted-foreground">Ensure the service number is correct.</p>
-                  </div>
-                ) : (
-                  <div className="col-span-2 text-center py-24 opacity-50 border-2 border-dashed border-border rounded-sm bg-muted/5">
-                    <ClipboardList className="w-12 h-12 mx-auto mb-3 text-muted-foreground" />
-                    <p className="text-sm font-bold uppercase tracking-widest">Enter Service Number</p>
-                    <p className="text-xs mt-1">To search and retrieve complete historical records</p>
-                  </div>
-                )}
-              </div>
-            </div>
-          </Section>
-        </div>
-
-        <div className="col-span-4">
+        <div className="col-span-12">
           <Section title="Active On-Leave">
-          {/* Date filter for on‑leave roster */}
-          <div className="flex items-center gap-2 mb-2">
-            <Input
-              type="date"
-              value={dateFilter}
-              onChange={e => setDateFilter(e.target.value)}
-              className="max-w-[180px]"
-            />
-            <Btn variant="outline" onClick={() => setDateFilter("")}>Clear</Btn>
-            <Input
-              placeholder="Service No"
-              value={serviceSearch}
-              onChange={e => setServiceSearch(e.target.value)}
-              className="max-w-[180px] ml-2"
-            />
-            <Btn variant="outline" onClick={() => setServiceSearch("")}>Clear</Btn>
-          </div>
+            {/* Date filter for on‑leave roster */}
+            <div className="flex items-center gap-2 mb-2">
+              <Input
+                type="date"
+                value={dateFilter}
+                onChange={e => setDateFilter(e.target.value)}
+                className="max-w-[180px]"
+              />
+              <Btn variant="outline" onClick={() => setDateFilter("")}>Clear</Btn>
+              <Input
+                placeholder="Service No"
+                value={serviceSearch}
+                onChange={e => setServiceSearch(e.target.value)}
+                className="max-w-[180px] ml-2"
+              />
+              <Btn variant="outline" onClick={() => setServiceSearch("")}>Clear</Btn>
+            </div>
             <div className="overflow-hidden rounded-sm border border-border">
               <table className="w-full text-[0.75rem]">
-                <thead className="bg-muted/50 text-left border-b border-border">
-                  <tr>
-                    <th className="px-3 py-3 font-bold uppercase tracking-wider">Svc</th>
-                    <th className="px-3 py-3 font-bold uppercase tracking-wider">Employee</th>
-                    <th className="px-3 py-3 font-bold uppercase tracking-wider text-right">Days</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-border bg-card">
-                  {currentOnLeave.length > 0 ? (
+                  <thead className="bg-muted/50 text-left border-b border-border">
+                    <tr>
+                      <th className="px-3 py-3 font-bold uppercase tracking-wider">Service Number</th>
+                      <th className="px-3 py-3 font-bold uppercase tracking-wider">Name</th>
+                      <th className="px-3 py-3 font-bold uppercase tracking-wider">Leave Type</th>
+                      <th className="px-3 py-3 font-bold uppercase tracking-wider">From</th>
+                      <th className="px-3 py-3 font-bold uppercase tracking-wider">To</th>
+                      <th className="px-3 py-3 font-bold uppercase tracking-wider text-right">Days Left</th>
+                      <th className="px-3 py-3 font-bold uppercase tracking-wider text-right">Total Days</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-border bg-card">
+                    {currentOnLeave.length > 0 ? (
                       currentOnLeave.map((p, i) => (
                         <tr key={i} className={`hover:bg-muted/30 transition-colors ${p.isWeekend ? 'bg-gray-100' : ''}`}>
                           <td className="px-3 py-3 font-mono font-bold text-accent">{p.svc}</td>
-                          <td className="px-3 py-3">
-                             <div className="font-semibold text-primary truncate max-w-[120px]">{p.name}</div>
-                             <div className="text-[0.6rem] text-muted-foreground">{p.from}</div>
-                             <div className="text-[0.6rem] text-muted-foreground">{p.to}</div>
-                          </td>
+                          <td className="px-3 py-3">{p.name}</td>
+                          <td className="px-3 py-3">{p.type}</td>
+                          <td className="px-3 py-3">{p.from}</td>
+                          <td className="px-3 py-3">{p.to}</td>
+                          <td className="px-3 py-3 text-right font-bold text-primary">{p.daysLeft}</td>
                           <td className="px-3 py-3 text-right font-bold text-primary">{p.days}</td>
                         </tr>
                       ))
                     ) : (
                       <tr>
-                        <td colSpan={5} className="px-6 py-12 text-center text-muted-foreground italic">None active.</td>
+                        <td colSpan={7} className="px-6 py-12 text-center text-muted-foreground italic">None active.</td>
                       </tr>
                     )}
-                </tbody>
+                  </tbody>
               </table>
             </div>
           </Section>
