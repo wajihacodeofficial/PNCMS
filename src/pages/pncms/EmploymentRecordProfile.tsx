@@ -62,7 +62,8 @@ import {
   useUpsertDisciplinaryAction,
   useCreateLog,
   useDeleteLeave,
-  useSettings
+  useSettings,
+  useSanctions
 } from '@/hooks/use-api';
 
 
@@ -77,6 +78,7 @@ const EmploymentRecordProfile = () => {
   const { data: allLeaves = [] } = useLeaves();
   const { data: allDisciplines = [] } = useDisciplinaryActions();
   const { data: allPayments = [] } = usePayments();
+  const { data: allSanctions = [] } = useSanctions();
   const { mutate: upsertDiscipline } = useUpsertDisciplinaryAction();
   const { mutate: createLog } = useCreateLog();
 
@@ -258,6 +260,31 @@ const EmploymentRecordProfile = () => {
       days: l.days,
       ref: `LVE/${(l.startDate || "").replace(/-/g, '/')}/${employee?.serviceNo}`
     }));
+  }, [allLeaves, employee]);
+
+  const personSanctions = useMemo(() => {
+    return allSanctions.filter((s: any) => s.serviceNo === employee?.serviceNo);
+  }, [allSanctions, employee]);
+
+  const leaveBalances = useMemo(() => {
+    const currentYear = new Date().getFullYear();
+    const employeeLeaves = allLeaves.filter(
+      (l: any) => l.serviceNo === employee?.serviceNo && new Date(l.startDate).getFullYear() === currentYear && l.status !== 'Rejected'
+    );
+
+    const getUsed = (type: string) => {
+      return employeeLeaves
+        .filter((l: any) => l.type === type)
+        .reduce((sum: number, l: any) => sum + l.days, 0);
+    };
+
+    return {
+      CL: { used: getUsed('CL'), max: 20 },
+      LFP: { used: getUsed('LFP'), max: 12 },
+      RL: { used: getUsed('RL'), max: 15 },
+      LWOP: { used: getUsed('LWOP'), max: null },
+      DL: { used: getUsed('DL'), max: 5 },
+    };
   }, [allLeaves, employee]);
 
   const personDisciplines = useMemo(() => {
@@ -624,6 +651,11 @@ const EmploymentRecordProfile = () => {
                 value="financial"
                 label={profile.cardType === 'Ministerial' ? 'Late Sitting' : 'Overtime'}
                 icon={Clock}
+              />
+              <TabTrigger
+                value="payments"
+                label="Payment History"
+                icon={Wallet}
               />
               <TabTrigger
                 value="attendance"
@@ -1158,47 +1190,87 @@ const EmploymentRecordProfile = () => {
                     </tr>
                   </thead>
                   <tbody>
-                    {[
-                      {
-                        p: 'Apr 2026',
-                        r: 'SNC-2026-0142',
-                        h: '40',
-                        a: '4,200',
-                        s: 'Pending',
-                      },
-                      {
-                        p: 'Mar 2026',
-                        r: 'SNC-2026-0118',
-                        h: '45',
-                        a: '4,725',
-                        s: 'Approved',
-                      },
-                      {
-                        p: 'Feb 2026',
-                        r: 'SNC-2026-0091',
-                        h: '30',
-                        a: '3,150',
-                        s: 'Approved',
-                      },
-                    ].map((row, i) => (
-                      <tr key={i}>
-                        <td>{row.p}</td>
-                        <td className="font-mono text-xs text-primary">
-                          {row.r}
-                        </td>
-                        <td>{row.h} hrs</td>
-                        <td className="font-bold">Rs. {row.a}</td>
-                        <td>
-                          <Badge
-                            variant={
-                              row.s === 'Pending' ? 'warning' : 'success'
-                            }
-                          >
-                            {row.s}
-                          </Badge>
+                    {personSanctions.length === 0 ? (
+                      <tr>
+                        <td colSpan={5} className="text-center text-muted-foreground py-8">
+                          No history or sanction records found.
                         </td>
                       </tr>
-                    ))}
+                    ) : (
+                      personSanctions.map((row: any, i: number) => (
+                        <tr key={row.id || i}>
+                          <td>{row.period}</td>
+                          <td className="font-mono text-xs text-primary">
+                            {row.sanctionId}
+                          </td>
+                          <td>{row.hours} hrs</td>
+                          <td className="font-bold">Rs. {row.amount?.toLocaleString() || '0'}</td>
+                          <td>
+                            <Badge
+                              variant={
+                                row.status === 'Pending'
+                                  ? 'warning'
+                                  : row.status === 'Rejected'
+                                  ? 'danger'
+                                  : row.status === 'Paid'
+                                  ? 'info'
+                                  : 'success'
+                              }
+                            >
+                              {row.status}
+                            </Badge>
+                          </td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
+              </Section>
+            </Tabs.Content>
+
+            <Tabs.Content
+              value="payments"
+              className="space-y-5 animate-in fade-in slide-in-from-right-2"
+            >
+              <Section title="Payment History">
+                <table className="data-table">
+                  <thead>
+                    <tr>
+                      <th>Period</th>
+                      <th>Category</th>
+                      <th>Hours/Days</th>
+                      <th>Rate</th>
+                      <th>Deduction</th>
+                      <th>Net Payable</th>
+                      <th>Status</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {personPayments.length === 0 ? (
+                      <tr>
+                        <td colSpan={7} className="text-center text-muted-foreground py-8">
+                          No payment records found.
+                        </td>
+                      </tr>
+                    ) : (
+                      personPayments.map((p: any, i: number) => (
+                        <tr key={p.id || i}>
+                          <td>{p.period}</td>
+                          <td><Badge variant={p.type === 'Industrial' ? 'warning' : 'info'}>{p.type}</Badge></td>
+                          <td className="font-mono text-xs">{p.gross} hrs</td>
+                          <td className="font-mono text-xs">Rs. {p.rate}</td>
+                          <td className="font-mono text-xs text-destructive">- Rs. {p.leave}</td>
+                          <td className="font-bold text-success">Rs. {p.payable?.toLocaleString() || '0'}</td>
+                          <td>
+                            <Badge
+                              variant={p.status === 'Paid' ? 'success' : 'warning'}
+                            >
+                              {p.status}
+                            </Badge>
+                          </td>
+                        </tr>
+                      ))
+                    )}
                   </tbody>
                 </table>
               </Section>
@@ -1291,11 +1363,11 @@ const EmploymentRecordProfile = () => {
                             Casual Leave (CL)
                           </p>
                           <p className="text-[0.65rem] text-muted-foreground">
-                            Used: 03 · Remaining: 12
+                            Used: {String(leaveBalances.CL.used).padStart(2, '0')} · Remaining: {String(Math.max(0, leaveBalances.CL.max - leaveBalances.CL.used)).padStart(2, '0')}
                           </p>
                         </div>
                         <div className="text-xl font-heading font-extrabold text-accent">
-                          12
+                          {Math.max(0, leaveBalances.CL.max - leaveBalances.CL.used)}
                         </div>
                       </div>
                       <div className="flex justify-between items-center p-3 bg-muted/20 rounded-sm">
@@ -1304,11 +1376,11 @@ const EmploymentRecordProfile = () => {
                             Leave on Full Pay (LFP)
                           </p>
                           <p className="text-[0.65rem] text-muted-foreground">
-                            Used: 10 · Remaining: 38
+                            Used: {String(leaveBalances.LFP.used).padStart(2, '0')} · Remaining: {String(Math.max(0, leaveBalances.LFP.max - leaveBalances.LFP.used)).padStart(2, '0')}
                           </p>
                         </div>
                         <div className="text-xl font-heading font-extrabold text-accent">
-                          38
+                          {Math.max(0, leaveBalances.LFP.max - leaveBalances.LFP.used)}
                         </div>
                       </div>
 
@@ -1522,42 +1594,52 @@ const EmploymentRecordProfile = () => {
                 <tbody>
                   <tr>
                     <td className="font-bold">Casual Leave (CL)</td>
-                    <td className="text-center font-mono">15 days</td>
+                    <td className="text-center font-mono">{leaveBalances.CL.max} days</td>
                     <td className="text-center font-mono text-destructive">
-                      03 days
+                      {String(leaveBalances.CL.used).padStart(2, '0')} days
                     </td>
                     <td className="text-right font-mono font-bold text-success text-lg">
-                      12 days
+                      {String(Math.max(0, leaveBalances.CL.max - leaveBalances.CL.used)).padStart(2, '0')} days
                     </td>
                   </tr>
                   <tr>
                     <td className="font-bold">Leave on Full Pay (LFP)</td>
-                    <td className="text-center font-mono">48 days</td>
+                    <td className="text-center font-mono">{leaveBalances.LFP.max} days</td>
                     <td className="text-center font-mono text-destructive">
-                      10 days
+                      {String(leaveBalances.LFP.used).padStart(2, '0')} days
                     </td>
                     <td className="text-right font-mono font-bold text-success text-lg">
-                      38 days
-                    </td>
-                  </tr>
-                  <tr>
-                    <td className="font-bold">Medical Leave (ML)</td>
-                    <td className="text-center font-mono">10 days</td>
-                    <td className="text-center font-mono text-destructive">
-                      00 days
-                    </td>
-                    <td className="text-right font-mono font-bold text-success text-lg">
-                      10 days
+                      {String(Math.max(0, leaveBalances.LFP.max - leaveBalances.LFP.used)).padStart(2, '0')} days
                     </td>
                   </tr>
                   <tr>
                     <td className="font-bold">Recreation Leave (RL)</td>
-                    <td className="text-center font-mono">15 days</td>
+                    <td className="text-center font-mono">{leaveBalances.RL.max} days</td>
                     <td className="text-center font-mono text-destructive">
-                      15 days
+                      {String(leaveBalances.RL.used).padStart(2, '0')} days
+                    </td>
+                    <td className="text-right font-mono font-bold text-success text-lg">
+                      {String(Math.max(0, leaveBalances.RL.max - leaveBalances.RL.used)).padStart(2, '0')} days
+                    </td>
+                  </tr>
+                  <tr>
+                    <td className="font-bold">Disability Leave (DL)</td>
+                    <td className="text-center font-mono">{leaveBalances.DL.max} days</td>
+                    <td className="text-center font-mono text-destructive">
+                      {String(leaveBalances.DL.used).padStart(2, '0')} days
+                    </td>
+                    <td className="text-right font-mono font-bold text-success text-lg">
+                      {String(Math.max(0, leaveBalances.DL.max - leaveBalances.DL.used)).padStart(2, '0')} days
+                    </td>
+                  </tr>
+                  <tr>
+                    <td className="font-bold">Leave Without Pay (LWOP)</td>
+                    <td className="text-center font-mono">—</td>
+                    <td className="text-center font-mono text-destructive">
+                      {String(leaveBalances.LWOP.used).padStart(2, '0')} days
                     </td>
                     <td className="text-right font-mono font-bold text-muted-foreground text-lg">
-                      00 days
+                      —
                     </td>
                   </tr>
                 </tbody>

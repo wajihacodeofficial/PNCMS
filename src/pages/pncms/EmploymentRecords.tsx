@@ -65,6 +65,10 @@ const EmploymentRecords = () => {
   const [statusFilter, setStatusFilter] = useState("All Status");
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [deleteSvc, setDeleteSvc] = useState<string | null>(null);
+  const [deleteUsername, setDeleteUsername] = useState("");
+  const [deletePassword, setDeletePassword] = useState("");
+
+  const { data: settings = {} } = useSettings();
   
   const { data: personnel = [], isLoading, error } = usePersonnel();
   
@@ -136,10 +140,16 @@ const EmploymentRecords = () => {
 
   const confirmDelete = () => {
     if (!deleteId) return;
-    deleteEmployee(deleteId, {
+    const savedUser = settings.admin_username || "PNCMS";
+    const savedPass = settings.admin_password || "14081947";
+    if (deleteUsername !== savedUser || deletePassword !== savedPass) {
+      toast.error("Invalid Admin Username or Password");
+      return;
+    }
+    deleteEmployee({ serviceNo: deleteId, username: deleteUsername, password: deletePassword }, {
       onSuccess: () => {
         createLog({
-          user: localStorage.getItem("username") || "Admin",
+          user: savedUser,
           action: "DELETE",
           entity: `Personnel: ${deleteSvc}`,
           result: "Success"
@@ -147,6 +157,8 @@ const EmploymentRecords = () => {
         toast.success(`Record ${deleteSvc} deleted successfully`);
         setDeleteId(null);
         setDeleteSvc(null);
+        setDeleteUsername("");
+        setDeletePassword("");
       }
     });
   };
@@ -484,22 +496,52 @@ const EmploymentRecords = () => {
       </Section>
       {deleteId && (
         <div className="fixed inset-0 z-[100] bg-primary/60 backdrop-blur-sm flex items-center justify-center p-8 animate-in fade-in duration-200">
-          <div className="bg-card w-full max-w-md rounded-md shadow-elevated overflow-hidden border border-destructive/20 animate-in zoom-in-95 duration-200">
-            <div className="bg-destructive/10 px-6 py-6 flex flex-col items-center text-center">
-              <div className="w-16 h-16 rounded-full bg-destructive/20 flex items-center justify-center mb-4">
-                <AlertTriangle className="w-8 h-8 text-destructive" />
+          <div className="bg-card w-full max-w-md rounded-md shadow-elevated overflow-hidden border border-border animate-in zoom-in-95 duration-200">
+            <div className="bg-destructive px-6 py-4 flex justify-between items-center text-white">
+              <div className="flex items-center gap-2 text-white">
+                <ShieldAlert className="w-5 h-5 text-white" />
+                <h3 className="text-lg font-heading font-black italic uppercase text-white">
+                  Security Verification
+                </h3>
               </div>
-              <h2 className="text-xl font-heading font-black italic uppercase text-destructive tracking-tight">Security Confirmation</h2>
-              <p className="text-sm text-foreground/70 mt-2 leading-relaxed">
-                Are you sure you want to permanently delete personnel record <span className="font-bold text-destructive">{deleteSvc}</span>?
-              </p>
-              <div className="mt-2 text-[0.6rem] font-bold uppercase tracking-widest text-destructive/60 bg-destructive/5 px-3 py-1 rounded-full border border-destructive/10">
-                This action cannot be undone
-              </div>
+              <button
+                onClick={() => { setDeleteId(null); setDeleteSvc(null); setDeleteUsername(""); setDeletePassword(""); }}
+                className="text-white"
+              >
+                <X className="w-5 h-5 text-white" />
+              </button>
             </div>
-            <div className="border-t border-border bg-muted/40 px-6 py-4 flex gap-3">
-              <Btn variant="outline" className="flex-1" onClick={() => { setDeleteId(null); setDeleteSvc(null); }}>Abort Action</Btn>
-              <Btn variant="danger" className="flex-1" onClick={confirmDelete}>
+            <div className="p-8 space-y-4">
+              <div className="text-center mb-4">
+                <p className="text-sm text-foreground/75 leading-relaxed">
+                  Are you sure you want to permanently delete personnel record <span className="font-bold text-destructive">{deleteSvc}</span>?
+                </p>
+                <div className="mt-2 text-[0.6rem] font-bold uppercase tracking-widest text-destructive bg-destructive/10 px-3 py-1 rounded-full border border-destructive/20 inline-block">
+                  This action cannot be undone
+                </div>
+              </div>
+              <Field label="Admin Username">
+                <Input
+                  placeholder="Username"
+                  value={deleteUsername}
+                  onChange={(e) => setDeleteUsername(e.target.value)}
+                />
+              </Field>
+              <Field label="System Password">
+                <Input
+                  type="password"
+                  placeholder="••••••••"
+                  value={deletePassword}
+                  onChange={(e) => setDeletePassword(e.target.value)}
+                  onKeyDown={(e) => e.key === 'Enter' && confirmDelete()}
+                />
+              </Field>
+            </div>
+            <div className="bg-muted/30 p-5 flex justify-end gap-3 border-t border-border">
+              <Btn variant="outline" onClick={() => { setDeleteId(null); setDeleteSvc(null); setDeleteUsername(""); setDeletePassword(""); }}>
+                Abort
+              </Btn>
+              <Btn variant="danger" onClick={confirmDelete}>
                 <Trash2 className="w-4 h-4 mr-2" /> Confirm Delete
               </Btn>
             </div>

@@ -159,7 +159,11 @@ export function setupHandlers() {
     return result
   })
 
-  ipcMain.handle('delete-employee', async (_, serviceNo: string) => {
+  ipcMain.handle('delete-employee', async (_, { serviceNo, username, password }: any) => {
+    const isValid = await verifyAdmin(username, password)
+    if (!isValid) {
+      throw new Error('Invalid Admin Username or Password')
+    }
     const result = await prisma.$transaction(async (tx) => {
       const deletedEmp = await tx.employee.delete({
         where: { serviceNo }
@@ -583,22 +587,19 @@ export function setupHandlers() {
 
   // Auth Handlers
   ipcMain.handle('login', async (_, { username, password }: any) => {
-    const user = await prisma.user.findUnique({
-      where: { username }
-    })
+    const savedUserSetting = await prisma.setting.findUnique({ where: { key: 'login_username' } })
+    const savedPassSetting = await prisma.setting.findUnique({ where: { key: 'login_password' } })
+    
+    const expectedUser = savedUserSetting ? savedUserSetting.value : 'Administrator'
+    const expectedPass = savedPassSetting ? savedPassSetting.value : 'pncms@2026'
 
-    if (!user) {
-      throw new Error('User not found')
-    }
-
-    const isValid = await bcrypt.compare(password, user.password)
-    if (!isValid) {
-      throw new Error('Invalid password')
+    if (username !== expectedUser || password !== expectedPass) {
+      throw new Error('Invalid username or password')
     }
 
     return {
-      username: user.username,
-      role: user.role
+      username: expectedUser,
+      role: 'Admin'
     }
   })
 

@@ -33,8 +33,7 @@ const About = () => (
               Version 1.0.0
             </span>
             <span className="px-3 py-1 bg-white/10 border border-white/20 rounded-sm text-xs uppercase tracking-wider">
-              Build 2026.06.05
-
+              Build 2026.06.04
             </span>
             <span className="px-3 py-1 bg-success/20 border border-success/40 rounded-sm text-xs uppercase tracking-wider">
               Production · Restricted
@@ -50,7 +49,7 @@ const About = () => (
           {[
             ['Application', 'PNCMS'],
             ['Version', '1.0.0 (Stable)'],
-            ['Released', '05 June 2026'],
+            ['Released', '04 June 2026'],
             ['Database Engine', 'PostgreSQL 16 (Encrypted)'],
             ['Runtime', 'Electron · React 18'],
             ['License', 'Pakistan Navy Internal Use Only'],

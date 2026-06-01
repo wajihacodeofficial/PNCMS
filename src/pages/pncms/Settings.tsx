@@ -34,6 +34,8 @@ const Settings = () => {
   const [secAnswer, setSecAnswer] = useState('');
   const [adminUser, setAdminUser] = useState('');
   const [adminPass, setAdminPass] = useState('');
+  const [loginUser, setLoginUser] = useState('');
+  const [loginPass, setLoginPass] = useState('');
   const [minRate, setMinRate] = useState('380');
   const [indRate, setIndRate] = useState('420');
 
@@ -44,12 +46,15 @@ const Settings = () => {
       setSecAnswer(settings.sec_answer || '14081947');
       setAdminUser(settings.admin_username || 'PNCMS');
       setAdminPass(settings.admin_password || '14081947');
+      setLoginUser(settings.login_username || 'Administrator');
+      setLoginPass(settings.login_password || 'pncms@2026');
       setMinRate(settings.rate_ministerial || '380');
       setIndRate(settings.rate_industrial || '420');
     }
   }, [settings]);
 
   const [showAdminPass, setShowAdminPass] = useState(false);
+  const [showLoginPass, setShowLoginPass] = useState(false);
   const [showSecAnswer, setShowSecAnswer] = useState(false);
 
   const handleSave = async () => {
@@ -59,6 +64,8 @@ const Settings = () => {
       sec_answer: secAnswer,
       admin_username: adminUser,
       admin_password: adminPass,
+      login_username: loginUser,
+      login_password: loginPass,
       rate_ministerial: minRate,
       rate_industrial: indRate,
     };
@@ -149,7 +156,41 @@ const Settings = () => {
 
           <Section title="Access Control & Security">
             <div className="grid grid-cols-2 gap-6">
-              <Field label="Admin Username" required>
+              <Field label="Login Username (Application Login)" required>
+                <div className="relative">
+                  <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                  <Input
+                    value={loginUser}
+                    onChange={(e) => setLoginUser(e.target.value)}
+                    className="pl-10 w-full font-mono font-bold"
+                  />
+                </div>
+              </Field>
+
+              <Field label="Login Password (Application Login)" required>
+                <div className="relative">
+                  <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                  <Input
+                    type={showLoginPass ? 'text' : 'password'}
+                    value={loginPass}
+                    onChange={(e) => setLoginPass(e.target.value)}
+                    className="pl-10 pr-10 w-full font-mono"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowLoginPass(!showLoginPass)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-primary"
+                  >
+                    {showLoginPass ? (
+                      <EyeOff className="w-4 h-4" />
+                    ) : (
+                      <Eye className="w-4 h-4" />
+                    )}
+                  </button>
+                </div>
+              </Field>
+
+              <Field label="Admin Username (Action Override)" required>
                 <div className="relative">
                   <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                   <Input
@@ -160,7 +201,7 @@ const Settings = () => {
                 </div>
               </Field>
 
-              <Field label="Admin Password" required>
+              <Field label="Admin Password (Action Override)" required>
                 <div className="relative">
                   <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                   <Input

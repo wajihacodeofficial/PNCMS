@@ -54,7 +54,7 @@ const LeaveEntry = () => {
     
     const getUsedDays = (type: string) => {
       return leavesList
-        .filter((l: any) => l.status === 'Approved' && l.type === type && new Date(l.startDate).getFullYear() === currentYear)
+        .filter((l: any) => l.status !== 'Rejected' && l.type === type && new Date(l.startDate).getFullYear() === currentYear)
         .reduce((sum: number, l: any) => sum + l.days, 0);
     };
 
