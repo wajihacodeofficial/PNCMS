@@ -30,7 +30,6 @@ const groups: { heading: string; items: { to: string; label: string; icon: React
   ]},
   { heading: "System Controls", items: [
       { to: "/reports", label: "Reports Hub", icon: FileBarChart2 },
-      { to: "/backup", label: "Backup & Restore", icon: DatabaseBackup },
     { to: "/about", label: "About", icon: Info },
     { to: "/settings", label: "System Settings", icon: Settings },
   ]},

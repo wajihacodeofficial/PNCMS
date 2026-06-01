@@ -187,32 +187,48 @@ export function setupHandlers() {
   })
 
   ipcMain.handle('create-sanction', async (_, data: any) => {
-    const { employeeId, svc, timeline, ...rest } = data;
-    const targetSvc = svc || employeeId; 
-    
-    // Initial timeline entry if none provided
-    const initialTimeline = timeline || JSON.stringify([
-      { event: "Application Started", time: new Date().toISOString(), user: "System" }
-    ]);
+    try {
+      const { employeeId, svc, timeline, ...rest } = data;
+      const targetSvc = svc || employeeId;
 
-    const result = await prisma.sanction.create({ 
-      data: {
-        ...rest,
-        timeline: initialTimeline,
-        employee: { connect: { serviceNo: targetSvc } }
-      }
-    })
-    notifyChange('sanctions')
-    return result
+      if (!targetSvc) throw new Error('Service number is required');
+
+      // Verify employee exists before attempting to connect
+      const employee = await prisma.employee.findUnique({ where: { serviceNo: targetSvc } });
+      if (!employee) throw new Error(`No employee found with service number "${targetSvc}"`);
+
+      const initialTimeline = timeline || JSON.stringify([
+        { event: 'Sanction Initiated', time: new Date().toISOString(), user: 'Admin Clerk' }
+      ]);
+
+      const result = await prisma.sanction.create({
+        data: {
+          ...rest,
+          timeline: initialTimeline,
+          employee: { connect: { serviceNo: targetSvc } }
+        }
+      });
+      notifyChange('sanctions');
+      return result;
+    } catch (err: any) {
+      console.error('[IPC] create-sanction error:', err);
+      throw new Error(err?.message || 'Failed to create sanction');
+    }
   })
 
   ipcMain.handle('update-sanction', async (_, { id, ...data }: any) => {
-    const result = await prisma.sanction.update({
-      where: { id },
-      data
-    })
-    notifyChange('sanctions')
-    return result
+    try {
+      if (!id) throw new Error('Sanction ID is required for update');
+      const result = await prisma.sanction.update({
+        where: { id },
+        data
+      });
+      notifyChange('sanctions');
+      return result;
+    } catch (err: any) {
+      console.error('[IPC] update-sanction error:', err);
+      throw new Error(err?.message || 'Failed to update sanction');
+    }
   })
 
   // Disciplinary Handlers

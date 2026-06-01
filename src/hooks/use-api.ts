@@ -37,7 +37,7 @@ export function useCreateSanction() {
 export function useUpdateSanction() {
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: (data: any) => api.createSanction(data), // Using create as upsert if ID present
+    mutationFn: (data: any) => api.updateSanction(data), // Fixed: was incorrectly calling createSanction
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['sanctions'] })
     },
