@@ -17,7 +17,6 @@ import EmploymentRecordForm from "./pages/pncms/EmploymentRecordForm";
 import EmploymentRecordProfile from "./pages/pncms/EmploymentRecordProfile";
 import SanctionEntry from "./pages/pncms/SanctionEntry";
 import ReportPreview from "./pages/pncms/ReportPreview";
-import Backup from "./pages/pncms/Backup";
 
 import Help from "./pages/pncms/Help";
 import About from "./pages/pncms/About";
@@ -49,7 +48,7 @@ const App = () => (
           <Route path="/employment-records/new" element={<EmploymentRecordForm />} />
           <Route path="/employment-records/edit/:id" element={<EmploymentRecordForm />} />
           <Route path="/employment-records/:id" element={<EmploymentRecordProfile />} />
-          <Route path="/overtime" element={<OvertimeSystem />} />
+          <Route path="/allowance/:cadreId" element={<OvertimeSystem />} />
           <Route path="/sanctions/new" element={<SanctionEntry />} />
           <Route path="/leave" element={<LeaveDashboard />} />
           <Route path="/leave/new" element={<LeaveEntry />} />
@@ -62,7 +61,6 @@ const App = () => (
           <Route path="/settings/ranks" element={<Ranks />} />
           <Route path="/discipline" element={<Discipline />} />
           <Route path="/payments" element={<Payments />} />
-          <Route path="/backup" element={<Backup />} />
 
           <Route path="/help" element={<Help />} />
           <Route path="/about" element={<About />} />

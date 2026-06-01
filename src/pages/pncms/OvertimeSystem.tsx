@@ -1,4 +1,5 @@
 import { useState, useMemo, useEffect } from 'react';
+import { useParams, useNavigate } from 'react-router-dom';
 import { AppShell, PageHeader, useCadre } from '@/components/pncms/AppShell';
 import {
   Btn,
@@ -14,7 +15,7 @@ import {
   Printer, 
   ScrollText, ShieldCheck,
   Building2, HardHat, ArrowLeft,
-  ShieldX, Unlock, FileSpreadsheet, FileDown
+  ShieldX, Unlock, FileSpreadsheet, FileDown, Receipt
 } from 'lucide-react';
 import * as Tabs from "@radix-ui/react-tabs";
 import { toast } from 'sonner';
@@ -29,9 +30,12 @@ const OvertimeSystem = () => {
   const { mutate: updateSanction } = useUpdateSanction();
   const { mutate: createLog } = useCreateLog();
 
-  const { cadre, setCadre } = useCadre();
-  const [selectedCadre, setSelectedCadre] = useState<'Ministerial' | 'Industrial' | null>(null);
-  const [activeTab, setActiveTab] = useState("sanctions");
+  const { cadreId } = useParams();
+  const navigate = useNavigate();
+  const selectedCadre = cadreId === 'industrial' ? 'Industrial' : 'Ministerial';
+  const typeLabel = selectedCadre === 'Ministerial' ? 'Late-Sitting' : 'Overtime';
+
+  const [activeTab, setActiveTab] = useState<string | null>(null);
   const [isAddingSanction, setIsAddingSanction] = useState(false);
   
   const [clerkName, setClerkName] = useState("Wajiha Zehra");
@@ -55,10 +59,10 @@ const OvertimeSystem = () => {
   const [unlockUsername, setUnlockUsername] = useState("");
   const [secretPassword, setSecretPassword] = useState("");
 
-  const handleCadreSelect = (c: 'Ministerial' | 'Industrial') => {
-    setSelectedCadre(c);
-    setCadre(c);
-  };
+  useEffect(() => {
+    // Reset active tab when cadre changes via sidebar
+    setActiveTab(null);
+  }, [selectedCadre]);
 
   const handleSubmitSanction = () => {
     if (!formSvc || !formHours) {
@@ -74,17 +78,24 @@ const OvertimeSystem = () => {
     const rankName = emp.rank?.name || '';
     setFormRank(rankName);
 
-    createSanction({
+    const payload: any = {
       svc: formSvc,
-      hours: parseInt(formHours), // legacy field, keep for compatibility
+      sanctionId: `SN-${Date.now()}`,
+      hours: parseInt(formHours),
       limit: parseInt(formHours),
       rank: rankName,
-      dateInitiated: formDateInitiated ? new Date(formDateInitiated).toISOString() : undefined,
-      action: formAction,
+      action: formAction || typeLabel,
       period: "May 2026",
       status: "Pending",
-      cadre: selectedCadre,
-    }, {
+      date: new Date().toISOString().split('T')[0],
+    };
+
+    // Only include dateInitiated if the user actually set it
+    if (formDateInitiated) {
+      payload.dateInitiated = new Date(formDateInitiated).toISOString();
+    }
+
+    createSanction(payload, {
       onSuccess: () => {
         createLog({
           user: localStorage.getItem("username") || "Admin",
@@ -96,18 +107,34 @@ const OvertimeSystem = () => {
         setIsAddingSanction(false);
         setFormSvc("");
         setFormHours("");
+        setFormRank("");
+        setFormDateInitiated("");
+        setFormAction("");
+      },
+      onError: (err: any) => {
+        console.error("Create sanction error:", err);
+        toast.error(err?.message || "Failed to submit sanction request");
       }
     });
   };
 
   const updateSanctionStatus = (id: string, status: string) => {
     const current = (allSanctions as any[]).find((s: any) => s.id === id);
-    if (current && (current.status === 'Approved' || current.status === 'Rejected') && status !== current.status) {
+    if (current && (current.status === 'Approved' || current.status === 'Rejected') && status !== current.status && status !== 'Paid') {
       setUnlockModal({ id, targetStatus: status });
       return;
     }
     
-    updateSanction({ id, status }, {
+    let updatedTimelineStr = current?.timeline;
+    if (status === 'Paid' && current) {
+      const timeline = JSON.parse(current.timeline || '[]');
+      updatedTimelineStr = JSON.stringify([
+        ...timeline,
+        { event: 'Payment Disbursed', time: new Date().toISOString(), user: localStorage.getItem("username") || 'Admin Clerk' }
+      ]);
+    }
+    
+    updateSanction({ id, status, ...(updatedTimelineStr ? { timeline: updatedTimelineStr } : {}) }, {
       onSuccess: () => {
         createLog({
           user: localStorage.getItem("username") || "Admin",
@@ -115,7 +142,7 @@ const OvertimeSystem = () => {
           entity: `Sanction ${id} set to ${status}`,
           result: "Success"
         });
-        toast.success(`Sanction marked as ${status}`);
+        toast.success(status === 'Paid' ? `Payment successfully recorded` : `Sanction marked as ${status}`);
       }
     });
   };
@@ -144,8 +171,7 @@ const OvertimeSystem = () => {
     }
   };
 
-  const typeLabel = selectedCadre === 'Ministerial' ? 'Late-Sitting' : 'Overtime';
-  const hourlyRate = selectedCadre ? rates[selectedCadre] : 0;
+  const hourlyRate = rates[selectedCadre];
   
   const filteredSanctions = useMemo(() => {
     return (allSanctions as any[]).filter(s => {
@@ -156,37 +182,37 @@ const OvertimeSystem = () => {
   }, [allSanctions, selectedCadre]);
 
   const approvedSanctions = useMemo(() => filteredSanctions.filter(s => s.status === 'Approved'), [filteredSanctions]);
+  const paymentSanctions = useMemo(() => filteredSanctions.filter(s => s.status === 'Approved' || s.status === 'Paid'), [filteredSanctions]);
 
-  // Roster Logic – use approved limit (allowance) hours instead of generic hours
+  // Roster Logic – use approved limit (allowance) hours for payable
   const rosterData = useMemo(() => {
-    return approvedSanctions.map((s: any) => {
+    return paymentSanctions.map((s: any) => {
       const limitHours = s.limit ?? s.hours;
-      const gross = Math.floor(Math.random() * (limitHours - 10)) + 10; // Random mock performance
-      const leave = Math.floor(Math.random() * 5);
-      const payable = gross - leave;
+      const payable = limitHours;
       return {
         ...s,
-        gross, leave, payable,
+        payable,
         amount: payable * hourlyRate,
       };
     });
-  }, [approvedSanctions, hourlyRate]);
+  }, [paymentSanctions, hourlyRate]);
 
   const totalDisbursement = rosterData.reduce((sum, item) => sum + item.amount, 0);
 
-  if (!selectedCadre) {
+  if (!activeTab) {
     return (
       <AppShell>
-        <PageHeader title="Allowance Control Center" subtitle="Authorization & Disbursement Management Hub" />
+        <PageHeader title={`${typeLabel} Control System`} subtitle={`${selectedCadre} Cadre · Authorization & Disbursement`} />
         {(isSanctionsLoading || isPersonnelLoading) ? (
           <div className="flex flex-col items-center justify-center py-20 gap-4">
              <div className="w-10 h-10 border-4 border-accent border-t-transparent rounded-full animate-spin" />
              <p className="label-mil">Synchronizing Allowance Database...</p>
           </div>
         ) : (
-          <div className="flex items-center justify-center gap-10 py-20">
-            <CadreCard type="Ministerial" icon={<Building2 className="w-10 h-10" />} label="Late-Sitting" rate={rates.Ministerial} onClick={() => handleCadreSelect('Ministerial')} />
-            <CadreCard type="Industrial" icon={<HardHat className="w-10 h-10" />} label="Overtime" rate={rates.Industrial} onClick={() => handleCadreSelect('Industrial')} />
+          <div className="flex items-center justify-center gap-10 py-20 flex-wrap">
+            <ActionCard title="Sanction Request Initiation" icon={<Plus className="w-10 h-10" />} onClick={() => setActiveTab('sanctions')} />
+            <ActionCard title="Approved Sanctions" icon={<ShieldCheck className="w-10 h-10" />} onClick={() => setActiveTab('approved')} />
+            <ActionCard title="Payments" icon={<Receipt className="w-10 h-10" />} onClick={() => setActiveTab('roster')} />
           </div>
         )}
       </AppShell>
@@ -196,17 +222,11 @@ const OvertimeSystem = () => {
   return (
     <AppShell>
       <div className="flex items-center gap-4 mb-6">
-        <button onClick={() => setSelectedCadre(null)} className="w-10 h-10 rounded-full bg-muted/50 flex items-center justify-center hover:bg-primary hover:text-white transition-all shadow-sm"><ArrowLeft className="w-5 h-5" /></button>
-        <PageHeader title={`${typeLabel} Control System`} subtitle={`${selectedCadre} Cadre · Fixed Rate: Rs. ${hourlyRate}/hr`} />
+        <button onClick={() => setActiveTab(null)} className="w-10 h-10 rounded-full bg-muted/50 flex items-center justify-center hover:bg-primary hover:text-white transition-all shadow-sm"><ArrowLeft className="w-5 h-5" /></button>
+        <PageHeader title={`${activeTab === 'sanctions' ? 'Sanction Applications' : activeTab === 'approved' ? 'Approved Sanctions' : 'Payment Disbursals'}`} subtitle={`${selectedCadre} Cadre · Fixed Rate: Rs. ${hourlyRate}/hr`} />
       </div>
 
       <Tabs.Root value={activeTab} onValueChange={setActiveTab}>
-        <Tabs.List className="flex gap-2 mb-8 border-b border-border pb-px">
-          <Tabs.Trigger value="sanctions" className="tab-trigger">Month 1: Sanctions</Tabs.Trigger>
-          <Tabs.Trigger value="approved" className="tab-trigger">Approved Letters</Tabs.Trigger>
-          <Tabs.Trigger value="roster" className="tab-trigger">Month 2: Roster</Tabs.Trigger>
-        </Tabs.List>
-
         <Tabs.Content value="sanctions" className="animate-in fade-in duration-300">
           <Section title="Sanction Register" actions={<div className="flex gap-2"><Btn variant="gold" className="h-9" onClick={() => setIsAddingSanction(true)}><Plus className="w-4 h-4" /> New Request</Btn></div>}>
             <div className="overflow-x-auto -m-5">
@@ -272,15 +292,22 @@ const OvertimeSystem = () => {
           <Section title="Final Disbursement Roster" actions={<div className="flex gap-2"><Btn variant="primary" className="h-9 shadow-sm" onClick={() => toast.info("PDF Generation enabled for production")}><Printer className="w-4 h-4 mr-2"/> Export Bill</Btn></div>}>
              <div className="overflow-x-auto -m-5">
               <table className="data-table">
-                <thead><tr><th>Personnel</th><th>Sanctioned</th><th>Actual</th><th>Payable</th><th className="text-right">Net Amount</th></tr></thead>
+                <thead><tr><th>Personnel</th><th>Sanctioned</th><th>Payable</th><th>Status</th><th className="text-right">Net Amount</th><th className="text-right">Action</th></tr></thead>
                 <tbody>
                   {rosterData.map((r: any) => (
                     <tr key={r.id}>
                       <td><div className="font-bold">{r.employee?.name}</div><div className="text-[0.6rem] opacity-50 uppercase">{r.employee?.serviceNo} · {r.employee?.department?.name}</div></td>
-                      <td className="font-mono text-xs">{r.hours}h</td>
-                      <td className="font-mono text-xs font-bold">{r.gross}h</td>
+                      <td className="font-mono text-xs">{r.limit ?? r.hours}h</td>
                       <td className="font-mono font-black text-primary">{r.payable}h</td>
+                      <td><Badge variant={r.status === 'Paid' ? 'success' : 'warning' as any}>{r.status === 'Paid' ? 'Paid' : 'Pending Payment'}</Badge></td>
                       <td className="text-right font-mono font-bold text-accent">Rs. {r.amount.toLocaleString()}</td>
+                      <td className="text-right">
+                        {r.status !== 'Paid' && (
+                          <button onClick={() => updateSanctionStatus(r.id, 'Paid')} className="p-1.5 rounded-sm bg-success/10 text-success hover:bg-success hover:text-white transition-all shadow-sm" title="Mark as Paid">
+                            <Check className="w-4 h-4" />
+                          </button>
+                        )}
+                      </td>
                     </tr>
                   ))}
                 </tbody>
@@ -310,7 +337,7 @@ const OvertimeSystem = () => {
                   />
                 </Field>
                  <Field label="Rank" required>
-                   <Input value={formRank} disabled className="bg-muted/50" />
+                   <Input value={personnel.find((p: any) => p.serviceNo === formSvc)?.rank?.name || 'Not found'} disabled className="bg-muted/50" />
                  </Field>
                  <Field label="Date Initiated" required>
                    <Input type="date" value={formDateInitiated} onChange={(e) => setFormDateInitiated(e.target.value)} />
@@ -346,13 +373,11 @@ const OvertimeSystem = () => {
   );
 };
 
-const CadreCard = ({ type, icon, label, rate, onClick }: { type: string; icon: React.ReactNode; label: string; rate: number; onClick: () => void }) => (
+const ActionCard = ({ title, icon, onClick }: { title: string; icon: React.ReactNode; onClick: () => void }) => (
   <button onClick={onClick} className="group relative w-80 p-10 bg-card border border-border rounded-sm shadow-sm hover:shadow-elevated hover:border-primary transition-all duration-300 text-center flex flex-col items-center">
     <div className="w-20 h-20 rounded-full bg-primary/5 text-primary flex items-center justify-center mb-6 group-hover:bg-primary group-hover:text-white transition-colors">{icon}</div>
-    <h3 className="text-2xl font-heading font-black italic uppercase text-primary tracking-tight mb-2">{type}</h3>
-    <p className="text-xs text-muted-foreground uppercase font-bold tracking-widest mb-4">{label} Management</p>
-    <div className="gold-rule mb-4" />
-    <Badge variant="neutral">Fixed Rate: Rs. {rate}/hr</Badge>
+    <h3 className="text-xl font-heading font-black italic uppercase text-primary tracking-tight mb-4">{title}</h3>
+    <div className="gold-rule mt-auto" />
   </button>
 );
 

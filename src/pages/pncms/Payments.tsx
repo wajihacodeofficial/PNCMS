@@ -39,33 +39,25 @@ const Payments = () => {
   const currentRoster = useMemo(() => {
     if (!selectedCadre) return [];
     return (sanctions as any[])
-      .filter(s => s.employee?.cardType === selectedCadre && s.status === 'Approved')
+      .filter(s => s.employee?.cardType === selectedCadre && (s.status === 'Approved' || s.status === 'Paid'))
       .map(s => {
-        const empAttendance = (attendance as any[]).filter(a => a.serviceNo === s.serviceNo);
-        const presentDays   = empAttendance.filter(a => ['P', 'L'].includes(a.status)).length;
-        const totalDays     = 22;
-        const maxHours      = s.hours || 0;
-        const payable       = maxHours * Math.min(1, presentDays / totalDays);
+        const maxHours      = s.limit ?? s.hours ?? 0;
+        const payable       = maxHours;
         const rate          = rates[selectedCadre];
         return {
           ...s,
           name: s.employee?.name || 'Unknown',
           dept: s.employee?.department?.name || '—',
           gross: maxHours,
-          leave: totalDays - presentDays,
+          leave: 0,
           payable,
           rate,
           amount: Math.round(payable * rate),
-          currentStatus: 'Payment Pending',
-          daily: empAttendance.map(a => ({
-            date: a.date,
-            status: a.status,
-            extraHrs: maxHours / totalDays,
-            isExcluded: !['P', 'L'].includes(a.status),
-          })),
+          currentStatus: s.status === 'Paid' ? 'Paid' : 'Payment Pending',
+          daily: [], // Removing complex attendance-based daily exclusion for payments since it relies solely on sanctioned hours
         };
       });
-  }, [selectedCadre, rates, sanctions, attendance]);
+  }, [selectedCadre, rates, sanctions]);
 
   const totalAmount = currentRoster.reduce((acc, r) => acc + r.amount, 0);
 
@@ -165,7 +157,7 @@ const Payments = () => {
                   <td className="font-mono font-black text-primary">{r.payable.toFixed(1)}h</td>
                   <td className="font-mono text-xs text-muted-foreground">Rs. {r.rate}</td>
                   <td className="font-mono font-black text-accent">Rs. {r.amount.toLocaleString()}</td>
-                  <td><Badge variant="warning">{r.currentStatus}</Badge></td>
+                  <td><Badge variant={r.currentStatus === 'Paid' ? 'success' : 'warning' as any}>{r.currentStatus}</Badge></td>
                   <td className="text-xs font-mono">{startOfMonth}</td>
                   <td className="text-xs font-mono">{endOfMonth}</td>
                   <td className="text-right">

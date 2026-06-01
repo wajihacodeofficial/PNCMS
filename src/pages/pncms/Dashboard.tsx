@@ -126,7 +126,7 @@ const Dashboard = () => {
           sub="Active Overtime"
           icon={<ClipboardList className="w-5 h-5" />}
           accent="info"
-          onClick={() => navigate('/overtime')}
+          onClick={() => navigate('/allowance/ministerial')}
         />
       </div>
 
@@ -237,7 +237,7 @@ const Dashboard = () => {
               <Btn
                 variant="outline"
                 className="w-full justify-start h-12 border-accent/20 hover:border-accent/50"
-                onClick={() => navigate('/overtime')}
+                onClick={() => navigate('/allowance/ministerial')}
               >
                 <Wallet className="w-5 h-5 mr-3 text-accent" />
                 <div className="text-left">

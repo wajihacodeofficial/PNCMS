@@ -32,8 +32,8 @@ const Settings = () => {
   const [clerkName, setClerkName] = useState('');
   const [secQuestion, setSecQuestion] = useState('');
   const [secAnswer, setSecAnswer] = useState('');
+  const [adminUser, setAdminUser] = useState('');
   const [adminPass, setAdminPass] = useState('');
-  const [secretPass, setSecretPass] = useState('');
   const [minRate, setMinRate] = useState('380');
   const [indRate, setIndRate] = useState('420');
 
@@ -42,15 +42,14 @@ const Settings = () => {
       setClerkName(settings.clerk_name || 'Wajiha Zehra');
       setSecQuestion(settings.sec_question || 'What is the secret code?');
       setSecAnswer(settings.sec_answer || '14081947');
-      setAdminPass(settings.admin_password || 'pncms@2026');
-      setSecretPass(settings.secret_password || '998877');
+      setAdminUser(settings.admin_username || 'PNCMS');
+      setAdminPass(settings.admin_password || '14081947');
       setMinRate(settings.rate_ministerial || '380');
       setIndRate(settings.rate_industrial || '420');
     }
   }, [settings]);
 
   const [showAdminPass, setShowAdminPass] = useState(false);
-  const [showSecretPass, setShowSecretPass] = useState(false);
   const [showSecAnswer, setShowSecAnswer] = useState(false);
 
   const handleSave = async () => {
@@ -58,8 +57,8 @@ const Settings = () => {
       clerk_name: clerkName,
       sec_question: secQuestion,
       sec_answer: secAnswer,
+      admin_username: adminUser,
       admin_password: adminPass,
-      secret_password: secretPass,
       rate_ministerial: minRate,
       rate_industrial: indRate,
     };
@@ -150,7 +149,18 @@ const Settings = () => {
 
           <Section title="Access Control & Security">
             <div className="grid grid-cols-2 gap-6">
-              <Field label="Password" required>
+              <Field label="Admin Username" required>
+                <div className="relative">
+                  <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                  <Input
+                    value={adminUser}
+                    onChange={(e) => setAdminUser(e.target.value)}
+                    className="pl-10 w-full font-mono font-bold"
+                  />
+                </div>
+              </Field>
+
+              <Field label="Admin Password" required>
                 <div className="relative">
                   <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                   <Input
@@ -165,29 +175,6 @@ const Settings = () => {
                     className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-primary"
                   >
                     {showAdminPass ? (
-                      <EyeOff className="w-4 h-4" />
-                    ) : (
-                      <Eye className="w-4 h-4" />
-                    )}
-                  </button>
-                </div>
-              </Field>
-
-              <Field label="Override Secret Password" required>
-                <div className="relative">
-                  <Shield className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-accent" />
-                  <Input
-                    type={showSecretPass ? 'text' : 'password'}
-                    value={secretPass}
-                    onChange={(e) => setSecretPass(e.target.value)}
-                    className="pl-10 pr-10 w-full font-mono border-accent/30"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowSecretPass(!showSecretPass)}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-primary"
-                  >
-                    {showSecretPass ? (
                       <EyeOff className="w-4 h-4" />
                     ) : (
                       <Eye className="w-4 h-4" />

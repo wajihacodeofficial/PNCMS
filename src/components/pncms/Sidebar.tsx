@@ -4,7 +4,7 @@ import {
   LayoutDashboard, Users, FileWarning, ClipboardList, Wallet,
   CalendarDays, CheckSquare, FileBarChart2, Settings, LogOut,
   DatabaseBackup, ShieldAlert, Building2, ShieldCheck, Gavel,
-  History, FileSignature, Receipt, Info
+  History, FileSignature, Receipt, Info, HardHat
 } from "lucide-react";
 import crest from "@/assets/navy-crest.png";
 
@@ -21,8 +21,8 @@ const groups: { heading: string; items: { to: string; label: string; icon: React
     { to: "/leave", label: "Leave Accounts", icon: CalendarDays },
   ]},
   { heading: "Allowance Control", items: [
-    { to: "/overtime", label: "Sanction", icon: FileSignature },
-    { to: "/payments", label: "Payments", icon: Receipt },
+    { to: "/allowance/ministerial", label: "Ministerial (Late-Sitting)", icon: Building2 },
+    { to: "/allowance/industrial", label: "Industrial (Overtime)", icon: HardHat },
   ]},
   { heading: "Establishment", items: [
     { to: "/settings/departments", label: "Departments", icon: Building2 },
