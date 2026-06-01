@@ -50,7 +50,7 @@ const About = () => (
           {[
             ['Application', 'PNCMS'],
             ['Version', '1.0.0 (Stable)'],
-            ['Released', '15 May 2026'],
+            ['Released', '05 June 2026'],
             ['Database Engine', 'PostgreSQL 16 (Encrypted)'],
             ['Runtime', 'Electron · React 18'],
             ['License', 'Pakistan Navy Internal Use Only'],
@@ -81,7 +81,7 @@ const About = () => (
           </div>
           <dl className="text-sm space-y-2.5">
             {[
-              ['Project Code', 'CVS--2026-001'],
+              ['Project Code', 'CVS--2026-002'],
               ['Helpdesk', '+92-3177-760505'],
               ['Email', 'contact@codevertex.solutions'],
               ['Website', 'www.codevertex.solutions'],

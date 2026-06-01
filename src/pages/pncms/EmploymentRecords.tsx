@@ -13,7 +13,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import ExcelJS from 'exceljs';
-import { useUpsertEmployee, useCreateLog, useDeleteEmployee } from "@/hooks/use-api";
+import { useUpsertEmployee, useCreateLog, useDeleteEmployee, useSettings } from "@/hooks/use-api";
 
 // Memoized Table Row for performance
 const RecordRow = React.memo(({ p, onNavigate, onDelete }: { p: any; onNavigate: (path: string) => void; onDelete: (id: string, svc: string) => void }) => (
