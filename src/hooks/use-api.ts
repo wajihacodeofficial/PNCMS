@@ -77,6 +77,16 @@ export function useCreateLeave() {
     },
   })
 }
+export function useDeleteLeave() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: api.deleteLeave,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['leaves'] })
+      queryClient.invalidateQueries({ queryKey: ['attendance'] })
+    },
+  })
+}
 
 export function usePayments() {
   return useQuery({

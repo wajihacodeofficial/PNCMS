@@ -180,9 +180,11 @@ export function setupHandlers() {
         employee: {
           include: {
             department: true,
+            rank: true,
           }
         }
-      }
+      },
+      orderBy: { createdAt: 'desc' }
     })
   })
 
@@ -317,6 +319,35 @@ export function setupHandlers() {
     return result
   })
 
+  ipcMain.handle('delete-leave', async (_, id: string) => {
+    const leave = await prisma.leaveRecord.findUnique({ where: { id } })
+    if (leave) {
+      const start = new Date(leave.startDate + 'T00:00:00Z')
+      const end = new Date(leave.endDate + 'T00:00:00Z')
+      
+      const dates: string[] = []
+      let current = new Date(start)
+      while (current <= end) {
+        dates.push(current.toISOString().split('T')[0])
+        current.setDate(current.getDate() + 1)
+      }
+      
+      await prisma.attendance.deleteMany({
+        where: {
+          serviceNo: leave.serviceNo,
+          date: { in: dates },
+          status: leave.type
+        }
+      })
+    }
+    const result = await prisma.leaveRecord.delete({
+      where: { id }
+    })
+    notifyChange('leaves')
+    notifyChange('attendance')
+    return result
+  })
+
   // Payment Handlers
   ipcMain.handle('get-payments', async () => {
     return await prisma.payment.findMany({
@@ -393,10 +424,18 @@ export function setupHandlers() {
     return result
   })
 
-  ipcMain.handle('unlock-muster', async (_, { date, password }: any) => {
-    const secret = await prisma.setting.findUnique({ where: { key: 'secret_password' } })
-    if (secret && secret.value !== password) {
-      throw new Error('Invalid secret password')
+  async function verifyAdmin(username?: string, password?: string) {
+    const savedUser = await prisma.setting.findUnique({ where: { key: 'admin_username' } })
+    const savedPass = await prisma.setting.findUnique({ where: { key: 'admin_password' } })
+    const expectedUser = savedUser ? savedUser.value : 'PNCMS'
+    const expectedPass = savedPass ? savedPass.value : '14081947'
+    return username === expectedUser && password === expectedPass
+  }
+
+  ipcMain.handle('unlock-muster', async (_, { date, username, password }: any) => {
+    const isValid = await verifyAdmin(username, password)
+    if (!isValid) {
+      throw new Error('Invalid Admin Username or Password')
     }
     const result = await prisma.musterLock.delete({
       where: { date }
@@ -405,10 +444,10 @@ export function setupHandlers() {
     return result
   })
 
-  ipcMain.handle('delete-muster', async (_, { date, password }: any) => {
-    const secret = await prisma.setting.findUnique({ where: { key: 'secret_password' } })
-    if (secret && secret.value !== password) {
-      throw new Error('Invalid secret password')
+  ipcMain.handle('delete-muster', async (_, { date, username, password }: any) => {
+    const isValid = await verifyAdmin(username, password)
+    if (!isValid) {
+      throw new Error('Invalid Admin Username or Password')
     }
     
     // Use transaction to ensure both or neither are deleted
@@ -421,12 +460,12 @@ export function setupHandlers() {
     return result
   })
 
-  ipcMain.handle('batch-update-attendance', async (_, { date, updates, overridePassword }: any) => {
+  ipcMain.handle('batch-update-attendance', async (_, { date, updates, username, password }: any) => {
     const lock = await prisma.musterLock.findUnique({ where: { date } })
     if (lock) {
-      const secret = await prisma.setting.findUnique({ where: { key: 'secret_password' } })
-      if (!overridePassword || (secret && secret.value !== overridePassword)) {
-        throw new Error('This muster is locked. Secret password required for updates.')
+      const isValid = await verifyAdmin(username, password)
+      if (!isValid) {
+        throw new Error('This muster is locked. Invalid Admin credentials.')
       }
     }
 
@@ -443,13 +482,13 @@ export function setupHandlers() {
     return result
   })
 
-  ipcMain.handle('update-attendance', async (_, { date, employeeId, svc, status, overridePassword }: any) => {
+  ipcMain.handle('update-attendance', async (_, { date, employeeId, svc, status, username, password }: any) => {
     const targetSvc = svc || employeeId;
     const lock = await prisma.musterLock.findUnique({ where: { date } })
     if (lock) {
-      const secret = await prisma.setting.findUnique({ where: { key: 'secret_password' } })
-      if (!overridePassword || (secret && secret.value !== overridePassword)) {
-        throw new Error('This muster is locked. Secret password required for updates.')
+      const isValid = await verifyAdmin(username, password)
+      if (!isValid) {
+        throw new Error('This muster is locked. Invalid Admin credentials.')
       }
     }
 

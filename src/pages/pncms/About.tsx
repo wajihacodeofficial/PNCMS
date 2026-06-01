@@ -33,7 +33,8 @@ const About = () => (
               Version 1.0.0
             </span>
             <span className="px-3 py-1 bg-white/10 border border-white/20 rounded-sm text-xs uppercase tracking-wider">
-              Build 2026.04.28
+              Build 2026.06.05
+
             </span>
             <span className="px-3 py-1 bg-success/20 border border-success/40 rounded-sm text-xs uppercase tracking-wider">
               Production · Restricted

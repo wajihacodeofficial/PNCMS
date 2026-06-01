@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { AppShell, PageHeader } from "@/components/pncms/AppShell";
 import { Btn, Field, Select } from "@/components/pncms/ui-kit";
 import { FileText, Users, Wallet, ClipboardList, CalendarDays, BarChart3, ShieldCheck, FileSpreadsheet, Eye, Printer, Download } from "lucide-react";
-import { usePersonnel, useSanctions, useAttendanceRange, useLogs, useSettings } from "@/hooks/use-api";
+import { usePersonnel, useSanctions, useAttendanceRange, useLogs, useSettings, useLeaves } from "@/hooks/use-api";
 import { exportToPDF, exportToExcel } from "@/lib/export";
 import { toast } from "sonner";
 import { format, startOfMonth, endOfMonth, parse } from 'date-fns';
@@ -22,6 +22,7 @@ const Reports = () => {
   
   const { data: personnel = [] } = usePersonnel();
   const { data: sanctions = [] } = useSanctions();
+  const { data: leaves = [] } = useLeaves();
   const { data: logs = [] } = useLogs();
   
   const parsedDate = parse(selectedMonth, 'MMMM yyyy', new Date());
@@ -38,6 +39,16 @@ const Reports = () => {
   const handleExport = async (type: string, formatType: 'pdf' | 'excel') => {
     toast.loading(`Preparing ${type.toUpperCase()} ${formatType.toUpperCase()}...`);
 
+    const isSameMonth = (dateStr?: string) => {
+      if (!dateStr) return false;
+      try {
+        const d = new Date(dateStr);
+        return format(d, 'MMMM yyyy') === selectedMonth;
+      } catch {
+        return false;
+      }
+    };
+
     try {
       if (type === "personnel") {
         const headers = [["#", "Svc No", "Rank", "Name", "Department", "BPS", "Type"]];
@@ -52,9 +63,11 @@ const Reports = () => {
       
       else if (type === "sanctions") {
         const headers = [["#", "SNC ID", "Employee", "Service No", "Limit", "Status", "Cadre"]];
-        const rows = (sanctions as any[]).map((s: any, i: number) => [
-          i + 1, s.sanctionId, s.employee?.name, s.employee?.serviceNo, `${s.hours}h`, s.status.toUpperCase(), s.employee?.cardType
-        ]);
+        const rows = (sanctions as any[])
+          .filter((s: any) => isSameMonth(s.date))
+          .map((s: any, i: number) => [
+            i + 1, s.sanctionId, s.employee?.name, s.employee?.serviceNo, `${s.limit ?? s.hours}h`, s.status.toUpperCase(), s.employee?.cardType
+          ]);
         
         if (formatType === 'pdf') {
           exportToPDF("Official Sanction Register", headers, rows, "sanction_register", getCommonMetadata());
@@ -65,15 +78,18 @@ const Reports = () => {
 
       else if (type === "payments") {
         const headers = [["#", "Employee", "Svc No", "Department", "Payable", "Status", "Amount"]];
-        const rows = (sanctions as any[]).filter((s: any) => s.status === 'Approved').map((s: any, i: number) => {
-          const rate = s.employee?.cardType === 'Ministerial' ? 
-            parseInt(settings.rate_ministerial || '380') : 
-            parseInt(settings.rate_industrial || '420');
-          return [
-            i + 1, s.employee?.name, s.employee?.serviceNo, s.employee?.department?.name, 
-            `${s.hours}h`, 'Approved', `Rs. ${(s.hours * rate).toLocaleString()}`
-          ];
-        });
+        const rows = (sanctions as any[])
+          .filter((s: any) => (s.status === 'Approved' || s.status === 'Paid') && isSameMonth(s.date))
+          .map((s: any, i: number) => {
+            const rate = s.employee?.cardType === 'Ministerial' ? 
+              parseInt(settings.rate_ministerial || '380') : 
+              parseInt(settings.rate_industrial || '420');
+            const payable = s.limit ?? s.hours;
+            return [
+              i + 1, s.employee?.name, s.employee?.serviceNo, s.employee?.department?.name, 
+              `${payable}h`, s.status, `Rs. ${(payable * rate).toLocaleString()}`
+            ];
+          });
 
         if (formatType === 'pdf') {
           exportToPDF("Disbursement Bill Summary", headers, rows, "payment_bill", getCommonMetadata());
@@ -103,6 +119,21 @@ const Reports = () => {
           exportToPDF("Monthly Attendance Statement", headers, rows, "attendance_summary", getCommonMetadata());
         } else {
           await exportToExcel("Attendance", headers[0], rows, "attendance_summary");
+        }
+      }
+
+      else if (type === "leave") {
+        const headers = [["#", "Service No", "Employee", "Type", "Start Date", "End Date", "Days", "Status"]];
+        const rows = (leaves as any[])
+          .filter((l: any) => isSameMonth(l.startDate))
+          .map((l: any, i: number) => [
+            i + 1, l.employee?.serviceNo, l.employee?.name, l.type, l.startDate, l.endDate, `${l.days} days`, l.status
+          ]);
+
+        if (formatType === 'pdf') {
+          exportToPDF("Leave Register Report", headers, rows, "leave_register", getCommonMetadata());
+        } else {
+          await exportToExcel("Leaves", headers[0], rows, "leave_register");
         }
       }
 

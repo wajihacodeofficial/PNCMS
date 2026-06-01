@@ -37,6 +37,7 @@ import {
   X,
   Search,
   Calendar,
+  ShieldX,
 } from 'lucide-react';
 import { useNavigate, useParams } from 'react-router-dom';
 import * as Tabs from '@radix-ui/react-tabs';
@@ -59,7 +60,9 @@ import {
   useDisciplinaryActions,
   usePayments,
   useUpsertDisciplinaryAction,
-  useCreateLog
+  useCreateLog,
+  useDeleteLeave,
+  useSettings
 } from '@/hooks/use-api';
 
 
@@ -76,6 +79,41 @@ const EmploymentRecordProfile = () => {
   const { data: allPayments = [] } = usePayments();
   const { mutate: upsertDiscipline } = useUpsertDisciplinaryAction();
   const { mutate: createLog } = useCreateLog();
+
+  const { data: settings = {} } = useSettings();
+  const { mutate: deleteLeave } = useDeleteLeave();
+
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
+  const [leaveIdToDelete, setLeaveIdToDelete] = useState("");
+  const [deleteUsername, setDeleteUsername] = useState("");
+  const [deletePassword, setDeletePassword] = useState("");
+
+  const handleDeleteVerify = () => {
+    const savedUser = settings.admin_username || "PNCMS";
+    const savedPass = settings.admin_password || "14081947";
+    if (deleteUsername === savedUser && deletePassword === savedPass) {
+      deleteLeave(leaveIdToDelete, {
+        onSuccess: () => {
+          createLog({
+            user: savedUser,
+            action: "DELETE",
+            entity: `Leave Record ID: ${leaveIdToDelete}`,
+            result: "Success"
+          });
+          toast.success("Leave record deleted successfully");
+          setDeleteConfirmOpen(false);
+          setLeaveIdToDelete("");
+          setDeleteUsername("");
+          setDeletePassword("");
+        },
+        onError: (err: any) => {
+          toast.error(err?.message || "Failed to delete leave record");
+        }
+      });
+    } else {
+      toast.error("Invalid Admin Username or Password");
+    }
+  };
 
   const [isActive, setIsActive] = useState(true);
 
@@ -213,6 +251,7 @@ const EmploymentRecordProfile = () => {
 
   const personLeaves = useMemo(() => {
     return allLeaves.filter((l: any) => l.serviceNo === employee?.serviceNo).map((l: any) => ({
+      id: l.id,
       type: l.type === 'CL' ? 'Casual Leave' : l.type === 'LFP' ? 'Leave on Full Pay' : l.type === 'SL' ? 'Sick Leave' : 'Other Leave',
       start: l.startDate,
       end: l.endDate,
@@ -1564,8 +1603,20 @@ const EmploymentRecordProfile = () => {
                                   {format(new Date(h.end), 'dd-MMM-yyyy')}
                                 </div>
                               </div>
-                              <div className="font-mono font-bold text-destructive">
-                                {h.days} days used
+                              <div className="flex items-center gap-3">
+                                <div className="font-mono font-bold text-destructive">
+                                  {h.days} days used
+                                </div>
+                                <button
+                                  onClick={() => {
+                                    setLeaveIdToDelete(h.id);
+                                    setDeleteConfirmOpen(true);
+                                  }}
+                                  className="p-1.5 rounded bg-destructive/10 text-destructive hover:bg-destructive hover:text-white transition-all shadow-sm"
+                                  title="Delete Leave Record"
+                                >
+                                  <Trash2 className="w-3.5 h-3.5" />
+                                </button>
                               </div>
                             </div>
                           ))}
@@ -1575,6 +1626,20 @@ const EmploymentRecordProfile = () => {
                 </div>
               </div>
             </div>
+          </div>
+        </div>
+      )}
+
+      {deleteConfirmOpen && (
+        <div className="fixed inset-0 z-[110] bg-primary/70 backdrop-blur-md flex items-center justify-center p-8">
+          <div className="bg-card w-full max-w-md rounded-md shadow-elevated border border-border overflow-hidden animate-in zoom-in-95">
+            <div className="bg-destructive px-6 py-4 flex justify-between items-center text-white font-bold uppercase italic"><div className="flex items-center gap-2"><ShieldX className="w-5 h-5"/><h3>Verify Access</h3></div><button onClick={() => setDeleteConfirmOpen(false)}><X className="w-5 h-5"/></button></div>
+            <div className="p-8 space-y-4">
+              <p className="text-xs text-muted-foreground">Admin credentials required to delete this leave record.</p>
+              <Field label="Admin Username"><Input placeholder="Username" value={deleteUsername} onChange={(e) => setDeleteUsername(e.target.value)} /></Field>
+              <Field label="System Password"><Input type="password" placeholder="••••••••" value={deletePassword} onChange={(e) => setDeletePassword(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && handleDeleteVerify()} /></Field>
+            </div>
+            <div className="bg-muted/30 p-5 flex justify-end gap-3 border-t border-border"><Btn variant="outline" onClick={() => setDeleteConfirmOpen(false)}>Abort</Btn><Btn variant="danger" onClick={handleDeleteVerify}>Delete Record</Btn></div>
           </div>
         </div>
       )}

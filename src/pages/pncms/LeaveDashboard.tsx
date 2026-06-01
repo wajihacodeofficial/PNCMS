@@ -2,13 +2,13 @@ import { AppShell, PageHeader } from "@/components/pncms/AppShell";
 import { SpecialLeaveModal } from "@/components/pncms/SpecialLeaveModal";
 import { UnlockMusterModal } from "@/components/pncms/UnlockMusterModal";
 import { StatCard, Section, Btn, Badge, Input, Field } from "@/components/pncms/ui-kit";
-import { Calendar, Clock, UserPlus, ListChecks, Flag, ShieldCheck, ClipboardList, PieChart, Users, Search, RotateCcw, FileDown, AlertCircle } from "lucide-react";
+import { Calendar, Clock, UserPlus, ListChecks, Flag, ShieldCheck, ClipboardList, PieChart, Users, Search, RotateCcw, FileDown, AlertCircle, Trash2, ShieldX, X } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useState, useEffect, useMemo, useRef } from "react";
 import { format, isWithinInterval, parseISO, eachDayOfInterval, isWeekend, startOfMonth, endOfMonth, differenceInCalendarDays } from "date-fns";
 import { exportToPDF } from "@/lib/export";
 import { toast } from "sonner";
-import { useLeaves, useBatchUpdateAttendance } from "@/hooks/use-api";
+import { useLeaves, useBatchUpdateAttendance, useDeleteLeave, useSettings, useCreateLog } from "@/hooks/use-api";
 
 const LeaveDashboard = () => {
   const navigate = useNavigate();
@@ -21,7 +21,43 @@ const LeaveDashboard = () => {
   const [historySearch, setHistorySearch] = useState("");
   const [dateFilter, setDateFilter] = useState<string>("");
 
+  const { data: settings = {} } = useSettings();
+  const { mutate: deleteLeave } = useDeleteLeave();
+  const { mutate: createLog } = useCreateLog();
+
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
+  const [leaveIdToDelete, setLeaveIdToDelete] = useState("");
+  const [deleteUsername, setDeleteUsername] = useState("");
+  const [deletePassword, setDeletePassword] = useState("");
+
   const today = new Date();
+
+  const handleDeleteVerify = () => {
+    const savedUser = settings.admin_username || "PNCMS";
+    const savedPass = settings.admin_password || "14081947";
+    if (deleteUsername === savedUser && deletePassword === savedPass) {
+      deleteLeave(leaveIdToDelete, {
+        onSuccess: () => {
+          createLog({
+            user: savedUser,
+            action: "DELETE",
+            entity: `Leave Record ID: ${leaveIdToDelete}`,
+            result: "Success"
+          });
+          toast.success("Leave record deleted successfully");
+          setDeleteConfirmOpen(false);
+          setLeaveIdToDelete("");
+          setDeleteUsername("");
+          setDeletePassword("");
+        },
+        onError: (err: any) => {
+          toast.error(err?.message || "Failed to delete leave record");
+        }
+      });
+    } else {
+      toast.error("Invalid Admin Username or Password");
+    }
+  };
 
   // Auto-mark attendance for newly approved leaves
   useEffect(() => {
@@ -76,6 +112,7 @@ const LeaveDashboard = () => {
         const today = new Date();
         const daysLeft = today > end ? 0 : differenceInCalendarDays(end, today) + 1;
         return {
+          id: l.id,
           svc: l.employee?.serviceNo || 'N/A',
           name: l.employee?.name || 'Unknown',
           type: l.type.toUpperCase(),
@@ -191,6 +228,7 @@ const LeaveDashboard = () => {
                       <th className="px-3 py-3 font-bold uppercase tracking-wider">To</th>
                       <th className="px-3 py-3 font-bold uppercase tracking-wider text-right">Days Left</th>
                       <th className="px-3 py-3 font-bold uppercase tracking-wider text-right">Total Days</th>
+                      <th className="px-3 py-3 font-bold uppercase tracking-wider text-right">Actions</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-border bg-card">
@@ -204,11 +242,23 @@ const LeaveDashboard = () => {
                           <td className="px-3 py-3">{p.to}</td>
                           <td className="px-3 py-3 text-right font-bold text-primary">{p.daysLeft}</td>
                           <td className="px-3 py-3 text-right font-bold text-primary">{p.days}</td>
+                          <td className="px-3 py-3 text-right">
+                            <button
+                              onClick={() => {
+                                setLeaveIdToDelete(p.id);
+                                setDeleteConfirmOpen(true);
+                              }}
+                              className="p-1 rounded bg-destructive/10 text-destructive hover:bg-destructive hover:text-white transition-all shadow-sm"
+                              title="Delete Leave Record"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
+                          </td>
                         </tr>
                       ))
                     ) : (
                       <tr>
-                        <td colSpan={7} className="px-6 py-12 text-center text-muted-foreground italic">None active.</td>
+                        <td colSpan={8} className="px-6 py-12 text-center text-muted-foreground italic">None active.</td>
                       </tr>
                     )}
                   </tbody>
@@ -217,6 +267,20 @@ const LeaveDashboard = () => {
           </Section>
         </div>
       </div>
+
+      {deleteConfirmOpen && (
+        <div className="fixed inset-0 z-[110] bg-primary/70 backdrop-blur-md flex items-center justify-center p-8">
+          <div className="bg-card w-full max-w-md rounded-md shadow-elevated border border-border overflow-hidden animate-in zoom-in-95">
+            <div className="bg-destructive px-6 py-4 flex justify-between items-center text-white font-bold uppercase italic"><div className="flex items-center gap-2"><ShieldX className="w-5 h-5"/><h3>Verify Access</h3></div><button onClick={() => setDeleteConfirmOpen(false)}><X className="w-5 h-5"/></button></div>
+            <div className="p-8 space-y-4">
+              <p className="text-xs text-muted-foreground">Admin credentials required to delete this leave record.</p>
+              <Field label="Admin Username"><Input placeholder="Username" value={deleteUsername} onChange={(e) => setDeleteUsername(e.target.value)} /></Field>
+              <Field label="System Password"><Input type="password" placeholder="••••••••" value={deletePassword} onChange={(e) => setDeletePassword(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && handleDeleteVerify()} /></Field>
+            </div>
+            <div className="bg-muted/30 p-5 flex justify-end gap-3 border-t border-border"><Btn variant="outline" onClick={() => setDeleteConfirmOpen(false)}>Abort</Btn><Btn variant="danger" onClick={handleDeleteVerify}>Delete Record</Btn></div>
+          </div>
+        </div>
+      )}
     </AppShell>
   );
 };

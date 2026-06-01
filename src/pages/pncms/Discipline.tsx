@@ -35,6 +35,7 @@ import {
   useUpsertDisciplinaryAction,
   useCreateLog,
   usePersonnel,
+  useSettings,
 } from '@/hooks/use-api';
 import { logAction } from '@/lib/audit';
 import * as ExcelJS from 'exceljs';
@@ -67,6 +68,7 @@ interface DisciplineRecord {
 const Discipline = () => {
   const { data: records = [], isLoading } = useDisciplinaryActions();
   const { data: personnel = [] } = usePersonnel();
+  const { data: settings = {} } = useSettings();
   const { mutate: upsertAction } = useUpsertDisciplinaryAction();
   const { mutate: createLog } = useCreateLog();
 
@@ -185,8 +187,9 @@ const Discipline = () => {
   };
 
   const handleUnlockVerify = () => {
-    const savedPass = localStorage.getItem('secret_password') || '998877';
-    if (unlockUsername === 'Administrator' && secretPassword === savedPass) {
+    const savedUser = settings.admin_username || 'PNCMS';
+    const savedPass = settings.admin_password || '14081947';
+    if (unlockUsername === savedUser && secretPassword === savedPass) {
       if (unlockModal?.type === 'edit' && unlockModal.record) {
         setForm({
           ...unlockModal.record,
@@ -424,7 +427,7 @@ const Discipline = () => {
       {/* Security Override Modal */}
       {unlockModal && (
         <div className="fixed inset-0 z-[200] bg-primary/70 backdrop-blur-md flex items-center justify-center p-8">
-          <div className="bg-card w-full max-md rounded-md shadow-elevated border border-border overflow-hidden animate-in zoom-in-95">
+          <div className="bg-card w-full max-w-md rounded-md shadow-elevated border border-border overflow-hidden animate-in zoom-in-95">
             <div className="bg-destructive px-6 py-4 flex justify-between items-center text-white">
               <div className="flex items-center gap-2 text-white">
                 <ShieldX className="w-5 h-5 text-white" />

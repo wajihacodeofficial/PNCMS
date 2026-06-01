@@ -20,6 +20,7 @@ export const api = {
   // Leaves
   getLeaves: () => ipcRenderer.invoke('get-leaves'),
   createLeave: (data: any) => ipcRenderer.invoke('create-leave', data),
+  deleteLeave: (id: string) => ipcRenderer.invoke('delete-leave', id),
 
   // Payments
   getPayments: () => ipcRenderer.invoke('get-payments'),
@@ -27,14 +28,14 @@ export const api = {
   // Attendance
   getAttendance: (date: string) => ipcRenderer.invoke('get-attendance', date),
   getAttendanceRange: (start: string, end: string) => ipcRenderer.invoke('get-attendance-range', { start, end }),
-  updateAttendance: (date: string, employeeId: string, status: string, overridePassword?: string) => 
-    ipcRenderer.invoke('update-attendance', { date, employeeId, status, overridePassword }),
+  updateAttendance: (date: string, employeeId: string, status: string, username?: string, password?: string) => 
+    ipcRenderer.invoke('update-attendance', { date, employeeId, status, username, password }),
   getMusterLock: (date: string) => ipcRenderer.invoke('get-muster-lock', date),
   getAllMusterLocks: () => ipcRenderer.invoke('get-all-muster-locks'),
   lockMuster: (data: { date: string; lockedBy: string }) => ipcRenderer.invoke('lock-muster', data),
-  unlockMuster: (data: { date: string; password?: string }) => ipcRenderer.invoke('unlock-muster', data),
-  deleteMuster: (data: { date: string; password?: string }) => ipcRenderer.invoke('delete-muster', data),
-  batchUpdateAttendance: (data: { date: string; updates: any[]; overridePassword?: string }) => 
+  unlockMuster: (data: { date: string; username?: string; password?: string }) => ipcRenderer.invoke('unlock-muster', data),
+  deleteMuster: (data: { date: string; username?: string; password?: string }) => ipcRenderer.invoke('delete-muster', data),
+  batchUpdateAttendance: (data: { date: string; updates: any[]; username?: string; password?: string }) => 
     ipcRenderer.invoke('batch-update-attendance', data),
 
   // Master Data

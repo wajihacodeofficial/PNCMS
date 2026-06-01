@@ -148,8 +148,9 @@ const OvertimeSystem = () => {
   };
 
   const handleUnlockVerify = () => {
-    const savedPass = settings.secret_password || "998877";
-    if (unlockUsername === 'Administrator' && secretPassword === savedPass) {
+    const savedUser = settings.admin_username || "";
+    const savedPass = settings.admin_password || "";
+    if (unlockUsername === savedUser && secretPassword === savedPass) {
       if (unlockModal) {
         updateSanction({ id: unlockModal.id, status: unlockModal.targetStatus }, {
           onSuccess: () => {

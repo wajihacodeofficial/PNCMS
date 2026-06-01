@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { AppShell, PageHeader } from '@/components/pncms/AppShell';
 import {
   Btn,
@@ -19,7 +19,7 @@ import {
   Wallet,
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
-import { usePersonnel, useCreateLeave, useCreateLog } from '@/hooks/use-api';
+import { usePersonnel, useEmployee, useCreateLeave, useCreateLog } from '@/hooks/use-api';
 import { toast } from 'sonner';
 
 const LeaveEntry = () => {
@@ -46,16 +46,26 @@ const LeaveEntry = () => {
     }
   }, [selectedSvc, personnel]);
 
-  const balances: Record<
-    string,
-    { used: number; max: number | null; label: string }
-  > = {
-    CL: { used: 12, max: 20, label: 'Casual Leave' },
-    LFP: { used: 12, max: 12, label: 'Leave on Full Pay' },
-    RL: { used: 0, max: null, label: 'Recreational Leave' },
-    LWOP: { used: 0, max: null, label: 'Leave Without Pay' },
-    DL: { used: 0, max: null, label: 'Disability Leave' },
-  };
+  const { data: fullEmployee } = useEmployee(selectedSvc);
+
+  const balances = useMemo(() => {
+    const currentYear = new Date().getFullYear();
+    const leavesList = fullEmployee?.leaves || [];
+    
+    const getUsedDays = (type: string) => {
+      return leavesList
+        .filter((l: any) => l.status === 'Approved' && l.type === type && new Date(l.startDate).getFullYear() === currentYear)
+        .reduce((sum: number, l: any) => sum + l.days, 0);
+    };
+
+    return {
+      CL: { used: getUsedDays('CL'), max: 20, label: 'Casual Leave' },
+      LFP: { used: getUsedDays('LFP'), max: 12, label: 'Leave on Full Pay' },
+      RL: { used: getUsedDays('RL'), max: 15, label: 'Recreational Leave' },
+      LWOP: { used: getUsedDays('LWOP'), max: null, label: 'Leave Without Pay' },
+      DL: { used: getUsedDays('DL'), max: 5, label: 'Disability Leave' },
+    };
+  }, [fullEmployee]);
 
   const isMale = selectedPerson?.gender === 'Male';
   const isMLSelected = leaveType === 'ML';
@@ -72,7 +82,7 @@ const LeaveEntry = () => {
     return 0;
   })();
 
-  const currentBalance = balances[leaveType] || {
+  const currentBalance = (balances as any)[leaveType] || {
     used: 0,
     max: null,
     label: 'Leave',

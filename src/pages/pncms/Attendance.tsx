@@ -44,6 +44,7 @@ const Attendance = () => {
   const { mutate: batchUpdate } = useBatchUpdateAttendance();
 
   const [showOverrideModal, setShowOverrideModal] = useState(false);
+  const [overrideUsername, setOverrideUsername] = useState("");
   const [overridePassword, setOverridePassword] = useState("");
   const [modalAction, setModalAction] = useState<"override" | "unlock" | "delete" | "mark-all" | null>(null);
   const [pendingUpdate, setPendingUpdate] = useState<{empId: string, status: string} | null>(null);
@@ -95,12 +96,12 @@ const Attendance = () => {
   const handleOverride = async () => {
     if (!pendingUpdate) return;
     try {
-      await api.updateAttendance(selectedDate, pendingUpdate.empId, pendingUpdate.status, overridePassword);
+      await api.updateAttendance(selectedDate, pendingUpdate.empId, pendingUpdate.status, overrideUsername, overridePassword);
       queryClient.invalidateQueries({ queryKey: ['attendance', selectedDate] });
       toast.success("Attendance updated with override");
       closeModal();
     } catch (error: any) {
-      toast.error(error.message || "Invalid secret password");
+      toast.error(error.message || "Invalid credentials");
     }
   };
 
@@ -124,7 +125,7 @@ const Attendance = () => {
   };
 
   const handleUnlock = () => {
-    unlockMuster({ date: selectedDate, password: overridePassword }, {
+    unlockMuster({ date: selectedDate, username: overrideUsername, password: overridePassword }, {
       onSuccess: () => {
         toast.success(`Muster Roll for ${selectedDate} has been unlocked.`);
         closeModal();
@@ -136,7 +137,7 @@ const Attendance = () => {
         });
       },
       onError: (err: any) => {
-        toast.error(err.message || "Invalid secret password");
+        toast.error(err.message || "Invalid credentials");
       }
     });
   };
@@ -150,9 +151,9 @@ const Attendance = () => {
     executeMarkAllPresent();
   };
 
-  const executeMarkAllPresent = (password?: string) => {
+  const executeMarkAllPresent = (username?: string, password?: string) => {
     const updates = filteredList.map(p => ({ serviceNo: p.serviceNo, status: "P" }));
-    batchUpdate({ date: selectedDate, updates, overridePassword: password }, {
+    batchUpdate({ date: selectedDate, updates, username, password }, {
       onSuccess: () => {
         toast.success("All visible personnel marked present");
         closeModal();
@@ -170,19 +171,20 @@ const Attendance = () => {
   };
 
   const executeDeleteMuster = () => {
-    deleteMuster({ date: targetDateForDelete, password: overridePassword }, {
+    deleteMuster({ date: targetDateForDelete, username: overrideUsername, password: overridePassword }, {
       onSuccess: () => {
         toast.success(`Muster Roll for ${targetDateForDelete} has been completely deleted.`);
         closeModal();
       },
       onError: (err: any) => {
-        toast.error(err.message || "Invalid secret password");
+        toast.error(err.message || "Invalid credentials");
       }
     });
   };
 
   const closeModal = () => {
     setShowOverrideModal(false);
+    setOverrideUsername("");
     setOverridePassword("");
     setPendingUpdate(null);
     setModalAction(null);
@@ -455,37 +457,40 @@ const Attendance = () => {
               <h2 className="text-lg text-white font-heading italic font-black uppercase tracking-tight">Security Verification</h2>
               <button onClick={closeModal} className="text-white/70 hover:text-white"><X className="w-6 h-6" /></button>
             </div>
-            <div className="p-8 text-center">
-              <div className="w-16 h-16 rounded-full bg-accent/10 text-accent flex items-center justify-center mx-auto mb-4 border border-accent/20">
-                <ShieldAlert className="w-8 h-8" />
+            <div className="p-8 space-y-4">
+              <div className="text-center mb-4">
+                <div className="w-16 h-16 rounded-full bg-accent/10 text-accent flex items-center justify-center mx-auto mb-2 border border-accent/20">
+                  <ShieldAlert className="w-8 h-8" />
+                </div>
+                <h3 className="text-lg font-bold text-primary">Restricted Action</h3>
+                <p className="text-xs text-muted-foreground mt-1">
+                  {modalAction === "delete" 
+                    ? `This action will permanently delete the muster roll and all attendance records for ${targetDateForDelete}.` 
+                    : `This muster roll is LOCKED. Admin credentials are required.`}
+                </p>
               </div>
-              <h3 className="text-lg font-bold text-primary mb-2">Restricted Action</h3>
-              <p className="text-sm text-muted-foreground mb-6">
-                {modalAction === "delete" 
-                  ? `This action will permanently delete the muster roll and all attendance records for ${targetDateForDelete}. Enter secret password to proceed.` 
-                  : modalAction === "unlock" || modalAction === "override" || modalAction === "mark-all"
-                    ? `This muster roll is LOCKED. Enter the administrative secret password to proceed.`
-                    : `Enter secret password to proceed.`}
-              </p>
-              <Input
-                type="password"
-                placeholder="Enter Secret Password"
-                className="text-center h-12 text-lg tracking-[0.3em]"
-                value={overridePassword}
-                onChange={(e) => setOverridePassword(e.target.value)}
-                autoFocus
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter') {
-                    handleModalSubmit();
-                  }
-                }}
-              />
-              <div className="mt-8 flex gap-3">
-                <Btn variant="outline" className="flex-1" onClick={closeModal}>Cancel</Btn>
-                <Btn variant="gold" className="flex-1" onClick={handleModalSubmit}>
-                  {modalAction === "delete" ? "Delete Muster" : "Verify & Proceed"}
-                </Btn>
-              </div>
+              <Field label="Admin Username">
+                <Input 
+                  placeholder="Username" 
+                  value={overrideUsername} 
+                  onChange={(e) => setOverrideUsername(e.target.value)} 
+                />
+              </Field>
+              <Field label="System Password">
+                <Input 
+                  type="password" 
+                  placeholder="••••••••" 
+                  value={overridePassword} 
+                  onChange={(e) => setOverridePassword(e.target.value)} 
+                  onKeyDown={(e) => e.key === 'Enter' && handleModalSubmit()}
+                />
+              </Field>
+            </div>
+            <div className="bg-muted/30 p-5 flex justify-end gap-3 border-t border-border">
+              <Btn variant="outline" onClick={closeModal}>Abort</Btn>
+              <Btn variant="danger" onClick={handleModalSubmit}>
+                {modalAction === "delete" ? "Delete Muster" : "Verify & Proceed"}
+              </Btn>
             </div>
           </div>
         </div>
