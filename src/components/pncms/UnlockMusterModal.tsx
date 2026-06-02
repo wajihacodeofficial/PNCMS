@@ -11,8 +11,9 @@ interface UnlockMusterModalProps {
 }
 
 export const UnlockMusterModal = ({ open, date, onClose, onUnlocked }: UnlockMusterModalProps) => {
-  const [password, setPassword] = useState('');
-  const [loading, setLoading] = useState(false);
+const [username, setUsername] = useState('');
+const [password, setPassword] = useState('');
+const [loading, setLoading] = useState(false);
 
   const handleUnlock = async () => {
     if (!date) {
@@ -22,7 +23,7 @@ export const UnlockMusterModal = ({ open, date, onClose, onUnlocked }: UnlockMus
     setLoading(true);
     try {
       // Assuming ipc bridge is available globally
-      await (window as any).ipc?.invoke('unlock-muster', { date, password });
+      await (window as any).ipc?.invoke('unlock-muster', { date, username, password });
       toast.success('Muster unlocked');
       onClose();
       onUnlocked?.();
@@ -40,14 +41,21 @@ export const UnlockMusterModal = ({ open, date, onClose, onUnlocked }: UnlockMus
           <DialogTitle>Unlock Muster for {date}</DialogTitle>
         </DialogHeader>
         <div className="space-y-4 mt-2">
-          <Field label="Secret Password" required>
-            <Input
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              placeholder="Enter secret password"
-            />
-          </Field>
+<Field label="Admin Username" required>
+  <Input
+    value={username}
+    onChange={(e) => setUsername(e.target.value)}
+    placeholder="Enter admin username"
+  />
+</Field>
+<Field label="Admin Password" required>
+  <Input
+    type="password"
+    value={password}
+    onChange={(e) => setPassword(e.target.value)}
+    placeholder="Enter admin password"
+  />
+</Field>
         </div>
         <DialogFooter className="flex justify-end space-x-2 mt-4">
           <DialogClose asChild>

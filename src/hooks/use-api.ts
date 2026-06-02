@@ -80,7 +80,8 @@ export function useCreateLeave() {
 export function useDeleteLeave() {
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: api.deleteLeave,
+    mutationFn: (data: { id: string; username?: string; password?: string }) =>
+      api.deleteLeave(data.id, data.username, data.password),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['leaves'] })
       queryClient.invalidateQueries({ queryKey: ['attendance'] })

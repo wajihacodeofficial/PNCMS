@@ -36,24 +36,27 @@ const LeaveDashboard = () => {
     const savedUser = settings.admin_username || "PNCMS";
     const savedPass = settings.admin_password || "14081947";
     if (deleteUsername === savedUser && deletePassword === savedPass) {
-      deleteLeave(leaveIdToDelete, {
-        onSuccess: () => {
-          createLog({
-            user: savedUser,
-            action: "DELETE",
-            entity: `Leave Record ID: ${leaveIdToDelete}`,
-            result: "Success"
-          });
-          toast.success("Leave record deleted successfully");
-          setDeleteConfirmOpen(false);
-          setLeaveIdToDelete("");
-          setDeleteUsername("");
-          setDeletePassword("");
-        },
-        onError: (err: any) => {
-          toast.error(err?.message || "Failed to delete leave record");
+      deleteLeave(
+        { id: leaveIdToDelete, username: deleteUsername, password: deletePassword },
+        {
+          onSuccess: () => {
+            createLog({
+              user: savedUser,
+              action: "DELETE",
+              entity: `Leave Record ID: ${leaveIdToDelete}`,
+              result: "Success"
+            });
+            toast.success("Leave record deleted successfully");
+            setDeleteConfirmOpen(false);
+            setLeaveIdToDelete("");
+            setDeleteUsername("");
+            setDeletePassword("");
+          },
+          onError: (err: any) => {
+            toast.error(err?.message || "Failed to delete leave record");
+          }
         }
-      });
+      );
     } else {
       toast.error("Invalid Admin Username or Password");
     }
@@ -78,13 +81,12 @@ const LeaveDashboard = () => {
       batchUpdate.mutate({ date: l.startDate, updates }, {
         onError: (err: any) => {
           if (err?.message?.includes('locked')) {
-            setPendingUpdate({ date: l.startDate, updates });
-            setUnlockModalOpen(true);
+            return;
           } else {
             toast.error(err.message || 'Failed to mark attendance');
           }
-        },
-      });
+        }
+      );
       processed.add(l.id);
     });
   }, [leaves, isLoading]);

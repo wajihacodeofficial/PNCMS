@@ -323,7 +323,11 @@ export function setupHandlers() {
     return result
   })
 
-  ipcMain.handle('delete-leave', async (_, id: string) => {
+  ipcMain.handle('delete-leave', async (_, { id, username, password }: any) => {
+  const isValid = await verifyAdmin(username, password)
+  if (!isValid) {
+    throw new Error('Invalid Admin Username or Password')
+  }
     const leave = await prisma.leaveRecord.findUnique({ where: { id } })
     if (leave) {
       const start = new Date(leave.startDate + 'T00:00:00Z')
@@ -549,7 +553,11 @@ export function setupHandlers() {
     return result
   })
 
-  ipcMain.handle('delete-rank', async (_, id: string) => {
+  ipcMain.handle('delete-rank', async (_, { id, username, password }: any) => {
+  const isValid = await verifyAdmin(username, password)
+  if (!isValid) {
+    throw new Error('Invalid Admin Username or Password')
+  }
     const result = await prisma.rank.delete({
       where: { id }
     })
@@ -577,7 +585,11 @@ export function setupHandlers() {
     return result
   })
 
-  ipcMain.handle('delete-department', async (_, id: string) => {
+  ipcMain.handle('delete-department', async (_, { id, username, password }: any) => {
+  const isValid = await verifyAdmin(username, password)
+  if (!isValid) {
+    throw new Error('Invalid Admin Username or Password')
+  }
     const result = await prisma.department.delete({
       where: { id }
     })
