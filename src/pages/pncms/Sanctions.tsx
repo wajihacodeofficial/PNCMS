@@ -260,6 +260,37 @@ const Sanctions = () => {
         </div>
       </Section>
 
+      <Section title="Approved Sanctions">
+        <div className="overflow-x-auto -m-5">
+          <table className="data-table">
+            <thead>
+              <tr>
+                <th>Date</th>
+                <th>Service Number</th>
+                <th>Name</th>
+                <th>Rank</th>
+                <th>Hours</th>
+                <th>Department</th>
+              </tr>
+            </thead>
+            <tbody>
+              {filteredSanctions
+                .filter((s: any) => s.status === 'Approved')
+                .map((s: any) => (
+                  <tr key={s.id}>
+                    <td>{s.date}</td>
+                    <td>{s.svc}</td>
+                    <td>{s.employee?.name}</td>
+                    <td>{s.rank || s.employee?.rank?.name}</td>
+                    <td>{s.hours}</td>
+                    <td>{s.employee?.department?.name}</td>
+                  </tr>
+                ))}
+            </tbody>
+          </table>
+        </div>
+      </Section>
+
       {/* ── Quick Entry Modal ─────────────────────────────────── */}
       {open && (
         <div className="fixed inset-0 z-50 bg-primary/60 backdrop-blur-sm flex items-center justify-center p-8 animate-in zoom-in-95 duration-200">
