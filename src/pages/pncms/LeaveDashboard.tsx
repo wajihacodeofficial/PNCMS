@@ -78,12 +78,15 @@ const LeaveDashboard = () => {
         type: 'Leave',
         leaveId: l.id,
       }));
-      batchUpdate.mutate({ date: l.startDate, updates }, {
-        onError: (err: any) => {
-          if (err?.message?.includes('locked')) {
-            return;
-          } else {
-            toast.error(err.message || 'Failed to mark attendance');
+      batchUpdate.mutate(
+        { date: l.startDate, updates },
+        {
+          onError: (err: any) => {
+            if (err?.message?.includes("locked")) {
+              return;
+            } else {
+              toast.error(err.message || "Failed to mark attendance");
+            }
           }
         }
       );
