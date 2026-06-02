@@ -218,10 +218,8 @@ const Departments = () => {
           </div>
         }
       />
-
     
-    
-
+<Section title={`Active Establishment Strength`}>
          <div className="overflow-x-auto -m-5">
           <table className="data-table">
             <thead>
@@ -269,6 +267,7 @@ const Departments = () => {
             </tbody>
           </table>
         </div>
+        </Section>
 
       {isModalOpen && (
         <div className="fixed inset-0 z-[100] bg-primary/60 backdrop-blur-sm flex items-center justify-center p-8">
