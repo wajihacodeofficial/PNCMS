@@ -150,14 +150,144 @@ const Departments = () => {
         title="Department Management"
         subtitle="Operational Units · Administrative Wings · Strength Control"
         actions={
-          <Btn variant="gold" onClick={() => handleOpenModal()}>
-            <Plus className="w-4 h-4" /> Add New Department
-          </Btn>
+          <div className="flex gap-2">
+            <Btn
+              variant="outline"
+              onClick={() => {
+                const headers = ["Department Name","Location","Navcom","HOD / OIC","Born","Sanctioned","Status"];
+                const rows = processedDepts.map(d => {
+                  const variance = d.born - (d.approvedSanctionStrength || 0);
+                  const status =
+                    variance > 0 ? `+${variance} Excess` :
+                    variance < 0 ? `${Math.abs(variance)} Shortage` :
+                    "Balanced";
+                  return [
+                    d.name,
+                    d.location || "PNS DILAWAR",
+                    d.navcom,
+                    `${d.hodName} (${d.hodRank})`,
+                    d.born,
+                    d.approvedSanctionStrength || 0,
+                    status
+                  ];
+                });
+                exportToPDF("Active Establishment Strength", [headers], rows, "establishment_strength");
+                toast.success("PDF Exported");
+              }}
+            >
+              <Download className="w-4 h-4 mr-2" /> Export PDF
+            </Btn>
+
+            <Btn
+              variant="outline"
+              onClick={() => {
+                const headers = ["Department Name","Location","Navcom","HOD / OIC","Born","Sanctioned","Status"];
+                const rows = processedDepts.map(d => {
+                  const variance = d.born - (d.approvedSanctionStrength || 0);
+                  const status =
+                    variance > 0 ? `+${variance} Excess` :
+                    variance < 0 ? `${Math.abs(variance)} Shortage` :
+                    "Balanced";
+                  return [
+                    d.name,
+                    d.location || "PNS DILAWAR",
+                    d.navcom,
+                    `${d.hodName} (${d.hodRank})`,
+                    d.born,
+                    d.approvedSanctionStrength || 0,
+                    status
+                  ].join(",");
+                });
+                const csv = [headers.join(","), ...rows].join("\n");
+                const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement("a");
+                a.href = url;
+                a.download = "establishment_strength.csv";
+                a.click();
+                URL.revokeObjectURL(url);
+                toast.success("Excel Exported");
+              }}
+            >
+              <Download className="w-4 h-4 mr-2" /> Export Excel
+            </Btn>
+
+            <Btn variant="gold" onClick={() => handleOpenModal()}>
+              <Plus className="w-4 h-4" /> Add New Department
+            </Btn>
+          </div>
         }
       />
 
-      <Section title="Active Establishment Strength">
-        <div className="overflow-x-auto -m-5">
+       <Section title="Active Establishment Strength">
+           <Btn
+             variant="outline"
+             onClick={() => {
+               const headers = ["Department Name","Location","Navcom","HOD / OIC","Born","Sanctioned","Status"];
+               const rows = processedDepts.map(d => {
+                 const variance = d.born - (d.approvedSanctionStrength || 0);
+                 const status =
+                   variance > 0 ? `+${variance} Excess` :
+                   variance < 0 ? `${Math.abs(variance)} Shortage` :
+                   "Balanced";
+                 return [
+                   d.name,
+                   d.location || "PNS DILAWAR",
+                   d.navcom,
+                   `${d.hodName} (${d.hodRank})`,
+                   d.born,
+                   d.approvedSanctionStrength || 0,
+                   status
+                 ];
+               });
+               exportToPDF(
+                 "Active Establishment Strength",
+                 [headers],
+                 rows,
+                 "establishment_strength"
+               );
+               toast.success("PDF Exported");
+             }}
+           >
+             <Download className="w-4 h-4 mr-2" /> Export PDF
+           </Btn>
+
+           <Btn
+             variant="outline"
+             onClick={() => {
+               const headers = ["Department Name","Location","Navcom","HOD / OIC","Born","Sanctioned","Status"];
+               const rows = processedDepts.map(d => {
+                 const variance = d.born - (d.approvedSanctionStrength || 0);
+                 const status =
+                   variance > 0 ? `+${variance} Excess` :
+                   variance < 0 ? `${Math.abs(variance)} Shortage` :
+                   "Balanced";
+                 return [
+                   d.name,
+                   d.location || "PNS DILAWAR",
+                   d.navcom,
+                   `${d.hodName} (${d.hodRank})`,
+                   d.born,
+                   d.approvedSanctionStrength || 0,
+                   status
+                 ].join(",");
+               });
+               const csvContent = [headers.join(","), ...rows].join("\n");
+               const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+               const url = URL.createObjectURL(blob);
+               const a = document.createElement("a");
+               a.href = url;
+               a.download = "establishment_strength.csv";
+               a.click();
+               URL.revokeObjectURL(url);
+               toast.success("Excel Exported");
+             }}
+           >
+             <Download className="w-4 h-4 mr-2" /> Export Excel
+           </Btn>
+       </Section>
+
+         <div className="overflow-x-auto -m-5">
           <table className="data-table">
             <thead>
               <tr>

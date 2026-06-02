@@ -143,7 +143,73 @@ const Ranks = () => {
       <PageHeader
         title="Rank System Management"
         subtitle="Command Hierarchy · Cadre Definitions · Strength Monitoring"
-        actions={<Btn variant="gold" onClick={() => handleOpenModal()}><Plus className="w-4 h-4" /> Define New Rank</Btn>}
+        actions={
+          <div className="flex gap-2">
+            <Btn
+              variant="outline"
+              onClick={() => {
+                const headers = ["Rank Title","Level","Born","Sanctioned","Status"];
+                const rows = filteredRanks.map(r => {
+                  const status =
+                    r.born > (r.sanctioned || 0) ? "Excess" :
+                    r.born < (r.sanctioned || 0) ? "Shortage" :
+                    "Balanced";
+                  return [
+                    r.name,
+                    r.bps,
+                    r.born,
+                    r.sanctioned || 0,
+                    status
+                  ];
+                });
+                exportToPDF(
+                  `${activeCadre} Rank Structure`,
+                  [headers],
+                  rows,
+                  `ranks_${activeCadre.toLowerCase()}`
+                );
+                toast.success("PDF Exported");
+              }}
+            >
+              <Download className="w-4 h-4 mr-2" /> Export PDF
+            </Btn>
+
+            <Btn
+              variant="outline"
+              onClick={() => {
+                const headers = ["Rank Title","Level","Born","Sanctioned","Status"];
+                const rows = filteredRanks.map(r => {
+                  const status =
+                    r.born > (r.sanctioned || 0) ? "Excess" :
+                    r.born < (r.sanctioned || 0) ? "Shortage" :
+                    "Balanced";
+                  return [
+                    r.name,
+                    r.bps,
+                    r.born,
+                    r.sanctioned || 0,
+                    status
+                  ].join(",");
+                });
+                const csv = [headers.join(","), ...rows].join("\n");
+                const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement("a");
+                a.href = url;
+                a.download = `ranks_${activeCadre.toLowerCase()}.csv`;
+                a.click();
+                URL.revokeObjectURL(url);
+                toast.success("Excel Exported");
+              }}
+            >
+              <FileSpreadsheet className="w-4 h-4 mr-2" /> Export Excel
+            </Btn>
+
+            <Btn variant="gold" onClick={() => handleOpenModal()}>
+              <Plus className="w-4 h-4" /> Define New Rank
+            </Btn>
+          </div>
+        }
       />
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
