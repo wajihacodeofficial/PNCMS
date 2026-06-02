@@ -219,73 +219,8 @@ const Departments = () => {
         }
       />
 
-       <Section title="Active Establishment Strength">
-           <Btn
-             variant="outline"
-             onClick={() => {
-               const headers = ["Department Name","Location","Navcom","HOD / OIC","Born","Sanctioned","Status"];
-               const rows = processedDepts.map(d => {
-                 const variance = d.born - (d.approvedSanctionStrength || 0);
-                 const status =
-                   variance > 0 ? `+${variance} Excess` :
-                   variance < 0 ? `${Math.abs(variance)} Shortage` :
-                   "Balanced";
-                 return [
-                   d.name,
-                   d.location || "PNS DILAWAR",
-                   d.navcom,
-                   `${d.hodName} (${d.hodRank})`,
-                   d.born,
-                   d.approvedSanctionStrength || 0,
-                   status
-                 ];
-               });
-               exportToPDF(
-                 "Active Establishment Strength",
-                 [headers],
-                 rows,
-                 "establishment_strength"
-               );
-               toast.success("PDF Exported");
-             }}
-           >
-             <Download className="w-4 h-4 mr-2" /> Export PDF
-           </Btn>
-
-           <Btn
-             variant="outline"
-             onClick={() => {
-               const headers = ["Department Name","Location","Navcom","HOD / OIC","Born","Sanctioned","Status"];
-               const rows = processedDepts.map(d => {
-                 const variance = d.born - (d.approvedSanctionStrength || 0);
-                 const status =
-                   variance > 0 ? `+${variance} Excess` :
-                   variance < 0 ? `${Math.abs(variance)} Shortage` :
-                   "Balanced";
-                 return [
-                   d.name,
-                   d.location || "PNS DILAWAR",
-                   d.navcom,
-                   `${d.hodName} (${d.hodRank})`,
-                   d.born,
-                   d.approvedSanctionStrength || 0,
-                   status
-                 ].join(",");
-               });
-               const csvContent = [headers.join(","), ...rows].join("\n");
-               const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
-               const url = URL.createObjectURL(blob);
-               const a = document.createElement("a");
-               a.href = url;
-               a.download = "establishment_strength.csv";
-               a.click();
-               URL.revokeObjectURL(url);
-               toast.success("Excel Exported");
-             }}
-           >
-             <Download className="w-4 h-4 mr-2" /> Export Excel
-           </Btn>
-       </Section>
+    
+    
 
          <div className="overflow-x-auto -m-5">
           <table className="data-table">
