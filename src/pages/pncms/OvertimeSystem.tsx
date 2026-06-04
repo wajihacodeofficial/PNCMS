@@ -365,7 +365,7 @@ const OvertimeSystem = () => {
                 </button>
               ))}
             </div>
-            <div className="overflow-x-auto -m-5">
+            <div className="overflow-x-auto -mx-5 -mb-5 mt-4">
               <table className="data-table">
                 <thead><tr><th>Sanction ID</th><th>Personnel</th><th>Rank</th><th>Limit (h)</th><th>Action</th><th>Status</th><th className="text-right">Action</th></tr></thead>
                 <tbody>
@@ -508,7 +508,7 @@ const OvertimeSystem = () => {
                 </button>
               ))}
             </div>
-            <div className="overflow-x-auto -m-5">
+            <div className="overflow-x-auto -mx-5 -mb-5 mt-4">
               <table className="data-table">
                 <thead><tr><th>Personnel</th><th>Sanctioned</th><th>Payable</th><th>Status</th><th className="text-right">Net Amount</th><th className="text-right">Action</th></tr></thead>
                 <tbody>
