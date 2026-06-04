@@ -219,7 +219,67 @@ const OvertimeSystem = () => {
   }, [allSanctions, selectedCadre, statusFilter]);
 
   const approvedSanctions = useMemo(() => filteredSanctions.filter(s => s.status === 'Approved'), [filteredSanctions]);
-  const paymentSanctions = useMemo(() => filteredSanctions.filter(s => s.status === 'Approved' || s.status === 'Paid'), [filteredSanctions]);
+
+  const [rosterFilter, setRosterFilter] = useState<'All' | 'Pending' | 'Paid'>('All');
+
+  const paymentSanctions = useMemo(() => {
+    return (allSanctions as any[]).filter(s => {
+      if (s.employee?.cardType !== selectedCadre) return false;
+      if (rosterFilter === 'All') {
+        return s.status === 'Approved' || s.status === 'Paid';
+      } else if (rosterFilter === 'Pending') {
+        return s.status === 'Approved';
+      } else {
+        return s.status === 'Paid';
+      }
+    });
+  }, [allSanctions, selectedCadre, rosterFilter]);
+
+  const handleExportRosterStatus = (status: 'All' | 'Pending' | 'Paid') => {
+    const listToExport = (allSanctions as any[]).filter(s => {
+      if (s.employee?.cardType !== selectedCadre) return false;
+      if (status === 'All') {
+        return s.status === 'Approved' || s.status === 'Paid';
+      } else if (status === 'Pending') {
+        return s.status === 'Approved';
+      } else {
+        return s.status === 'Paid';
+      }
+    });
+
+    const rows = listToExport.map((s: any) => {
+      const limitHours = s.limit ?? s.hours;
+      const payable = limitHours;
+      const amount = payable * hourlyRate;
+      return [
+        s.employee?.name || 'N/A',
+        s.employee?.serviceNo || 'N/A',
+        s.employee?.department?.name || 'N/A',
+        `${limitHours}h`,
+        `${payable}h`,
+        `Rs. ${hourlyRate}`,
+        `Rs. ${amount.toLocaleString()}`,
+        s.status === 'Paid' ? 'Paid' : 'Pending Payment',
+      ];
+    });
+
+    const headers = [['Personnel', 'Service No', 'Department', 'Sanctioned', 'Payable (h)', 'Rate/hr', 'Net Amount', 'Status']];
+    const titleSuffix = status === 'All' ? 'Full Roster' : `${status} Payments`;
+    const totalAmount = listToExport.reduce((sum, s) => sum + ((s.limit ?? s.hours) * hourlyRate), 0);
+
+    exportToPDF(
+      `${selectedCadre} · ${titleSuffix}`,
+      headers,
+      rows,
+      `payment_roster_${status.toLowerCase()}_${selectedCadre.toLowerCase()}_${new Date().toISOString().slice(0,10)}`,
+      { period: new Date().toLocaleDateString('en-GB'), dept: `${selectedCadre} Cadre`, clerk: clerkName },
+      [
+        { label: 'Total Personnel', value: `${listToExport.length}` },
+        { label: 'Total Disbursement', value: `Rs. ${totalAmount.toLocaleString()}` },
+        { label: 'Rate / Hour', value: `Rs. ${hourlyRate}` },
+      ]
+    );
+  };
 
   // Roster Logic – use approved limit (allowance) hours for payable
   const rosterData = useMemo(() => {
@@ -388,33 +448,24 @@ const OvertimeSystem = () => {
         <Tabs.Content value="roster" className="animate-in fade-in duration-300">
           <Section title="Final Disbursement Roster" actions={
             <div className="flex gap-2">
-              <Btn variant="outline" className="h-9" onClick={() => {
-                const headers = [['Personnel', 'Service No', 'Department', 'Sanctioned', 'Payable (h)', 'Rate/hr', 'Net Amount', 'Status']];
-                const rows = rosterData.map((r: any) => [
-                  r.employee?.name || 'N/A',
-                  r.employee?.serviceNo || 'N/A',
-                  r.employee?.department?.name || 'N/A',
-                  `${r.limit ?? r.hours}h`,
-                  `${r.payable}h`,
-                  `Rs. ${hourlyRate}`,
-                  `Rs. ${r.amount.toLocaleString()}`,
-                  r.status === 'Paid' ? 'Paid' : 'Pending Payment',
-                ]);
-                exportToPDF(
-                  `${selectedCadre} · ${typeLabel} Payment Bill`,
-                  headers,
-                  rows,
-                  `payment_bill_${selectedCadre.toLowerCase()}_${new Date().toISOString().slice(0,10)}`,
-                  { period: new Date().toLocaleDateString('en-GB'), dept: `${selectedCadre} Cadre`, clerk: clerkName },
-                  [
-                    { label: 'Total Personnel', value: `${rosterData.length}` },
-                    { label: 'Total Disbursement', value: `Rs. ${totalDisbursement.toLocaleString()}` },
-                    { label: 'Rate / Hour', value: `Rs. ${hourlyRate}` },
-                  ]
-                );
-              }}>
-                <FileText className="w-4 h-4 mr-1" /> Export PDF
-              </Btn>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Btn variant="outline" className="h-9">
+                    <FileText className="w-4 h-4 mr-1" /> Export PDF
+                  </Btn>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="bg-background-alt border-border w-52">
+                  <DropdownMenuItem onClick={() => handleExportRosterStatus('All')} className="cursor-pointer font-bold">
+                    Export All
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => handleExportRosterStatus('Pending')} className="cursor-pointer font-bold">
+                    Export Pending
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => handleExportRosterStatus('Paid')} className="cursor-pointer font-bold">
+                    Export Paid
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
               <Btn variant="primary" className="h-9 shadow-sm" onClick={() => {
                 const headers = [['Personnel', 'Service No', 'Department', 'Sanctioned', 'Payable (h)', 'Rate/hr', 'Net Amount', 'Status']];
                 const rows = rosterData.map((r: any) => [
@@ -442,7 +493,22 @@ const OvertimeSystem = () => {
               }}><Printer className="w-4 h-4 mr-2"/> Export Bill</Btn>
             </div>
           }>
-             <div className="overflow-x-auto -m-5">
+            <div className="flex items-center gap-1 bg-muted/40 p-1 rounded-sm border border-border w-fit mb-4">
+              {(['All', 'Pending', 'Paid'] as const).map((status) => (
+                <button
+                  key={status}
+                  onClick={() => setRosterFilter(status)}
+                  className={`px-3 py-1.5 text-[0.65rem] font-bold uppercase transition-all rounded-[1px] ${
+                    rosterFilter === status
+                      ? 'bg-accent text-accent-foreground shadow-command scale-105 z-10'
+                      : 'text-muted-foreground hover:text-foreground hover:bg-muted'
+                  }`}
+                >
+                  {status === 'Pending' ? 'Pending Payment' : status}
+                </button>
+              ))}
+            </div>
+            <div className="overflow-x-auto -m-5">
               <table className="data-table">
                 <thead><tr><th>Personnel</th><th>Sanctioned</th><th>Payable</th><th>Status</th><th className="text-right">Net Amount</th><th className="text-right">Action</th></tr></thead>
                 <tbody>
