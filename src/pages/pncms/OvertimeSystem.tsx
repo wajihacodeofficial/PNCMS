@@ -600,9 +600,9 @@ const OvertimeSystem = () => {
 
       {isAddingSanction && (
         <div className="fixed inset-0 z-50 bg-primary/60 backdrop-blur-sm flex items-center justify-center p-8">
-          <div className="bg-card w-full max-w-2xl rounded-md shadow-elevated border border-border overflow-hidden animate-in zoom-in-95">
+          <div className="bg-card w-full max-w-3xl rounded-md shadow-elevated border border-border overflow-hidden animate-in zoom-in-95">
              <div className="bg-primary px-6 py-4 flex items-center justify-between"><h3 className="text-white font-heading font-black italic uppercase text-lg">New {typeLabel} Sanction</h3><button onClick={() => setIsAddingSanction(false)} className="text-white/70 hover:text-white"><X className="w-6 h-6"/></button></div>
-             <div className="p-8 grid grid-cols-2 gap-6">
+             <div className="p-8 grid grid-cols-3 gap-6">
                 <Field label="Service Number" required>
                   <Input 
                     value={formSvc} 
@@ -617,8 +617,24 @@ const OvertimeSystem = () => {
                     className="bg-muted/50"
                   />
                 </Field>
-                 <Field label="Rank" required>
+                 <Field label="Rank">
                    <Input value={personnel.find((p: any) => p.serviceNo === formSvc)?.rank?.name || 'Not found'} disabled className="bg-muted/50" />
+                 </Field>
+                 <Field label="Basic Pay">
+                   <div className="relative">
+                     <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[0.6rem] font-bold text-muted-foreground uppercase">Rs.</span>
+                     <Input
+                       value={
+                         (() => {
+                           const emp = (personnel as any[]).find((p: any) => p.serviceNo === formSvc);
+                           return emp?.basicPay ? Number(emp.basicPay).toLocaleString() : '';
+                         })()
+                       }
+                       disabled
+                       className="bg-muted/50 pl-10 font-mono font-bold text-accent"
+                       placeholder="Auto-filled"
+                     />
+                   </div>
                  </Field>
                  <Field label="Date Initiated" required>
                    <Input type="date" value={formDateInitiated} onChange={(e) => setFormDateInitiated(e.target.value)} />
@@ -626,8 +642,8 @@ const OvertimeSystem = () => {
                  <Field label="Limit (Days)" required>
                    <Input type="number" value={formHours} onChange={(e) => setFormHours(e.target.value)} placeholder="No. of Sittings / Days" />
                  </Field>
-                 <Field label="Action" required>
-                   <Input value={formAction} onChange={(e) => setFormAction(e.target.value)} placeholder="Describe work to be done" />
+                 <Field label="Action (Optional)" className="col-span-3">
+                   <Input value={formAction} onChange={(e) => setFormAction(e.target.value)} placeholder="Describe work to be done (optional)" />
                  </Field>
              </div>
              <div className="bg-muted/30 p-5 flex justify-end gap-3 border-t border-border">
