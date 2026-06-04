@@ -35,7 +35,8 @@ function useGlobalQuery<T>(
   loadingKey: string,
   fetchActionName: keyof ReturnType<typeof useStore.getState>
 ) {
-  const data = useStore(dataSelector)
+  const rawData = useStore(dataSelector)
+  const data = rawData === null ? undefined : rawData
   const isLoading = useStore((state) => state.isLoading[loadingKey] || false)
   const fetchAction = useStore((state) => state[fetchActionName] as () => Promise<void>)
 
