@@ -227,31 +227,16 @@ const Settings = () => {
                 <span className="w-2 h-2 rounded-full bg-warning inline-block" />
                 Industrial Staff (Overtime)
               </p>
-              <div className="grid grid-cols-2 gap-6">
-                <Field label="Weekday Rate (Rs. / Day)" required>
-                  <div className="relative">
-                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[0.6rem] font-bold text-muted-foreground uppercase">Rs.</span>
-                    <Input
-                      type="number"
-                      value={indWeekdayRate}
-                      onChange={(e) => setIndWeekdayRate(e.target.value)}
-                      className="pl-10 font-mono font-bold"
-                    />
-                    <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[0.6rem] font-bold text-muted-foreground uppercase">/ Day</span>
-                  </div>
-                </Field>
-                <Field label="Holiday Rate (Rs. / Day)" required>
-                  <div className="relative">
-                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[0.6rem] font-bold text-muted-foreground uppercase">Rs.</span>
-                    <Input
-                      type="number"
-                      value={indHolidayRate}
-                      onChange={(e) => setIndHolidayRate(e.target.value)}
-                      className="pl-10 font-mono font-bold"
-                    />
-                    <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[0.6rem] font-bold text-accent uppercase">/ Day</span>
-                  </div>
-                </Field>
+              <div className="p-4 bg-warning/5 border border-warning/30 rounded-sm flex items-start gap-3">
+                <span className="mt-0.5 w-5 h-5 flex-shrink-0 text-warning">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+                </span>
+                <div>
+                  <p className="text-xs font-black uppercase tracking-tight text-warning mb-1">Rate Based on Individual Basic Pay</p>
+                  <p className="text-[0.7rem] text-muted-foreground leading-relaxed">
+                    Industrial staff overtime is calculated as <strong className="text-primary font-mono">Basic Pay ÷ 30</strong> per sitting, using each employee's own basic pay from their Employment Record. No fixed rate is configured here — ensure the <span className="font-bold text-primary">Basic Pay</span> field is filled in every Industrial employee record.
+                  </p>
+                </div>
               </div>
             </div>
           </Section>

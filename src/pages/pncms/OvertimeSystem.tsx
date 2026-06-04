@@ -180,8 +180,10 @@ const OvertimeSystem = () => {
 
   const [statusFilter, setStatusFilter] = useState<'All' | 'Pending' | 'Approved' | 'Rejected'>('All');
 
-  // Helper to calculate rate and amount for a sanction based on date and settings.
-  // Special case: MTC (Ministerial) employees use basic pay / 30 as their per-sitting rate.
+  // Rate calculation rules:
+  // • Ministerial (non-MTC): Fixed weekday/holiday rates from System Settings
+  // • Ministerial (MTC dept): basicPay ÷ 30 per sitting
+  // • Industrial: basicPay ÷ 30 per sitting (overtime based on individual basic pay)
   const calculateSanctionAmount = (s: any) => {
     let dayTypesConfig: Record<string, 'weekday' | 'holiday'> = {
       Monday: 'weekday',
@@ -205,21 +207,19 @@ const OvertimeSystem = () => {
     const dayName = dateObj.toLocaleDateString('en-US', { weekday: 'long' });
     const isHoliday = dayTypesConfig[dayName] === 'holiday';
 
-    let rate = 0;
     const isMTC = (s.employee?.department?.name || '').toUpperCase().includes('MTC');
+    const usesBasicPay = selectedCadre === 'Industrial' || isMTC;
 
-    if (selectedCadre === 'Ministerial' && isMTC) {
-      // MTC: rate = basicPay / 30 (one day's pay per sitting)
+    let rate = 0;
+    if (usesBasicPay) {
+      // Industrial & MTC Ministerial: rate = basicPay / 30 per sitting
       const basicPay = parseFloat(s.employee?.basicPay || '0');
       rate = basicPay > 0 ? Math.round(basicPay / 30) : 0;
-    } else if (selectedCadre === 'Ministerial') {
-      rate = isHoliday 
-        ? parseInt(settings.rate_ministerial_holiday || "285")
-        : parseInt(settings.rate_ministerial_weekday || "225");
     } else {
-      rate = isHoliday 
-        ? parseInt(settings.rate_industrial_holiday || "460")
-        : parseInt(settings.rate_industrial_weekday || "380");
+      // Other Ministerial: fixed weekday/holiday rate from Settings
+      rate = isHoliday
+        ? parseInt(settings.rate_ministerial_holiday || '285')
+        : parseInt(settings.rate_ministerial_weekday || '225');
     }
 
     const sittings = s.limit ?? s.hours ?? 0;
@@ -228,6 +228,7 @@ const OvertimeSystem = () => {
       isHoliday,
       dayName,
       isMTC,
+      usesBasicPay,
       amount: sittings * rate
     };
   };
@@ -577,7 +578,7 @@ const OvertimeSystem = () => {
                         <td className="text-xs font-mono">
                           <div className="font-bold text-accent">Rs. {r.rate.toLocaleString()}</div>
                           <div className="text-[0.6rem] text-muted-foreground uppercase">
-                            {r.isMTC ? 'Basic Pay ÷ 30' : (r.isHoliday ? 'Holiday Rate' : 'Weekday Rate')}
+                            {r.usesBasicPay ? 'Basic Pay ÷ 30' : (r.isHoliday ? 'Holiday Rate' : 'Weekday Rate')}
                           </div>
                         </td>
                         <td><Badge variant={r.status === 'Paid' ? 'success' : 'warning' as any}>{r.status === 'Paid' ? 'Paid' : 'Pending Payment'}</Badge></td>
