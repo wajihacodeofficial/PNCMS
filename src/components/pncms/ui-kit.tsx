@@ -65,8 +65,8 @@ export const Btn = forwardRef<HTMLButtonElement, ButtonHTMLAttributes<HTMLButton
 Btn.displayName = "Btn";
 
 /* === FIELD === */
-export const Field = ({ label, children, required }: { label: string; children: ReactNode; required?: boolean }) => (
-  <div className="flex flex-col gap-1.5">
+export const Field = ({ label, children, required, className }: { label: string; children: ReactNode; required?: boolean; className?: string }) => (
+  <div className={`flex flex-col gap-1.5 ${className || ''}`}>
     <label className="label-mil flex items-center gap-1">
       {label}{required && <span className="text-destructive">*</span>}
     </label>
