@@ -332,7 +332,7 @@ const OvertimeSystem = () => {
                     <FileText className="w-4 h-4 mr-1" /> Export PDF
                   </Btn>
                 </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="bg-background-alt border-border w-48">
+                <DropdownMenuContent align="end" className="bg-popover border-border shadow-elevated w-48">
                   <DropdownMenuItem onClick={() => handleExportStatus('All')} className="cursor-pointer font-bold">
                     Export All
                   </DropdownMenuItem>
@@ -454,7 +454,7 @@ const OvertimeSystem = () => {
                     <FileText className="w-4 h-4 mr-1" /> Export PDF
                   </Btn>
                 </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="bg-background-alt border-border w-52">
+                <DropdownMenuContent align="end" className="bg-popover border-border shadow-elevated w-52">
                   <DropdownMenuItem onClick={() => handleExportRosterStatus('All')} className="cursor-pointer font-bold">
                     Export All
                   </DropdownMenuItem>
