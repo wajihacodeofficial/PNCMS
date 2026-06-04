@@ -6,13 +6,17 @@ import { useStore } from '@/store'
 function useLocalQuery<T>(queryFn: () => Promise<T>, deps: any[], enabled: boolean = true) {
   const [data, setData] = useState<T | undefined>(undefined)
   const [isLoading, setIsLoading] = useState(false)
+  const [error, setError] = useState<Error | null>(null)
 
   const refetch = useCallback(async () => {
     if (!enabled) return
     setIsLoading(true)
+    setError(null)
     try {
       const res = await queryFn()
       setData(res)
+    } catch (err) {
+      setError(err instanceof Error ? err : new Error(String(err)))
     } finally {
       setIsLoading(false)
     }
@@ -22,7 +26,7 @@ function useLocalQuery<T>(queryFn: () => Promise<T>, deps: any[], enabled: boole
     refetch()
   }, [refetch])
 
-  return { data, isLoading, refetch }
+  return { data, isLoading, error, refetch }
 }
 
 // Global query helper
@@ -39,7 +43,10 @@ function useGlobalQuery<T>(
     fetchAction()
   }, [fetchAction])
 
-  return { data, isLoading, refetch: fetchAction }
+  // Global queries surface errors via toast in the store; expose null for API compatibility
+  const error: Error | null = null
+
+  return { data, isLoading, error, refetch: fetchAction }
 }
 
 // Mutation Helper
