@@ -180,6 +180,50 @@ const OvertimeSystem = () => {
 
   const [statusFilter, setStatusFilter] = useState<'All' | 'Pending' | 'Approved' | 'Rejected'>('All');
 
+  // Helper to calculate rate and amount for a sanction based on date and settings
+  const calculateSanctionAmount = (s: any) => {
+    let dayTypesConfig: Record<string, 'weekday' | 'holiday'> = {
+      Monday: 'weekday',
+      Tuesday: 'weekday',
+      Wednesday: 'weekday',
+      Thursday: 'weekday',
+      Friday: 'weekday',
+      Saturday: 'holiday',
+      Sunday: 'holiday',
+    };
+    if (settings.day_types) {
+      try {
+        dayTypesConfig = JSON.parse(settings.day_types);
+      } catch (e) {
+        console.error(e);
+      }
+    }
+
+    const targetDate = s.dateInitiated || s.date || new Date().toISOString();
+    const dateObj = new Date(targetDate);
+    const dayName = dateObj.toLocaleDateString('en-US', { weekday: 'long' });
+    const isHoliday = dayTypesConfig[dayName] === 'holiday';
+
+    let rate = 0;
+    if (selectedCadre === 'Ministerial') {
+      rate = isHoliday 
+        ? parseInt(settings.rate_ministerial_holiday || "285")
+        : parseInt(settings.rate_ministerial_weekday || "225");
+    } else {
+      rate = isHoliday 
+        ? parseInt(settings.rate_industrial_holiday || "460")
+        : parseInt(settings.rate_industrial_weekday || "380");
+    }
+
+    const sittings = s.limit ?? s.hours ?? 0;
+    return {
+      rate,
+      isHoliday,
+      dayName,
+      amount: sittings * rate
+    };
+  };
+
   const handleExportStatus = (status: 'All' | 'Pending' | 'Approved' | 'Rejected') => {
     const listToExport = (allSanctions as any[]).filter(s => {
       if (s.employee?.cardType !== selectedCadre) return false;
@@ -187,16 +231,19 @@ const OvertimeSystem = () => {
       return true;
     });
 
-    const headers = [['Sanction ID', 'Personnel', 'Service No', 'Rank', 'Limit (h)', 'Action', 'Status']];
-    const rows = listToExport.map((s: any) => [
-      s.id.slice(-8).toUpperCase(),
-      s.employee?.name || 'N/A',
-      s.employee?.serviceNo || 'N/A',
-      s.rank || 'N/A',
-      `${s.limit ?? s.hours}h`,
-      s.action || 'N/A',
-      s.status,
-    ]);
+    const headers = [['Sanction ID', 'Personnel', 'Service No', 'Rank', 'Limit (Days)', 'Action', 'Status']];
+    const rows = listToExport.map((s: any) => {
+      const { rate, isHoliday } = calculateSanctionAmount(s);
+      return [
+        s.id.slice(-8).toUpperCase(),
+        s.employee?.name || 'N/A',
+        s.employee?.serviceNo || 'N/A',
+        s.rank || 'N/A',
+        `${s.limit ?? s.hours} Sittings`,
+        s.action || 'N/A',
+        `${s.status} (Rs. ${rate} - ${isHoliday ? 'Holiday' : 'Weekday'})`,
+      ];
+    });
 
     const titleSuffix = status === 'All' ? 'Full Register' : `${status} Register`;
     exportToPDF(
@@ -208,8 +255,6 @@ const OvertimeSystem = () => {
     );
   };
 
-  const hourlyRate = rates[selectedCadre];
-  
   const filteredSanctions = useMemo(() => {
     return (allSanctions as any[]).filter(s => {
       if (s.employee?.cardType !== selectedCadre) return false;
@@ -250,22 +295,22 @@ const OvertimeSystem = () => {
     const rows = listToExport.map((s: any) => {
       const limitHours = s.limit ?? s.hours;
       const payable = limitHours;
-      const amount = payable * hourlyRate;
+      const { rate, isHoliday, amount } = calculateSanctionAmount(s);
       return [
         s.employee?.name || 'N/A',
         s.employee?.serviceNo || 'N/A',
         s.employee?.department?.name || 'N/A',
-        `${limitHours}h`,
-        `${payable}h`,
-        `Rs. ${hourlyRate}`,
+        `${limitHours}d`,
+        `${payable}d`,
+        `Rs. ${rate} (${isHoliday ? 'HD' : 'WD'})`,
         `Rs. ${amount.toLocaleString()}`,
         s.status === 'Paid' ? 'Paid' : 'Pending Payment',
       ];
     });
 
-    const headers = [['Personnel', 'Service No', 'Department', 'Sanctioned', 'Payable (h)', 'Rate/hr', 'Net Amount', 'Status']];
+    const headers = [['Personnel', 'Service No', 'Department', 'Sanctioned', 'Payable (d)', 'Rate/day', 'Net Amount', 'Status']];
     const titleSuffix = status === 'All' ? 'Full Roster' : `${status} Payments`;
-    const totalAmount = listToExport.reduce((sum, s) => sum + ((s.limit ?? s.hours) * hourlyRate), 0);
+    const totalAmount = listToExport.reduce((sum, s) => sum + calculateSanctionAmount(s).amount, 0);
 
     exportToPDF(
       `${selectedCadre} · ${titleSuffix}`,
@@ -276,23 +321,27 @@ const OvertimeSystem = () => {
       [
         { label: 'Total Personnel', value: `${listToExport.length}` },
         { label: 'Total Disbursement', value: `Rs. ${totalAmount.toLocaleString()}` },
-        { label: 'Rate / Hour', value: `Rs. ${hourlyRate}` },
+        { label: 'Calculated in Sittings / Days', value: 'Yes' },
       ]
     );
   };
 
-  // Roster Logic – use approved limit (allowance) hours for payable
+  // Roster Logic – use approved limit (allowance) sittings for payable
   const rosterData = useMemo(() => {
     return paymentSanctions.map((s: any) => {
       const limitHours = s.limit ?? s.hours;
       const payable = limitHours;
+      const { rate, amount, isHoliday, dayName } = calculateSanctionAmount(s);
       return {
         ...s,
         payable,
-        amount: payable * hourlyRate,
+        rate,
+        amount,
+        isHoliday,
+        dayName,
       };
     });
-  }, [paymentSanctions, hourlyRate]);
+  }, [paymentSanctions, settings, selectedCadre]);
 
   const totalDisbursement = rosterData.reduce((sum, item) => sum + item.amount, 0);
 
@@ -319,7 +368,7 @@ const OvertimeSystem = () => {
     <AppShell>
       <div className="flex items-center gap-4 mb-6">
         <button onClick={() => setActiveTab(null)} className="w-10 h-10 rounded-full bg-muted/50 flex items-center justify-center hover:bg-primary hover:text-white transition-all shadow-sm"><ArrowLeft className="w-5 h-5" /></button>
-        <PageHeader title={`${activeTab === 'sanctions' ? 'Sanction Applications' : activeTab === 'approved' ? 'Approved Sanctions' : 'Payment Disbursals'}`} subtitle={`${selectedCadre} Cadre · Fixed Rate: Rs. ${hourlyRate}/hr`} />
+        <PageHeader title={`${activeTab === 'sanctions' ? 'Sanction Applications' : activeTab === 'approved' ? 'Approved Sanctions' : 'Payment Disbursals'}`} subtitle={`${selectedCadre} Cadre · Rates: Rs. ${selectedCadre === 'Ministerial' ? (settings.rate_ministerial_weekday || '225') : (settings.rate_industrial_weekday || '380')} (WD) / Rs. ${selectedCadre === 'Ministerial' ? (settings.rate_ministerial_holiday || '285') : (settings.rate_industrial_holiday || '460')} (HD)`} />
       </div>
 
       <Tabs.Root value={activeTab} onValueChange={setActiveTab}>
@@ -367,7 +416,7 @@ const OvertimeSystem = () => {
             </div>
             <div className="overflow-x-auto -mx-5 -mb-5 mt-4">
               <table className="data-table">
-                <thead><tr><th>Sanction ID</th><th>Personnel</th><th>Rank</th><th>Limit (h)</th><th>Action</th><th>Status</th><th className="text-right">Action</th></tr></thead>
+                <thead><tr><th>Sanction ID</th><th>Personnel</th><th>Rank</th><th>Limit (Days)</th><th>Action</th><th>Status</th><th className="text-right">Action</th></tr></thead>
                 <tbody>
                   {filteredSanctions.map((s: any) => (
                     <tr key={s.id} className="group hover:bg-muted/5">
@@ -377,7 +426,7 @@ const OvertimeSystem = () => {
                         <div className="text-[0.65rem] text-muted-foreground font-mono">{s.employee?.serviceNo}</div>
                       </td>
                       <td>{s.rank || ''}</td>
-                      <td className="font-bold">{s.limit ?? s.hours}h</td>
+                      <td className="font-bold">{s.limit ?? s.hours} Sittings</td>
                       <td>{s.action || ''}</td>
                       <td><Badge variant={s.status.toLowerCase() as any}>{s.status}</Badge></td>
                       <td className="text-right">
@@ -406,26 +455,26 @@ const OvertimeSystem = () => {
         <Tabs.Content value="approved" className="animate-in fade-in duration-300">
            <Section title="Active Authorizations" actions={
              <Btn variant="outline" className="h-9" onClick={() => {
-               const headers = [['Personnel', 'Service No', 'Rank', 'Sanctioned Hours', 'Action', 'Status']];
-               const rows = approvedSanctions.map((s: any) => [
-                 s.employee?.name || 'N/A',
-                 s.employee?.serviceNo || 'N/A',
-                 s.rank || 'N/A',
-                 `${s.hours}h`,
-                 s.action || 'N/A',
-                 s.status,
-               ]);
-               exportToPDF(
-                 `${selectedCadre} · Approved Sanctions`,
-                 headers,
-                 rows,
-                 `approved_sanctions_${selectedCadre.toLowerCase()}_${new Date().toISOString().slice(0,10)}`,
-                 { period: new Date().toLocaleDateString('en-GB'), dept: `${selectedCadre} Cadre`, clerk: clerkName }
-               );
-             }}>
-               <FileText className="w-4 h-4 mr-1" /> Export PDF
-             </Btn>
-           }>
+                const headers = [['Personnel', 'Service No', 'Rank', 'Sanctioned Days', 'Action', 'Status']];
+                const rows = approvedSanctions.map((s: any) => [
+                  s.employee?.name || 'N/A',
+                  s.employee?.serviceNo || 'N/A',
+                  s.rank || 'N/A',
+                  `${s.limit ?? s.hours}d`,
+                  s.action || 'N/A',
+                  s.status,
+                ]);
+                exportToPDF(
+                  `${selectedCadre} · Approved Sanctions`,
+                  headers,
+                  rows,
+                  `approved_sanctions_${selectedCadre.toLowerCase()}_${new Date().toISOString().slice(0,10)}`,
+                  { period: new Date().toLocaleDateString('en-GB'), dept: `${selectedCadre} Cadre`, clerk: clerkName }
+                );
+              }}>
+                <FileText className="w-4 h-4 mr-1" /> Export PDF
+              </Btn>
+            }>
               <div className="grid grid-cols-2 gap-4">
                 {approvedSanctions.map((s: any) => (
                   <div key={s.id} className="panel p-5 border-l-4 border-l-success flex items-center justify-between group hover:shadow-md transition-all">
@@ -433,7 +482,7 @@ const OvertimeSystem = () => {
                       <div className="w-12 h-12 rounded-full bg-success/10 flex items-center justify-center text-success"><ScrollText className="w-6 h-6"/></div>
                       <div>
                         <div className="text-sm font-black text-primary uppercase italic">{s.employee?.name}</div>
-                        <div className="text-[0.6rem] font-bold text-muted-foreground uppercase tracking-widest">{s.employee?.serviceNo} · {s.hours}h Limit</div>
+                        <div className="text-[0.6rem] font-bold text-muted-foreground uppercase tracking-widest">{s.employee?.serviceNo} · {s.limit ?? s.hours} Sittings Limit</div>
                       </div>
                     </div>
                   </div>
@@ -442,8 +491,8 @@ const OvertimeSystem = () => {
                   <div className="col-span-2 py-20 text-center opacity-50 italic">No approved authorizations.</div>
                 )}
               </div>
-           </Section>
-        </Tabs.Content>
+            </Section>
+         </Tabs.Content>
 
         <Tabs.Content value="roster" className="animate-in fade-in duration-300">
           <Section title="Final Disbursement Roster" actions={
@@ -467,14 +516,14 @@ const OvertimeSystem = () => {
                 </DropdownMenuContent>
               </DropdownMenu>
               <Btn variant="primary" className="h-9 shadow-sm" onClick={() => {
-                const headers = [['Personnel', 'Service No', 'Department', 'Sanctioned', 'Payable (h)', 'Rate/hr', 'Net Amount', 'Status']];
+                const headers = [['Personnel', 'Service No', 'Department', 'Sanctioned', 'Payable (d)', 'Rate/day', 'Net Amount', 'Status']];
                 const rows = rosterData.map((r: any) => [
                   r.employee?.name || 'N/A',
                   r.employee?.serviceNo || 'N/A',
                   r.employee?.department?.name || 'N/A',
-                  `${r.limit ?? r.hours}h`,
-                  `${r.payable}h`,
-                  `Rs. ${hourlyRate}`,
+                  `${r.limit ?? r.hours}d`,
+                  `${r.payable}d`,
+                  `Rs. ${r.rate} (${r.isHoliday ? 'HD' : 'WD'})`,
                   `Rs. ${r.amount.toLocaleString()}`,
                   r.status === 'Paid' ? 'Paid' : 'Pending Payment',
                 ]);
@@ -487,7 +536,7 @@ const OvertimeSystem = () => {
                   [
                     { label: 'Total Personnel', value: `${rosterData.length}` },
                     { label: 'Total Disbursement', value: `Rs. ${totalDisbursement.toLocaleString()}` },
-                    { label: 'Rate / Hour', value: `Rs. ${hourlyRate}` },
+                    { label: 'Calculation Type', value: 'Day-wise / Sitting' },
                   ]
                 );
               }}><Printer className="w-4 h-4 mr-2"/> Export Bill</Btn>
@@ -515,8 +564,8 @@ const OvertimeSystem = () => {
                   {rosterData.map((r: any) => (
                     <tr key={r.id}>
                       <td><div className="font-bold">{r.employee?.name}</div><div className="text-[0.6rem] opacity-50 uppercase">{r.employee?.serviceNo} · {r.employee?.department?.name}</div></td>
-                      <td className="font-mono text-xs">{r.limit ?? r.hours}h</td>
-                      <td className="font-mono font-black text-primary">{r.payable}h</td>
+                      <td className="font-mono text-xs">{r.limit ?? r.hours}d</td>
+                      <td className="font-mono font-black text-primary">{r.payable}d</td>
                       <td><Badge variant={r.status === 'Paid' ? 'success' : 'warning' as any}>{r.status === 'Paid' ? 'Paid' : 'Pending Payment'}</Badge></td>
                       <td className="text-right font-mono font-bold text-accent">Rs. {r.amount.toLocaleString()}</td>
                       <td className="text-right">
@@ -560,8 +609,8 @@ const OvertimeSystem = () => {
                  <Field label="Date Initiated" required>
                    <Input type="date" value={formDateInitiated} onChange={(e) => setFormDateInitiated(e.target.value)} />
                  </Field>
-                 <Field label="Limit (Hours)" required>
-                   <Input type="number" value={formHours} onChange={(e) => setFormHours(e.target.value)} placeholder="Limit for period" />
+                 <Field label="Limit (Days)" required>
+                   <Input type="number" value={formHours} onChange={(e) => setFormHours(e.target.value)} placeholder="No. of Sittings / Days" />
                  </Field>
                  <Field label="Action" required>
                    <Input value={formAction} onChange={(e) => setFormAction(e.target.value)} placeholder="Describe work to be done" />

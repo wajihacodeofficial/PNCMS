@@ -6,26 +6,22 @@ import {
   Field,
   Input,
   Badge,
-  Select,
 } from '@/components/pncms/ui-kit';
 import {
   Save,
-  ShieldCheck,
-  Shield,
-  Building2,
   User,
   Eye,
   EyeOff,
   Lock,
   Landmark,
-  History,
+  CalendarDays,
 } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import { useSettings, useUpsertSetting } from '@/hooks/use-api';
 
+const DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'] as const;
+
 const Settings = () => {
-  const navigate = useNavigate();
   const { data: settings = {}, isLoading } = useSettings();
   const upsertSetting = useUpsertSetting();
 
@@ -36,8 +32,23 @@ const Settings = () => {
   const [adminPass, setAdminPass] = useState('');
   const [loginUser, setLoginUser] = useState('');
   const [loginPass, setLoginPass] = useState('');
-  const [minRate, setMinRate] = useState('380');
-  const [indRate, setIndRate] = useState('420');
+
+  // Weekday/Holiday rates — 4 rates replacing single hourly
+  const [minWeekdayRate, setMinWeekdayRate] = useState('225');
+  const [minHolidayRate, setMinHolidayRate] = useState('285');
+  const [indWeekdayRate, setIndWeekdayRate] = useState('380');
+  const [indHolidayRate, setIndHolidayRate] = useState('460');
+
+  // Day type config: 'weekday' | 'holiday' per day
+  const [dayTypes, setDayTypes] = useState<Record<string, 'weekday' | 'holiday'>>({
+    Monday: 'weekday',
+    Tuesday: 'weekday',
+    Wednesday: 'weekday',
+    Thursday: 'weekday',
+    Friday: 'weekday',
+    Saturday: 'holiday',
+    Sunday: 'holiday',
+  });
 
   useEffect(() => {
     if (settings) {
@@ -48,8 +59,17 @@ const Settings = () => {
       setAdminPass(settings.admin_password || '14081947');
       setLoginUser(settings.login_username || 'Administrator');
       setLoginPass(settings.login_password || 'pncms@2026');
-      setMinRate(settings.rate_ministerial || '380');
-      setIndRate(settings.rate_industrial || '420');
+      setMinWeekdayRate(settings.rate_ministerial_weekday || '225');
+      setMinHolidayRate(settings.rate_ministerial_holiday || '285');
+      setIndWeekdayRate(settings.rate_industrial_weekday || '380');
+      setIndHolidayRate(settings.rate_industrial_holiday || '460');
+
+      // Restore day types from settings
+      if (settings.day_types) {
+        try {
+          setDayTypes(JSON.parse(settings.day_types));
+        } catch { /* ignore parse errors */ }
+      }
     }
   }, [settings]);
 
@@ -57,8 +77,15 @@ const Settings = () => {
   const [showLoginPass, setShowLoginPass] = useState(false);
   const [showSecAnswer, setShowSecAnswer] = useState(false);
 
+  const toggleDay = (day: string) => {
+    setDayTypes(prev => ({
+      ...prev,
+      [day]: prev[day] === 'weekday' ? 'holiday' : 'weekday',
+    }));
+  };
+
   const handleSave = async () => {
-    const config = {
+    const config: Record<string, string> = {
       clerk_name: clerkName,
       sec_question: secQuestion,
       sec_answer: secAnswer,
@@ -66,15 +93,20 @@ const Settings = () => {
       admin_password: adminPass,
       login_username: loginUser,
       login_password: loginPass,
-      rate_ministerial: minRate,
-      rate_industrial: indRate,
+      rate_ministerial_weekday: minWeekdayRate,
+      rate_ministerial_holiday: minHolidayRate,
+      rate_industrial_weekday: indWeekdayRate,
+      rate_industrial_holiday: indHolidayRate,
+      // Legacy keys for backward compat
+      rate_ministerial: minWeekdayRate,
+      rate_industrial: indWeekdayRate,
+      day_types: JSON.stringify(dayTypes),
     };
 
     try {
       for (const [key, value] of Object.entries(config)) {
         await upsertSetting.mutateAsync({ key, value });
       }
-      // Also update localStorage for immediate UI consistency in other parts of the app
       Object.entries(config).forEach(([key, value]) => localStorage.setItem(key, value));
       toast.success('System configuration updated successfully.');
     } catch (error) {
@@ -96,50 +128,135 @@ const Settings = () => {
 
       <div className="grid grid-cols-12 gap-6">
         <div className="col-span-12 space-y-6">
+
+          {/* ── Day Classification ─────────────────────────── */}
+          <Section title="Weekly Day Classification">
+            <div className="p-4 bg-accent/5 border border-accent/20 rounded-sm mb-6 flex items-center gap-3">
+              <CalendarDays className="w-6 h-6 text-accent flex-shrink-0" />
+              <p className="text-xs text-primary font-bold uppercase tracking-tight">
+                Toggle each day between <span className="text-info">Weekday</span> and{' '}
+                <span className="text-accent">Holiday</span>. Rates will be applied accordingly on
+                all payment calculations.
+              </p>
+            </div>
+            <div className="grid grid-cols-7 gap-3">
+              {DAYS.map(day => {
+                const isHoliday = dayTypes[day] === 'holiday';
+                return (
+                  <button
+                    key={day}
+                    onClick={() => toggleDay(day)}
+                    className={`flex flex-col items-center gap-2 py-4 px-2 rounded-sm border-2 transition-all duration-200 ${
+                      isHoliday
+                        ? 'border-accent bg-accent/10 text-accent shadow-command'
+                        : 'border-info/40 bg-info/5 text-info hover:bg-info/10'
+                    }`}
+                  >
+                    <span className="text-[0.6rem] font-black uppercase tracking-widest">
+                      {day.slice(0, 3)}
+                    </span>
+                    <span className={`text-[0.55rem] font-bold uppercase px-2 py-0.5 rounded-sm ${
+                      isHoliday ? 'bg-accent text-accent-foreground' : 'bg-info text-white'
+                    }`}>
+                      {isHoliday ? 'Holiday' : 'Weekday'}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+            <p className="text-[0.65rem] text-muted-foreground mt-4 italic">
+              Click any day to toggle its classification. Currently:{' '}
+              <span className="font-bold text-info">
+                {DAYS.filter(d => dayTypes[d] === 'weekday').join(', ')}
+              </span>{' '}
+              are Weekdays.{' '}
+              <span className="font-bold text-accent">
+                {DAYS.filter(d => dayTypes[d] === 'holiday').join(', ')}
+              </span>{' '}
+              are Holidays.
+            </p>
+          </Section>
+
+          {/* ── Allowance Rates ─────────────────────────────── */}
           <Section title="Allowance Disbursement Rates">
             <div className="p-4 bg-accent/5 border border-accent/20 rounded-sm mb-6 flex items-center gap-3">
               <Landmark className="w-6 h-6 text-accent" />
               <p className="text-xs text-primary font-bold uppercase tracking-tight">
-                Financial parameters for automated overtime & late-sitting
-                calculations.
+                Separate rates for Weekday and Holiday attendance. Applied automatically based on
+                day classification above.
               </p>
             </div>
-            <div className="grid grid-cols-2 gap-6">
-              <Field label="Ministerial (Late-Sitting) Rate" required>
-                <div className="relative">
-                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[0.6rem] font-bold text-muted-foreground uppercase">
-                    Rs.
-                  </span>
-                  <Input
-                    type="number"
-                    value={minRate}
-                    onChange={(e) => setMinRate(e.target.value)}
-                    className="pl-10 font-mono font-bold"
-                  />
-                  <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[0.6rem] font-bold text-muted-foreground uppercase">
-                    / HR
-                  </span>
-                </div>
-              </Field>
-              <Field label="Industrial (Overtime) Rate" required>
-                <div className="relative">
-                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[0.6rem] font-bold text-muted-foreground uppercase">
-                    Rs.
-                  </span>
-                  <Input
-                    type="number"
-                    value={indRate}
-                    onChange={(e) => setIndRate(e.target.value)}
-                    className="pl-10 font-mono font-bold"
-                  />
-                  <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[0.6rem] font-bold text-muted-foreground uppercase">
-                    / HR
-                  </span>
-                </div>
-              </Field>
+
+            {/* Ministerial */}
+            <div className="mb-6">
+              <p className="label-mil text-xs text-primary mb-3 border-b border-border pb-2 flex items-center gap-2">
+                <span className="w-2 h-2 rounded-full bg-info inline-block" />
+                Ministerial Staff (Late-Sitting)
+              </p>
+              <div className="grid grid-cols-2 gap-6">
+                <Field label="Weekday Rate (Rs. / Day)" required>
+                  <div className="relative">
+                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[0.6rem] font-bold text-muted-foreground uppercase">Rs.</span>
+                    <Input
+                      type="number"
+                      value={minWeekdayRate}
+                      onChange={(e) => setMinWeekdayRate(e.target.value)}
+                      className="pl-10 font-mono font-bold"
+                    />
+                    <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[0.6rem] font-bold text-muted-foreground uppercase">/ Day</span>
+                  </div>
+                </Field>
+                <Field label="Holiday Rate (Rs. / Day)" required>
+                  <div className="relative">
+                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[0.6rem] font-bold text-muted-foreground uppercase">Rs.</span>
+                    <Input
+                      type="number"
+                      value={minHolidayRate}
+                      onChange={(e) => setMinHolidayRate(e.target.value)}
+                      className="pl-10 font-mono font-bold"
+                    />
+                    <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[0.6rem] font-bold text-accent uppercase">/ Day</span>
+                  </div>
+                </Field>
+              </div>
+            </div>
+
+            {/* Industrial */}
+            <div>
+              <p className="label-mil text-xs text-primary mb-3 border-b border-border pb-2 flex items-center gap-2">
+                <span className="w-2 h-2 rounded-full bg-warning inline-block" />
+                Industrial Staff (Overtime)
+              </p>
+              <div className="grid grid-cols-2 gap-6">
+                <Field label="Weekday Rate (Rs. / Day)" required>
+                  <div className="relative">
+                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[0.6rem] font-bold text-muted-foreground uppercase">Rs.</span>
+                    <Input
+                      type="number"
+                      value={indWeekdayRate}
+                      onChange={(e) => setIndWeekdayRate(e.target.value)}
+                      className="pl-10 font-mono font-bold"
+                    />
+                    <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[0.6rem] font-bold text-muted-foreground uppercase">/ Day</span>
+                  </div>
+                </Field>
+                <Field label="Holiday Rate (Rs. / Day)" required>
+                  <div className="relative">
+                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[0.6rem] font-bold text-muted-foreground uppercase">Rs.</span>
+                    <Input
+                      type="number"
+                      value={indHolidayRate}
+                      onChange={(e) => setIndHolidayRate(e.target.value)}
+                      className="pl-10 font-mono font-bold"
+                    />
+                    <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[0.6rem] font-bold text-accent uppercase">/ Day</span>
+                  </div>
+                </Field>
+              </div>
             </div>
           </Section>
 
+          {/* ── Personnel Assignment ─────────────────────── */}
           <Section title="Personnel Assignment">
             <Field label="Active Admin Clerk Name" required>
               <div className="relative">
@@ -154,6 +271,7 @@ const Settings = () => {
             </Field>
           </Section>
 
+          {/* ── Access Control ───────────────────────────── */}
           <Section title="Access Control & Security">
             <div className="grid grid-cols-2 gap-6">
               <Field label="Login Username (Application Login)" required>
@@ -176,16 +294,8 @@ const Settings = () => {
                     onChange={(e) => setLoginPass(e.target.value)}
                     className="pl-10 pr-10 w-full font-mono"
                   />
-                  <button
-                    type="button"
-                    onClick={() => setShowLoginPass(!showLoginPass)}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-primary"
-                  >
-                    {showLoginPass ? (
-                      <EyeOff className="w-4 h-4" />
-                    ) : (
-                      <Eye className="w-4 h-4" />
-                    )}
+                  <button type="button" onClick={() => setShowLoginPass(!showLoginPass)} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-primary">
+                    {showLoginPass ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                   </button>
                 </div>
               </Field>
@@ -210,16 +320,8 @@ const Settings = () => {
                     onChange={(e) => setAdminPass(e.target.value)}
                     className="pl-10 pr-10 w-full font-mono"
                   />
-                  <button
-                    type="button"
-                    onClick={() => setShowAdminPass(!showAdminPass)}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-primary"
-                  >
-                    {showAdminPass ? (
-                      <EyeOff className="w-4 h-4" />
-                    ) : (
-                      <Eye className="w-4 h-4" />
-                    )}
+                  <button type="button" onClick={() => setShowAdminPass(!showAdminPass)} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-primary">
+                    {showAdminPass ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                   </button>
                 </div>
               </Field>
@@ -240,16 +342,8 @@ const Settings = () => {
                       onChange={(e) => setSecAnswer(e.target.value)}
                       className="pr-10 w-full font-mono"
                     />
-                    <button
-                      type="button"
-                      onClick={() => setShowSecAnswer(!showSecAnswer)}
-                      className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-primary"
-                    >
-                      {showSecAnswer ? (
-                        <EyeOff className="w-4 h-4" />
-                      ) : (
-                        <Eye className="w-4 h-4" />
-                      )}
+                    <button type="button" onClick={() => setShowSecAnswer(!showSecAnswer)} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-primary">
+                      {showSecAnswer ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                     </button>
                   </div>
                 </Field>
@@ -257,7 +351,6 @@ const Settings = () => {
             </div>
           </Section>
         </div>
-
       </div>
     </AppShell>
   );
