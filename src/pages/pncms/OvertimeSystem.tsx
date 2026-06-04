@@ -21,6 +21,12 @@ import * as Tabs from "@radix-ui/react-tabs";
 import { toast } from 'sonner';
 import { exportToPDF, exportToExcel } from "@/lib/export";
 import { useSanctions, usePersonnel, useCreateSanction, useUpdateSanction, useSettings, useCreateLog } from '@/hooks/use-api';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 
 const OvertimeSystem = () => {
   const { data: allSanctions = [], isLoading: isSanctionsLoading } = useSanctions();
@@ -174,6 +180,34 @@ const OvertimeSystem = () => {
 
   const [statusFilter, setStatusFilter] = useState<'All' | 'Pending' | 'Approved' | 'Rejected'>('All');
 
+  const handleExportStatus = (status: 'All' | 'Pending' | 'Approved' | 'Rejected') => {
+    const listToExport = (allSanctions as any[]).filter(s => {
+      if (s.employee?.cardType !== selectedCadre) return false;
+      if (status !== 'All' && s.status !== status) return false;
+      return true;
+    });
+
+    const headers = [['Sanction ID', 'Personnel', 'Service No', 'Rank', 'Limit (h)', 'Action', 'Status']];
+    const rows = listToExport.map((s: any) => [
+      s.id.slice(-8).toUpperCase(),
+      s.employee?.name || 'N/A',
+      s.employee?.serviceNo || 'N/A',
+      s.rank || 'N/A',
+      `${s.limit ?? s.hours}h`,
+      s.action || 'N/A',
+      s.status,
+    ]);
+
+    const titleSuffix = status === 'All' ? 'Full Register' : `${status} Register`;
+    exportToPDF(
+      `${selectedCadre} · ${titleSuffix}`,
+      headers,
+      rows,
+      `sanctions_${status.toLowerCase()}_${selectedCadre.toLowerCase()}_${new Date().toISOString().slice(0,10)}`,
+      { period: new Date().toLocaleDateString('en-GB'), dept: `${selectedCadre} Cadre`, clerk: clerkName }
+    );
+  };
+
   const hourlyRate = rates[selectedCadre];
   
   const filteredSanctions = useMemo(() => {
@@ -232,39 +266,39 @@ const OvertimeSystem = () => {
         <Tabs.Content value="sanctions" className="animate-in fade-in duration-300">
           <Section title="Sanction Register" actions={
             <div className="flex gap-2">
-              <Btn variant="outline" className="h-9" onClick={() => {
-                const headers = [['Sanction ID', 'Personnel', 'Service No', 'Rank', 'Limit (h)', 'Action', 'Status']];
-                const rows = filteredSanctions.map((s: any) => [
-                  s.id.slice(-8).toUpperCase(),
-                  s.employee?.name || 'N/A',
-                  s.employee?.serviceNo || 'N/A',
-                  s.rank || 'N/A',
-                  `${s.limit ?? s.hours}h`,
-                  s.action || 'N/A',
-                  s.status,
-                ]);
-                exportToPDF(
-                  `${selectedCadre} · Sanction Register`,
-                  headers,
-                  rows,
-                  `sanction_register_${selectedCadre.toLowerCase()}_${new Date().toISOString().slice(0,10)}`,
-                  { period: new Date().toLocaleDateString('en-GB'), dept: `${selectedCadre} Cadre`, clerk: clerkName }
-                );
-              }}>
-                <FileText className="w-4 h-4 mr-1" /> Export PDF
-              </Btn>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Btn variant="outline" className="h-9">
+                    <FileText className="w-4 h-4 mr-1" /> Export PDF
+                  </Btn>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="bg-background-alt border-border w-48">
+                  <DropdownMenuItem onClick={() => handleExportStatus('All')} className="cursor-pointer font-bold">
+                    Export All
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => handleExportStatus('Pending')} className="cursor-pointer font-bold">
+                    Export Pending
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => handleExportStatus('Approved')} className="cursor-pointer font-bold">
+                    Export Approved
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => handleExportStatus('Rejected')} className="cursor-pointer font-bold">
+                    Export Rejected
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
               <Btn variant="gold" className="h-9" onClick={() => setIsAddingSanction(true)}><Plus className="w-4 h-4" /> New Request</Btn>
             </div>
           }>
-            <div className="flex gap-1.5 mb-4">
+            <div className="flex items-center gap-1 bg-muted/40 p-1 rounded-sm border border-border w-fit mb-4">
               {(['All', 'Pending', 'Approved', 'Rejected'] as const).map((status) => (
                 <button
                   key={status}
                   onClick={() => setStatusFilter(status)}
-                  className={`px-3 py-1.5 text-[0.65rem] font-bold uppercase rounded-sm border transition-all ${
+                  className={`px-3 py-1.5 text-[0.65rem] font-bold uppercase transition-all rounded-[1px] ${
                     statusFilter === status
-                      ? 'bg-accent border-accent text-white shadow-command'
-                      : 'border-primary/20 text-primary bg-primary/5 hover:bg-primary/10'
+                      ? 'bg-accent text-accent-foreground shadow-command scale-105 z-10'
+                      : 'text-muted-foreground hover:text-foreground hover:bg-muted'
                   }`}
                 >
                   {status}
