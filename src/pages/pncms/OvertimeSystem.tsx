@@ -172,15 +172,17 @@ const OvertimeSystem = () => {
     }
   };
 
+  const [statusFilter, setStatusFilter] = useState<'All' | 'Pending' | 'Approved' | 'Rejected'>('All');
+
   const hourlyRate = rates[selectedCadre];
   
   const filteredSanctions = useMemo(() => {
     return (allSanctions as any[]).filter(s => {
-      // In a real app, cadre might be on the employee or sanction record
-      // For now we filter based on what we just selected
-      return s.employee?.cardType === selectedCadre;
+      if (s.employee?.cardType !== selectedCadre) return false;
+      if (statusFilter !== 'All' && s.status !== statusFilter) return false;
+      return true;
     });
-  }, [allSanctions, selectedCadre]);
+  }, [allSanctions, selectedCadre, statusFilter]);
 
   const approvedSanctions = useMemo(() => filteredSanctions.filter(s => s.status === 'Approved'), [filteredSanctions]);
   const paymentSanctions = useMemo(() => filteredSanctions.filter(s => s.status === 'Approved' || s.status === 'Paid'), [filteredSanctions]);
@@ -254,6 +256,21 @@ const OvertimeSystem = () => {
               <Btn variant="gold" className="h-9" onClick={() => setIsAddingSanction(true)}><Plus className="w-4 h-4" /> New Request</Btn>
             </div>
           }>
+            <div className="flex gap-1.5 mb-4">
+              {(['All', 'Pending', 'Approved', 'Rejected'] as const).map((status) => (
+                <button
+                  key={status}
+                  onClick={() => setStatusFilter(status)}
+                  className={`px-3 py-1.5 text-[0.65rem] font-bold uppercase rounded-sm border transition-all ${
+                    statusFilter === status
+                      ? 'bg-accent border-accent text-white shadow-command'
+                      : 'border-primary/20 text-primary bg-primary/5 hover:bg-primary/10'
+                  }`}
+                >
+                  {status}
+                </button>
+              ))}
+            </div>
             <div className="overflow-x-auto -m-5">
               <table className="data-table">
                 <thead><tr><th>Sanction ID</th><th>Personnel</th><th>Rank</th><th>Limit (h)</th><th>Action</th><th>Status</th><th className="text-right">Action</th></tr></thead>
