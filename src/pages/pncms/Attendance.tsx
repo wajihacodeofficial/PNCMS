@@ -9,7 +9,7 @@ import * as Tabs from "@radix-ui/react-tabs";
 import { format, parseISO, isWithinInterval, subDays } from "date-fns";
 import { usePersonnel, useAttendance, useDepartments, useMusterLock, useLockMuster, useUnlockMuster, useAllMusterLocks, useDeleteMuster, useBatchUpdateAttendance } from "@/hooks/use-api";
 import { api } from "@/lib/api";
-import { useQueryClient } from "@tanstack/react-query";
+import { useStore } from "@/store";
 
 type Mark = "P" | "A" | "L" | "CL" | "ML" | "RL" | "LWOP" | "DL" | "LFP" | "";
 
@@ -25,7 +25,7 @@ const STATUS_CONFIG: Record<string, { label: string; variant: string; color: str
 };
 
 const Attendance = () => {
-  const queryClient = useQueryClient();
+  const invalidateQueries = useStore(state => state.invalidateQueries);
   const [activeTab, setActiveTab] = useState("daily");
   const [selectedDate, setSelectedDate] = useState(format(new Date(), "yyyy-MM-dd"));
   const [search, setSearch] = useState("");
@@ -86,7 +86,7 @@ const Attendance = () => {
 
     try {
       await api.updateAttendance(selectedDate, serviceNo, status);
-      queryClient.invalidateQueries({ queryKey: ['attendance', selectedDate] });
+      await invalidateQueries(['attendance']);
       toast.success("Attendance updated");
     } catch (error: any) {
       toast.error(error.message || "Failed to update attendance");
@@ -97,7 +97,7 @@ const Attendance = () => {
     if (!pendingUpdate) return;
     try {
       await api.updateAttendance(selectedDate, pendingUpdate.empId, pendingUpdate.status, overrideUsername, overridePassword);
-      queryClient.invalidateQueries({ queryKey: ['attendance', selectedDate] });
+      await invalidateQueries(['attendance']);
       toast.success("Attendance updated with override");
       closeModal();
     } catch (error: any) {
