@@ -219,6 +219,18 @@ const Settings = () => {
                   </div>
                 </Field>
               </div>
+              {/* MTC notice */}
+              <div className="mt-4 p-4 bg-info/5 border border-info/30 rounded-sm flex items-start gap-3">
+                <span className="mt-0.5 w-5 h-5 flex-shrink-0 text-info">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+                </span>
+                <div>
+                  <p className="text-xs font-black uppercase tracking-tight text-info mb-1">MTC Department — Exception</p>
+                  <p className="text-[0.7rem] text-muted-foreground leading-relaxed">
+                    The rates above apply to <strong className="text-primary">all Ministerial staff except MTC</strong>. For employees in the <strong className="text-primary">MTC department</strong>, late-sitting is calculated as <strong className="text-primary font-mono">Basic Pay ÷ 30</strong> per sitting from their individual Employment Record — the fixed rates above are ignored for them. Ensure the <span className="font-bold text-primary">Basic Pay</span> field is filled in every MTC employee record.
+                  </p>
+                </div>
+              </div>
             </div>
 
             {/* Industrial */}
