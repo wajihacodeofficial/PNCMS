@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { AppShell, PageHeader, useCadre } from '@/components/pncms/AppShell';
 import { Btn, Badge, Section, Field, Input, Select } from '@/components/pncms/ui-kit';
 import { Plus, AlertTriangle, Eye, Check, X, Search, FileText, History } from 'lucide-react';
+import { exportToPDF } from '@/lib/export';
 import { useSanctions, usePersonnel, useCreateSanction, useUpdateSanction } from '@/hooks/use-api';
 import { toast } from 'sonner';
 import { format, parseISO } from 'date-fns';
@@ -105,6 +106,53 @@ const Sanctions = () => {
 
   const pending = filteredSanctions.filter((s) => s.status === 'Pending').length;
 
+  const handleExportSanctionsPDF = () => {
+    const headers = [["ID", "Name", "Rank", "Dept", "Type", "Hours", "Period", "Status", "Date"]];
+    const rows = filteredSanctions.map(s => [
+      s.sanctionId,
+      s.employee?.name || "—",
+      s.rank || s.employee?.rank?.name || "—",
+      s.employee?.department?.name || "—",
+      s.action || typeLabel,
+      s.hours,
+      s.period,
+      s.status,
+      s.date || (s.createdAt ? format(parseISO(s.createdAt), "dd-MM-yy") : "—")
+    ]);
+
+    exportToPDF(
+      `${typeLabel} Authorization Register`,
+      headers,
+      rows,
+      `sanctions_${typeLabel.toLowerCase()}`
+    );
+    toast.success("PDF Exported");
+  };
+
+  // Export Approved Sanctions PDF
+  const handleExportApprovedSanctionsPDF = () => {
+    const approved = filteredSanctions.filter(s => s.status === "Approved");
+
+    const headers = [["Date", "Service No", "Name", "Rank", "Hours", "Department"]];
+    const rows = approved.map(s => [
+      s.date || (s.createdAt ? format(parseISO(s.createdAt), "dd-MM-yy") : "—"),
+      s.svc,
+      s.employee?.name || "—",
+      s.rank || s.employee?.rank?.name || "—",
+      s.hours,
+      s.employee?.department?.name || "—"
+    ]);
+
+    exportToPDF(
+      `${typeLabel} Approved Sanctions`,
+      headers,
+      rows,
+      `approved_sanctions_${typeLabel.toLowerCase()}`
+    );
+
+    toast.success("Approved Sanctions PDF Exported");
+  };
+
   return (
     <AppShell>
       <PageHeader
@@ -164,6 +212,11 @@ const Sanctions = () => {
                 className="h-9 pl-9 pr-3 w-64 bg-card border border-border rounded-sm text-sm focus:outline-none focus:border-accent"
               />
             </div>
+
+            <Btn variant="primary" onClick={handleExportSanctionsPDF}>
+              <FileText className="w-4 h-4" /> PDF
+            </Btn>
+
             <Select className="h-9">
               <option>All Status</option>
               <option>Pending</option>
@@ -260,7 +313,14 @@ const Sanctions = () => {
         </div>
       </Section>
 
-      <Section title="Approved Sanctions">
+      <Section
+  title="Approved Sanctions"
+  actions={
+    <Btn variant="primary" onClick={handleExportApprovedSanctionsPDF}>
+      <FileText className="w-4 h-4" /> PDF
+    </Btn>
+  }
+>
         <div className="overflow-x-auto -m-5">
           <table className="data-table">
             <thead>
