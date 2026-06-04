@@ -11,11 +11,11 @@ import {
   StatCard
 } from '@/components/pncms/ui-kit';
 import { 
-  Plus, Check, X, 
-  Printer, 
+  Plus, Check, X,
+  Printer,
   ScrollText, ShieldCheck,
   Building2, HardHat, ArrowLeft,
-  ShieldX, Unlock, FileSpreadsheet, FileDown, Receipt
+  ShieldX, Unlock, FileSpreadsheet, FileDown, Receipt, FileText
 } from 'lucide-react';
 import * as Tabs from "@radix-ui/react-tabs";
 import { toast } from 'sonner';
@@ -200,67 +200,6 @@ const OvertimeSystem = () => {
 
   const totalDisbursement = rosterData.reduce((sum, item) => sum + item.amount, 0);
 
-  const handleExportPDF = (tab: string) => {
-    let title = '';
-    let headers: string[][] = [];
-    let exportData: any[][] = [];
-    let filename = '';
-
-    if (tab === 'sanctions') {
-      title = `${typeLabel} Sanction Register - ${selectedCadre} Cadre`;
-      filename = `sanction_register_${selectedCadre.toLowerCase()}`;
-      headers = [['Sanction ID', 'Personnel', 'SVC No', 'Rank', 'Limit (h)', 'Action', 'Status']];
-      exportData = filteredSanctions.map((s: any) => [
-        s.id.slice(-8).toUpperCase(),
-        s.employee?.name || '',
-        s.employee?.serviceNo || '',
-        s.rank || '',
-        `${s.limit ?? s.hours}h`,
-        s.action || '',
-        s.status
-      ]);
-    } else if (tab === 'approved') {
-      title = `${typeLabel} Active Authorizations - ${selectedCadre} Cadre`;
-      filename = `active_authorizations_${selectedCadre.toLowerCase()}`;
-      headers = [['Personnel', 'SVC No', 'Limit (h)']];
-      exportData = approvedSanctions.map((s: any) => [
-        s.employee?.name || '',
-        s.employee?.serviceNo || '',
-        `${s.limit ?? s.hours}h`
-      ]);
-    } else if (tab === 'roster') {
-      title = `${typeLabel} Disbursement Roster - ${selectedCadre} Cadre`;
-      filename = `disbursement_roster_${selectedCadre.toLowerCase()}`;
-      headers = [['Personnel', 'SVC No', 'Department', 'Sanctioned', 'Payable', 'Status', 'Net Amount']];
-      exportData = rosterData.map((r: any) => [
-        r.employee?.name || '',
-        r.employee?.serviceNo || '',
-        r.employee?.department?.name || '',
-        `${r.limit ?? r.hours}h`,
-        `${r.payable}h`,
-        r.status === 'Paid' ? 'Paid' : 'Pending Payment',
-        `Rs. ${r.amount.toLocaleString()}`
-      ]);
-    }
-
-    const metadata = {
-      period: new Date().toLocaleDateString('en-US', { month: 'long', year: 'numeric' }),
-      dept: `${selectedCadre} Cadre`,
-      clerk: clerkName
-    };
-
-    let summary = undefined;
-    if (tab === 'roster') {
-      summary = [
-        { label: "Total Payable", value: `Rs. ${totalDisbursement.toLocaleString()}` },
-        { label: "Total Records", value: `${rosterData.length}` }
-      ];
-    }
-
-    exportToPDF(title, headers, exportData, filename, metadata, summary);
-    toast.success("PDF exported successfully");
-  };
-
   if (!activeTab) {
     return (
       <AppShell>
@@ -272,7 +211,8 @@ const OvertimeSystem = () => {
           </div>
         ) : (
           <div className="flex items-center justify-center gap-10 py-20 flex-wrap">
-            <ActionCard title="Sanctions & Authorizations" icon={<ShieldCheck className="w-10 h-10" />} onClick={() => setActiveTab('sanctions')} />
+            <ActionCard title="Sanction Request Initiation" icon={<Plus className="w-10 h-10" />} onClick={() => setActiveTab('sanctions')} />
+            <ActionCard title="Approved Sanctions" icon={<ShieldCheck className="w-10 h-10" />} onClick={() => setActiveTab('approved')} />
             <ActionCard title="Payments" icon={<Receipt className="w-10 h-10" />} onClick={() => setActiveTab('roster')} />
           </div>
         )}
@@ -284,33 +224,37 @@ const OvertimeSystem = () => {
     <AppShell>
       <div className="flex items-center gap-4 mb-6">
         <button onClick={() => setActiveTab(null)} className="w-10 h-10 rounded-full bg-muted/50 flex items-center justify-center hover:bg-primary hover:text-white transition-all shadow-sm"><ArrowLeft className="w-5 h-5" /></button>
-        <PageHeader title={`${activeTab === 'sanctions' ? 'Sanctions & Authorizations' : 'Payment Disbursals'}`} subtitle={`${selectedCadre} Cadre · Fixed Rate: Rs. ${hourlyRate}/hr`} />
+        <PageHeader title={`${activeTab === 'sanctions' ? 'Sanction Applications' : activeTab === 'approved' ? 'Approved Sanctions' : 'Payment Disbursals'}`} subtitle={`${selectedCadre} Cadre · Fixed Rate: Rs. ${hourlyRate}/hr`} />
       </div>
 
       <Tabs.Root value={activeTab} onValueChange={setActiveTab}>
         <Tabs.Content value="sanctions" className="animate-in fade-in duration-300">
-           <Section title="Active Authorizations" actions={<div className="flex gap-2"><Btn variant="outline" className="h-9" onClick={() => handleExportPDF('approved')}><Printer className="w-4 h-4 mr-2" /> Export PDF</Btn></div>}>
-              <div className="grid grid-cols-2 gap-4">
-                {approvedSanctions.map((s: any) => (
-                  <div key={s.id} className="panel p-5 border-l-4 border-l-success flex items-center justify-between group hover:shadow-md transition-all">
-                    <div className="flex items-center gap-4">
-                      <div className="w-12 h-12 rounded-full bg-success/10 flex items-center justify-center text-success"><ScrollText className="w-6 h-6"/></div>
-                      <div>
-                        <div className="text-sm font-black text-primary uppercase italic">{s.employee?.name}</div>
-                        <div className="text-[0.6rem] font-bold text-muted-foreground uppercase tracking-widest">{s.employee?.serviceNo} · {s.hours}h Limit</div>
-                      </div>
-                    </div>
-                  </div>
-                ))}
-                {approvedSanctions.length === 0 && (
-                  <div className="col-span-2 py-20 text-center opacity-50 italic">No approved authorizations.</div>
-                )}
-              </div>
-           </Section>
-           
-           <div className="mt-8" />
-           
-          <Section title="Sanction Register" actions={<div className="flex gap-2"><Btn variant="outline" className="h-9" onClick={() => handleExportPDF('sanctions')}><Printer className="w-4 h-4 mr-2" /> Export PDF</Btn><Btn variant="gold" className="h-9" onClick={() => setIsAddingSanction(true)}><Plus className="w-4 h-4" /> New Request</Btn></div>}>
+          <Section title="Sanction Register" actions={
+            <div className="flex gap-2">
+              <Btn variant="outline" className="h-9" onClick={() => {
+                const headers = [['Sanction ID', 'Personnel', 'Service No', 'Rank', 'Limit (h)', 'Action', 'Status']];
+                const rows = filteredSanctions.map((s: any) => [
+                  s.id.slice(-8).toUpperCase(),
+                  s.employee?.name || 'N/A',
+                  s.employee?.serviceNo || 'N/A',
+                  s.rank || 'N/A',
+                  `${s.limit ?? s.hours}h`,
+                  s.action || 'N/A',
+                  s.status,
+                ]);
+                exportToPDF(
+                  `${selectedCadre} · Sanction Register`,
+                  headers,
+                  rows,
+                  `sanction_register_${selectedCadre.toLowerCase()}_${new Date().toISOString().slice(0,10)}`,
+                  { period: new Date().toLocaleDateString('en-GB'), dept: `${selectedCadre} Cadre`, clerk: clerkName }
+                );
+              }}>
+                <FileText className="w-4 h-4 mr-1" /> Export PDF
+              </Btn>
+              <Btn variant="gold" className="h-9" onClick={() => setIsAddingSanction(true)}><Plus className="w-4 h-4" /> New Request</Btn>
+            </div>
+          }>
             <div className="overflow-x-auto -m-5">
               <table className="data-table">
                 <thead><tr><th>Sanction ID</th><th>Personnel</th><th>Rank</th><th>Limit (h)</th><th>Action</th><th>Status</th><th className="text-right">Action</th></tr></thead>
@@ -349,8 +293,105 @@ const OvertimeSystem = () => {
           </Section>
         </Tabs.Content>
 
+        <Tabs.Content value="approved" className="animate-in fade-in duration-300">
+           <Section title="Active Authorizations" actions={
+             <Btn variant="outline" className="h-9" onClick={() => {
+               const headers = [['Personnel', 'Service No', 'Rank', 'Sanctioned Hours', 'Action', 'Status']];
+               const rows = approvedSanctions.map((s: any) => [
+                 s.employee?.name || 'N/A',
+                 s.employee?.serviceNo || 'N/A',
+                 s.rank || 'N/A',
+                 `${s.hours}h`,
+                 s.action || 'N/A',
+                 s.status,
+               ]);
+               exportToPDF(
+                 `${selectedCadre} · Approved Sanctions`,
+                 headers,
+                 rows,
+                 `approved_sanctions_${selectedCadre.toLowerCase()}_${new Date().toISOString().slice(0,10)}`,
+                 { period: new Date().toLocaleDateString('en-GB'), dept: `${selectedCadre} Cadre`, clerk: clerkName }
+               );
+             }}>
+               <FileText className="w-4 h-4 mr-1" /> Export PDF
+             </Btn>
+           }>
+              <div className="grid grid-cols-2 gap-4">
+                {approvedSanctions.map((s: any) => (
+                  <div key={s.id} className="panel p-5 border-l-4 border-l-success flex items-center justify-between group hover:shadow-md transition-all">
+                    <div className="flex items-center gap-4">
+                      <div className="w-12 h-12 rounded-full bg-success/10 flex items-center justify-center text-success"><ScrollText className="w-6 h-6"/></div>
+                      <div>
+                        <div className="text-sm font-black text-primary uppercase italic">{s.employee?.name}</div>
+                        <div className="text-[0.6rem] font-bold text-muted-foreground uppercase tracking-widest">{s.employee?.serviceNo} · {s.hours}h Limit</div>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+                {approvedSanctions.length === 0 && (
+                  <div className="col-span-2 py-20 text-center opacity-50 italic">No approved authorizations.</div>
+                )}
+              </div>
+           </Section>
+        </Tabs.Content>
+
         <Tabs.Content value="roster" className="animate-in fade-in duration-300">
-          <Section title="Final Disbursement Roster" actions={<div className="flex gap-2"><Btn variant="primary" className="h-9 shadow-sm" onClick={() => handleExportPDF('roster')}><Printer className="w-4 h-4 mr-2"/> Export Bill</Btn></div>}>
+          <Section title="Final Disbursement Roster" actions={
+            <div className="flex gap-2">
+              <Btn variant="outline" className="h-9" onClick={() => {
+                const headers = [['Personnel', 'Service No', 'Department', 'Sanctioned', 'Payable (h)', 'Rate/hr', 'Net Amount', 'Status']];
+                const rows = rosterData.map((r: any) => [
+                  r.employee?.name || 'N/A',
+                  r.employee?.serviceNo || 'N/A',
+                  r.employee?.department?.name || 'N/A',
+                  `${r.limit ?? r.hours}h`,
+                  `${r.payable}h`,
+                  `Rs. ${hourlyRate}`,
+                  `Rs. ${r.amount.toLocaleString()}`,
+                  r.status === 'Paid' ? 'Paid' : 'Pending Payment',
+                ]);
+                exportToPDF(
+                  `${selectedCadre} · ${typeLabel} Payment Bill`,
+                  headers,
+                  rows,
+                  `payment_bill_${selectedCadre.toLowerCase()}_${new Date().toISOString().slice(0,10)}`,
+                  { period: new Date().toLocaleDateString('en-GB'), dept: `${selectedCadre} Cadre`, clerk: clerkName },
+                  [
+                    { label: 'Total Personnel', value: `${rosterData.length}` },
+                    { label: 'Total Disbursement', value: `Rs. ${totalDisbursement.toLocaleString()}` },
+                    { label: 'Rate / Hour', value: `Rs. ${hourlyRate}` },
+                  ]
+                );
+              }}>
+                <FileText className="w-4 h-4 mr-1" /> Export PDF
+              </Btn>
+              <Btn variant="primary" className="h-9 shadow-sm" onClick={() => {
+                const headers = [['Personnel', 'Service No', 'Department', 'Sanctioned', 'Payable (h)', 'Rate/hr', 'Net Amount', 'Status']];
+                const rows = rosterData.map((r: any) => [
+                  r.employee?.name || 'N/A',
+                  r.employee?.serviceNo || 'N/A',
+                  r.employee?.department?.name || 'N/A',
+                  `${r.limit ?? r.hours}h`,
+                  `${r.payable}h`,
+                  `Rs. ${hourlyRate}`,
+                  `Rs. ${r.amount.toLocaleString()}`,
+                  r.status === 'Paid' ? 'Paid' : 'Pending Payment',
+                ]);
+                exportToPDF(
+                  `${selectedCadre} · ${typeLabel} Payment Bill`,
+                  headers,
+                  rows,
+                  `payment_bill_${selectedCadre.toLowerCase()}_${new Date().toISOString().slice(0,10)}`,
+                  { period: new Date().toLocaleDateString('en-GB'), dept: `${selectedCadre} Cadre`, clerk: clerkName },
+                  [
+                    { label: 'Total Personnel', value: `${rosterData.length}` },
+                    { label: 'Total Disbursement', value: `Rs. ${totalDisbursement.toLocaleString()}` },
+                    { label: 'Rate / Hour', value: `Rs. ${hourlyRate}` },
+                  ]
+                );
+              }}><Printer className="w-4 h-4 mr-2"/> Export Bill</Btn>
+            </div>
+          }>
              <div className="overflow-x-auto -m-5">
               <table className="data-table">
                 <thead><tr><th>Personnel</th><th>Sanctioned</th><th>Payable</th><th>Status</th><th className="text-right">Net Amount</th><th className="text-right">Action</th></tr></thead>
