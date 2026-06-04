@@ -1,316 +1,298 @@
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { useEffect, useState, useCallback } from 'react'
 import { api } from '@/lib/api'
-import { useEffect } from 'react'
+import { useStore } from '@/store'
 
+// Helper for local queries
+function useLocalQuery<T>(queryFn: () => Promise<T>, deps: any[], enabled: boolean = true) {
+  const [data, setData] = useState<T | undefined>(undefined)
+  const [isLoading, setIsLoading] = useState(false)
+
+  const refetch = useCallback(async () => {
+    if (!enabled) return
+    setIsLoading(true)
+    try {
+      const res = await queryFn()
+      setData(res)
+    } finally {
+      setIsLoading(false)
+    }
+  }, [...deps, enabled])
+
+  useEffect(() => {
+    refetch()
+  }, [refetch])
+
+  return { data, isLoading, refetch }
+}
+
+// Global query helper
+function useGlobalQuery<T>(
+  dataSelector: (state: any) => T,
+  loadingKey: string,
+  fetchActionName: keyof ReturnType<typeof useStore.getState>
+) {
+  const data = useStore(dataSelector)
+  const isLoading = useStore((state) => state.isLoading[loadingKey] || false)
+  const fetchAction = useStore((state) => state[fetchActionName] as () => Promise<void>)
+
+  useEffect(() => {
+    fetchAction()
+  }, [fetchAction])
+
+  return { data, isLoading, refetch: fetchAction }
+}
+
+// Mutation Helper
+function useMutationFacade<TVariables, TData>(
+  mutationFn: (vars: TVariables) => Promise<TData>,
+  onSuccessGlobal?: (vars: TVariables, data: TData) => void
+) {
+  const [isPending, setIsPending] = useState(false)
+
+  const mutateAsync = async (vars: TVariables) => {
+    setIsPending(true)
+    try {
+      const res = await mutationFn(vars)
+      if (onSuccessGlobal) {
+        onSuccessGlobal(vars, res)
+      }
+      return res
+    } finally {
+      setIsPending(false)
+    }
+  }
+
+  const mutate = (vars: TVariables, options?: { onSuccess?: (data: TData, vars: TVariables) => void, onError?: (err: any) => void }) => {
+    mutateAsync(vars)
+      .then(res => {
+        if (options?.onSuccess) options.onSuccess(res, vars)
+      })
+      .catch(err => {
+        if (options?.onError) options.onError(err)
+      })
+  }
+
+  return { mutate, mutateAsync, isPending }
+}
+
+// Queries
 export function usePersonnel() {
-  return useQuery({
-    queryKey: ['personnel'],
-    queryFn: api.getPersonnel,
-  })
+  return useGlobalQuery(state => state.personnel, 'personnel', 'fetchPersonnel')
 }
 
 export function useEmployee(svc: string) {
-  return useQuery({
-    queryKey: ['employee', svc],
-    queryFn: () => api.getEmployeeBySvc(svc),
-    enabled: !!svc,
-  })
+  return useLocalQuery(() => api.getEmployeeBySvc(svc), [svc], !!svc)
 }
 
 export function useSanctions() {
-  return useQuery({
-    queryKey: ['sanctions'],
-    queryFn: api.getSanctions,
-  })
+  return useGlobalQuery(state => state.sanctions, 'sanctions', 'fetchSanctions')
 }
 
+export function useDisciplinaryActions() {
+  return useGlobalQuery(state => state.disciplinaryActions, 'disciplinary-actions', 'fetchDisciplinaryActions')
+}
+
+export function useLeaves() {
+  // Using an interval to fetch leaves every 5 seconds like before
+  const { data, isLoading, refetch } = useGlobalQuery(state => state.leaves, 'leaves', 'fetchLeaves')
+  useEffect(() => {
+    const interval = setInterval(() => {
+      refetch()
+    }, 5000)
+    return () => clearInterval(interval)
+  }, [refetch])
+  return { data, isLoading, refetch }
+}
+
+export function usePayments() {
+  return useGlobalQuery(state => state.payments, 'payments', 'fetchPayments')
+}
+
+export function useAttendance(date: string) {
+  return useLocalQuery(() => api.getAttendance(date), [date], !!date)
+}
+
+export function useAttendanceRange(start: string, end: string) {
+  return useLocalQuery(() => api.getAttendanceRange(start, end), [start, end], !!start && !!end)
+}
+
+export function useMusterLock(date: string) {
+  return useLocalQuery(() => api.getMusterLock(date), [date], !!date)
+}
+
+export function useAllMusterLocks() {
+  return useGlobalQuery(state => state.attendanceLocks, 'attendance-locks', 'fetchAttendanceLocks')
+}
+
+export function useRanks() {
+  return useGlobalQuery(state => state.ranks, 'ranks', 'fetchRanks')
+}
+
+export function useDepartments() {
+  return useGlobalQuery(state => state.departments, 'departments', 'fetchDepartments')
+}
+
+export function useSettings() {
+  return useGlobalQuery(state => state.settings, 'settings', 'fetchSettings')
+}
+
+export function useDashboardStats() {
+  return useGlobalQuery(state => state.dashboardStats, 'dashboard-stats', 'fetchDashboardStats')
+}
+
+export function useLogs() {
+  const { data, isLoading, refetch } = useGlobalQuery(state => state.logs, 'logs', 'fetchLogs')
+  useEffect(() => {
+    const interval = setInterval(() => {
+      refetch()
+    }, 5000)
+    return () => clearInterval(interval)
+  }, [refetch])
+  return { data, isLoading, refetch }
+}
+
+// Mutations
 export function useCreateSanction() {
-  const queryClient = useQueryClient()
-  return useMutation({
-    mutationFn: api.createSanction,
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['sanctions'] })
-    },
+  const invalidateQueries = useStore(state => state.invalidateQueries)
+  return useMutationFacade(api.createSanction, () => {
+    invalidateQueries(['sanctions'])
   })
 }
 
 export function useUpdateSanction() {
-  const queryClient = useQueryClient()
-  return useMutation({
-    mutationFn: (data: any) => api.updateSanction(data), // Fixed: was incorrectly calling createSanction
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['sanctions'] })
-    },
-  })
-}
-
-export function useDisciplinaryActions() {
-  return useQuery({
-    queryKey: ['disciplinary-actions'],
-    queryFn: api.getDisciplinaryActions,
+  const invalidateQueries = useStore(state => state.invalidateQueries)
+  return useMutationFacade((data: any) => api.updateSanction(data), () => {
+    invalidateQueries(['sanctions'])
   })
 }
 
 export function useUpsertDisciplinaryAction() {
-  const queryClient = useQueryClient()
-  return useMutation({
-    mutationFn: api.upsertDisciplinaryAction,
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['disciplinary-actions'] })
-    },
+  const invalidateQueries = useStore(state => state.invalidateQueries)
+  return useMutationFacade(api.upsertDisciplinaryAction, () => {
+    invalidateQueries(['disciplinary-actions'])
   })
 }
 
-export function useLeaves() {
-  return useQuery({
-    queryKey: ['leaves'],
-    queryFn: api.getLeaves,
-    refetchInterval: 5000, // refresh every 5 seconds for up‑to‑date on‑leave list
-  })
-}
 export function useCreateLeave() {
-  const queryClient = useQueryClient()
-  return useMutation({
-    mutationFn: api.createLeave,
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['leaves'] })
-    },
+  const invalidateQueries = useStore(state => state.invalidateQueries)
+  return useMutationFacade(api.createLeave, () => {
+    invalidateQueries(['leaves'])
   })
 }
+
 export function useDeleteLeave() {
-  const queryClient = useQueryClient()
-  return useMutation({
-    mutationFn: (data: { id: string; username?: string; password?: string }) =>
-      api.deleteLeave(data.id, data.username, data.password),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['leaves'] })
-      queryClient.invalidateQueries({ queryKey: ['attendance'] })
-    },
-  })
-}
-
-export function usePayments() {
-  return useQuery({
-    queryKey: ['payments'],
-    queryFn: api.getPayments,
-  })
-}
-
-export function useAttendance(date: string) {
-  return useQuery({
-    queryKey: ['attendance', date],
-    queryFn: () => api.getAttendance(date),
-  })
-}
-export function useAttendanceRange(start: string, end: string) {
-  return useQuery({
-    queryKey: ['attendance', 'range', start, end],
-    queryFn: () => api.getAttendanceRange(start, end),
-    enabled: !!start && !!end
-  })
-}
-
-export function useMusterLock(date: string) {
-  return useQuery({
-    queryKey: ['attendance', 'lock', date],
-    queryFn: () => api.getMusterLock(date),
-    enabled: !!date
-  })
-}
-
-export function useAllMusterLocks() {
-  return useQuery({
-    queryKey: ['attendance', 'locks'],
-    queryFn: api.getAllMusterLocks,
+  const invalidateQueries = useStore(state => state.invalidateQueries)
+  return useMutationFacade((data: { id: string; username?: string; password?: string }) => 
+    api.deleteLeave(data.id, data.username, data.password), 
+  () => {
+    invalidateQueries(['leaves', 'attendance'])
   })
 }
 
 export function useLockMuster() {
-  const queryClient = useQueryClient()
-  return useMutation({
-    mutationFn: api.lockMuster,
-    onSuccess: (_, { date }) => {
-      queryClient.invalidateQueries({ queryKey: ['attendance', 'lock', date] })
-      queryClient.invalidateQueries({ queryKey: ['attendance', 'locks'] })
-    }
+  const invalidateQueries = useStore(state => state.invalidateQueries)
+  return useMutationFacade(api.lockMuster, () => {
+    invalidateQueries(['attendance', 'attendance-locks'])
   })
 }
 
 export function useUnlockMuster() {
-  const queryClient = useQueryClient()
-  return useMutation({
-    mutationFn: api.unlockMuster,
-    onSuccess: (_, { date }) => {
-      queryClient.invalidateQueries({ queryKey: ['attendance', 'lock', date] })
-      queryClient.invalidateQueries({ queryKey: ['attendance', 'locks'] })
-    }
+  const invalidateQueries = useStore(state => state.invalidateQueries)
+  return useMutationFacade(api.unlockMuster, () => {
+    invalidateQueries(['attendance', 'attendance-locks'])
   })
 }
 
 export function useDeleteMuster() {
-  const queryClient = useQueryClient()
-  return useMutation({
-    mutationFn: api.deleteMuster,
-    onSuccess: (_, { date }) => {
-      queryClient.invalidateQueries({ queryKey: ['attendance', date] })
-      queryClient.invalidateQueries({ queryKey: ['attendance', 'lock', date] })
-      queryClient.invalidateQueries({ queryKey: ['attendance', 'locks'] })
-    }
+  const invalidateQueries = useStore(state => state.invalidateQueries)
+  return useMutationFacade(api.deleteMuster, () => {
+    invalidateQueries(['attendance', 'attendance-locks'])
   })
 }
 
 export function useBatchUpdateAttendance() {
-  const queryClient = useQueryClient()
-  return useMutation({
-    mutationFn: api.batchUpdateAttendance,
-    onSuccess: (_, { date }) => {
-      queryClient.invalidateQueries({ queryKey: ['attendance', date] })
-    }
-  })
-}
-
-export function useRanks() {
-  return useQuery({
-    queryKey: ['ranks'],
-    queryFn: api.getRanks,
+  const invalidateQueries = useStore(state => state.invalidateQueries)
+  return useMutationFacade(api.batchUpdateAttendance, () => {
+    invalidateQueries(['attendance'])
   })
 }
 
 export function useUpsertRank() {
-  const queryClient = useQueryClient()
-  return useMutation({
-    mutationFn: api.upsertRank,
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['ranks'] })
-    },
+  const invalidateQueries = useStore(state => state.invalidateQueries)
+  return useMutationFacade(api.upsertRank, () => {
+    invalidateQueries(['ranks'])
   })
 }
 
 export function useDeleteRank() {
-  const queryClient = useQueryClient()
-  return useMutation({
-    mutationFn: api.deleteRank,
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['ranks'] })
-    },
-  })
-}
-
-export function useDepartments() {
-  return useQuery({
-    queryKey: ['departments'],
-    queryFn: api.getDepartments,
+  const invalidateQueries = useStore(state => state.invalidateQueries)
+  return useMutationFacade(api.deleteRank, () => {
+    invalidateQueries(['ranks'])
   })
 }
 
 export function useUpsertDepartment() {
-  const queryClient = useQueryClient()
-  return useMutation({
-    mutationFn: api.upsertDepartment,
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['departments'] })
-    },
+  const invalidateQueries = useStore(state => state.invalidateQueries)
+  return useMutationFacade(api.upsertDepartment, () => {
+    invalidateQueries(['departments'])
   })
 }
 
 export function useDeleteDepartment() {
-  const queryClient = useQueryClient()
-  return useMutation({
-    mutationFn: api.deleteDepartment,
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['departments'] })
-    },
+  const invalidateQueries = useStore(state => state.invalidateQueries)
+  return useMutationFacade(api.deleteDepartment, () => {
+    invalidateQueries(['departments'])
   })
 }
 
 export function useUpsertEmployee() {
-  const queryClient = useQueryClient()
-  return useMutation({
-    mutationFn: api.upsertEmployee,
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['personnel'] })
-    },
+  const invalidateQueries = useStore(state => state.invalidateQueries)
+  return useMutationFacade(api.upsertEmployee, () => {
+    invalidateQueries(['personnel'])
   })
 }
 
 export function useDeleteEmployee() {
-  const queryClient = useQueryClient()
-  return useMutation({
-    mutationFn: api.deleteEmployee,
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['personnel'] })
-    },
-  })
-}
-
-export function useSettings() {
-  return useQuery({
-    queryKey: ['settings'],
-    queryFn: async () => {
-      return await api.getSettings();
-    },
+  const invalidateQueries = useStore(state => state.invalidateQueries)
+  return useMutationFacade(api.deleteEmployee, () => {
+    invalidateQueries(['personnel'])
   })
 }
 
 export function useUpsertSetting() {
-  const queryClient = useQueryClient()
-  return useMutation({
-    mutationFn: (data: { key: string; value: string }) => api.upsertSetting(data),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['settings'] })
-    },
-  })
-}
-export function useDashboardStats() {
-  return useQuery({
-    queryKey: ['dashboard-stats'],
-    queryFn: api.getDashboardStats,
-  })
-}
-
-export function useLogs() {
-  return useQuery({
-    queryKey: ['logs'],
-    queryFn: api.getLogs,
-    refetchInterval: 5000, // Reduced to 5s for better realtime feel
-  })
-}
-
-export function useExportBackup() {
-  return useMutation({
-    mutationFn: api.exportBackup,
-  })
-}
-
-export function useImportBackup() {
-  return useMutation({
-    mutationFn: api.importBackup,
+  const invalidateQueries = useStore(state => state.invalidateQueries)
+  return useMutationFacade((data: { key: string; value: string }) => api.upsertSetting(data), () => {
+    invalidateQueries(['settings'])
   })
 }
 
 export function useCreateLog() {
-  const queryClient = useQueryClient()
-  return useMutation({
-    mutationFn: (data: any) => api.createLog(data),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['logs'] })
-    },
+  const invalidateQueries = useStore(state => state.invalidateQueries)
+  return useMutationFacade((data: any) => api.createLog(data), () => {
+    invalidateQueries(['logs'])
   })
 }
 
+export function useExportBackup() {
+  return useMutationFacade(api.exportBackup)
+}
+
+export function useImportBackup() {
+  return useMutationFacade(api.importBackup)
+}
+
 export function useRealtimeSync() {
-  const queryClient = useQueryClient()
+  const invalidateQueries = useStore(state => state.invalidateQueries)
 
   useEffect(() => {
     const ipc = (window as any).ipcRenderer
     if (!ipc) return
 
     const listener = (_: any, topic: string) => {
-      queryClient.invalidateQueries({ queryKey: [topic] })
+      invalidateQueries([topic])
       
-      // Invalidate dashboard stats if personnel, sanctions or attendance change
       if (['personnel', 'sanctions', 'attendance'].includes(topic)) {
-        queryClient.invalidateQueries({ queryKey: ['dashboard-stats'] })
+        invalidateQueries(['dashboard-stats'])
       }
     }
 
@@ -318,5 +300,5 @@ export function useRealtimeSync() {
     return () => {
       ipc.off('db-changed', listener)
     }
-  }, [queryClient])
+  }, [invalidateQueries])
 }
