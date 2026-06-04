@@ -31,6 +31,7 @@ const EmploymentRecordForm = () => {
     departmentId: '',
     cardType: 'Ministerial',
     bps: 'BPS-07',
+    basicPay: '',
     status: 'Active',
     attachedTo: '',
     attachedToRef: '',
@@ -97,6 +98,7 @@ const EmploymentRecordForm = () => {
           ...emp,
           accountNo: emp.bankAccount || '',
           joiningDate: emp.joiningCurrentUnitDate || '',
+          basicPay: emp.basicPay || '',
           attachedToRef: emp.attachedToRef || '',
           maritalStatus: emp.maritalStatus || 'Single',
           religion: emp.religion || 'Islam',
@@ -660,6 +662,16 @@ const EmploymentRecordForm = () => {
 
         <div className="col-span-4 space-y-5">
           <Section title="Financial Details">
+            <Field label="Basic Pay">
+              <Input
+                type="number"
+                value={form.basicPay}
+                onChange={(e) =>
+                  setForm({ ...form, basicPay: e.target.value })
+                }
+                placeholder="Enter Basic Pay"
+              />
+            </Field>
             <Field label="Account Number">
               <Input
                 value={form.accountNo}

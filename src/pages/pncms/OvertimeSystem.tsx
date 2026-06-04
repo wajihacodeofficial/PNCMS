@@ -180,7 +180,8 @@ const OvertimeSystem = () => {
 
   const [statusFilter, setStatusFilter] = useState<'All' | 'Pending' | 'Approved' | 'Rejected'>('All');
 
-  // Helper to calculate rate and amount for a sanction based on date and settings
+  // Helper to calculate rate and amount for a sanction based on date and settings.
+  // Special case: MTC (Ministerial) employees use basic pay / 30 as their per-sitting rate.
   const calculateSanctionAmount = (s: any) => {
     let dayTypesConfig: Record<string, 'weekday' | 'holiday'> = {
       Monday: 'weekday',
@@ -205,7 +206,13 @@ const OvertimeSystem = () => {
     const isHoliday = dayTypesConfig[dayName] === 'holiday';
 
     let rate = 0;
-    if (selectedCadre === 'Ministerial') {
+    const isMTC = (s.employee?.department?.name || '').toUpperCase().includes('MTC');
+
+    if (selectedCadre === 'Ministerial' && isMTC) {
+      // MTC: rate = basicPay / 30 (one day's pay per sitting)
+      const basicPay = parseFloat(s.employee?.basicPay || '0');
+      rate = basicPay > 0 ? Math.round(basicPay / 30) : 0;
+    } else if (selectedCadre === 'Ministerial') {
       rate = isHoliday 
         ? parseInt(settings.rate_ministerial_holiday || "285")
         : parseInt(settings.rate_ministerial_weekday || "225");
@@ -220,6 +227,7 @@ const OvertimeSystem = () => {
       rate,
       isHoliday,
       dayName,
+      isMTC,
       amount: sittings * rate
     };
   };
@@ -558,18 +566,24 @@ const OvertimeSystem = () => {
               ))}
             </div>
             <div className="overflow-x-auto -mx-5 -mb-5 mt-4">
-              <table className="data-table">
-                <thead><tr><th>Personnel</th><th>Sanctioned</th><th>Payable</th><th>Status</th><th className="text-right">Net Amount</th><th className="text-right">Action</th></tr></thead>
-                <tbody>
-                  {rosterData.map((r: any) => (
-                    <tr key={r.id}>
-                      <td><div className="font-bold">{r.employee?.name}</div><div className="text-[0.6rem] opacity-50 uppercase">{r.employee?.serviceNo} · {r.employee?.department?.name}</div></td>
-                      <td className="font-mono text-xs">{r.limit ?? r.hours}d</td>
-                      <td className="font-mono font-black text-primary">{r.payable}d</td>
-                      <td><Badge variant={r.status === 'Paid' ? 'success' : 'warning' as any}>{r.status === 'Paid' ? 'Paid' : 'Pending Payment'}</Badge></td>
-                      <td className="text-right font-mono font-bold text-accent">Rs. {r.amount.toLocaleString()}</td>
-                      <td className="text-right">
-                        {r.status !== 'Paid' && (
+                <table className="data-table">
+                  <thead><tr><th>Personnel</th><th>Sanctioned</th><th>Payable</th><th>Rate / Sitting</th><th>Status</th><th className="text-right">Net Amount</th><th className="text-right">Action</th></tr></thead>
+                  <tbody>
+                    {rosterData.map((r: any) => (
+                      <tr key={r.id}>
+                        <td><div className="font-bold">{r.employee?.name}</div><div className="text-[0.6rem] opacity-50 uppercase">{r.employee?.serviceNo} · {r.employee?.department?.name}</div></td>
+                        <td className="font-mono text-xs">{r.limit ?? r.hours}d</td>
+                        <td className="font-mono font-black text-primary">{r.payable}d</td>
+                        <td className="text-xs font-mono">
+                          <div className="font-bold text-accent">Rs. {r.rate.toLocaleString()}</div>
+                          <div className="text-[0.6rem] text-muted-foreground uppercase">
+                            {r.isMTC ? 'Basic Pay ÷ 30' : (r.isHoliday ? 'Holiday Rate' : 'Weekday Rate')}
+                          </div>
+                        </td>
+                        <td><Badge variant={r.status === 'Paid' ? 'success' : 'warning' as any}>{r.status === 'Paid' ? 'Paid' : 'Pending Payment'}</Badge></td>
+                        <td className="text-right font-mono font-bold text-accent">Rs. {r.amount.toLocaleString()}</td>
+                        <td className="text-right">
+                          {r.status !== 'Paid' && (
                           <button onClick={() => updateSanctionStatus(r.id, 'Paid')} className="p-1.5 rounded-sm bg-success/10 text-success hover:bg-success hover:text-white transition-all shadow-sm" title="Mark as Paid">
                             <Check className="w-4 h-4" />
                           </button>

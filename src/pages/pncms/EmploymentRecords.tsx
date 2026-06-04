@@ -31,6 +31,9 @@ const RecordRow = React.memo(({ p, onNavigate, onDelete }: { p: any; onNavigate:
     <td className="text-muted-foreground">{p.department?.name}</td>
     <td><Badge variant={p.cardType === "Industrial" ? "warning" : "info"}>{p.cardType}</Badge></td>
     <td className="font-mono text-xs">{p.bps}</td>
+    <td className="font-mono text-xs text-accent font-bold">
+      {p.basicPay ? `Rs. ${Number(p.basicPay).toLocaleString()}` : '—'}
+    </td>
     <td>
       <Badge variant={p.status === "Active" ? "success" : p.status === "On Leave" ? "warning" : p.status === "Absent" ? "danger" : "danger"}>
         {p.status}
@@ -473,6 +476,7 @@ const EmploymentRecords = () => {
                   <th>Department</th>
                   <th>Card Type</th>
                   <th>BPS</th>
+                  <th>Basic Pay</th>
                   <th>Status</th>
                   <th>Attached To</th>
                   <th>Remarks</th>
@@ -485,7 +489,7 @@ const EmploymentRecords = () => {
                 ))}
                 {filteredPersonnel.length === 0 && (
                   <tr>
-                    <td colSpan={10} className="text-center py-12 text-muted-foreground italic">
+                    <td colSpan={11} className="text-center py-12 text-muted-foreground italic">
                       {isLoading ? "Syncing with personnel database..." : "No matching records found."}
                     </td>
                   </tr>

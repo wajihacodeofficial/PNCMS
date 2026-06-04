@@ -15,6 +15,7 @@ model Employee {
   departmentId           String
   cardType               String
   bps                    String?
+  basicPay               String?
   cnic                   String?              @unique
   status                 String               @default("Active")
   gender                 String?
