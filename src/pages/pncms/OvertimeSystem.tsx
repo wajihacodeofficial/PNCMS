@@ -212,7 +212,6 @@ const OvertimeSystem = () => {
         ) : (
           <div className="flex items-center justify-center gap-10 py-20 flex-wrap">
             <ActionCard title="Sanction Request Initiation" icon={<Plus className="w-10 h-10" />} onClick={() => setActiveTab('sanctions')} />
-            <ActionCard title="Approved Sanctions" icon={<ShieldCheck className="w-10 h-10" />} onClick={() => setActiveTab('approved')} />
             <ActionCard title="Payments" icon={<Receipt className="w-10 h-10" />} onClick={() => setActiveTab('roster')} />
           </div>
         )}
