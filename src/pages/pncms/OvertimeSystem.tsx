@@ -20,7 +20,7 @@ import {
 import * as Tabs from "@radix-ui/react-tabs";
 import { toast } from 'sonner';
 import { exportToPDF, exportToExcel } from "@/lib/export";
-import { useSanctions, usePersonnel, useCreateSanction, useUpdateSanction, useSettings, useCreateLog } from '@/hooks/use-api';
+import { useSanctions, usePersonnel, useCreateSanction, useUpdateSanction, useSettings, useCreateLog, useRanks } from '@/hooks/use-api';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -32,6 +32,7 @@ const OvertimeSystem = () => {
   const { data: allSanctions = [], isLoading: isSanctionsLoading } = useSanctions();
   const { data: personnel = [], isLoading: isPersonnelLoading } = usePersonnel();
   const { data: settings = {} } = useSettings();
+  const { data: ranks = [] } = useRanks();
   const { mutate: createSanction } = useCreateSanction();
   const { mutate: updateSanction } = useUpdateSanction();
   const { mutate: createLog } = useCreateLog();
@@ -181,9 +182,9 @@ const OvertimeSystem = () => {
   const [statusFilter, setStatusFilter] = useState<'All' | 'Pending' | 'Approved' | 'Rejected'>('All');
 
   // Rate calculation rules:
-  // • Ministerial (non-MTC): Fixed weekday/holiday rates from System Settings
-  // • Ministerial (MTC dept): basicPay ÷ 30 per sitting
-  // • Industrial: basicPay ÷ 30 per sitting (overtime based on individual basic pay)
+  // • Determined by rank settings (rateType = 'basic' or 'fixed')
+  // • If 'basic': basicPay ÷ 30 per sitting from individual Employee Record
+  // • If 'fixed': weekdayRate or holidayRate configured on the rank
   const calculateSanctionAmount = (s: any) => {
     let dayTypesConfig: Record<string, 'weekday' | 'holiday'> = {
       Monday: 'weekday',
@@ -207,19 +208,22 @@ const OvertimeSystem = () => {
     const dayName = dateObj.toLocaleDateString('en-US', { weekday: 'long' });
     const isHoliday = dayTypesConfig[dayName] === 'holiday';
 
-    const isMTC = (s.employee?.department?.name || '').toUpperCase().includes('MTC');
-    const usesBasicPay = selectedCadre === 'Industrial' || isMTC;
+    // Find the rank structure
+    const matchedRank = (ranks as any[]).find(
+      (r: any) => r.name === (s.rank || s.employee?.rank?.name)
+    );
+
+    const rateType = matchedRank?.rateType || "basic";
+    const usesBasicPay = rateType === "basic";
 
     let rate = 0;
     if (usesBasicPay) {
-      // Industrial & MTC Ministerial: rate = basicPay / 30 per sitting
       const basicPay = parseFloat(s.employee?.basicPay || '0');
       rate = basicPay > 0 ? Math.round(basicPay / 30) : 0;
     } else {
-      // Other Ministerial: fixed weekday/holiday rate from Settings
       rate = isHoliday
-        ? parseInt(settings.rate_ministerial_holiday || '285')
-        : parseInt(settings.rate_ministerial_weekday || '225');
+        ? parseFloat(matchedRank?.holidayRate || '0')
+        : parseFloat(matchedRank?.weekdayRate || '0');
     }
 
     const sittings = s.limit ?? s.hours ?? 0;
@@ -227,7 +231,8 @@ const OvertimeSystem = () => {
       rate,
       isHoliday,
       dayName,
-      isMTC,
+      isMTC: false, // Legacy fallback
+      isCasualLabour: !usesBasicPay, // Legacy fallback
       usesBasicPay,
       amount: sittings * rate
     };

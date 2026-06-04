@@ -83,6 +83,9 @@ model Rank {
   cadre        String?
   sanctioned   Int?       @default(0)
   bornStrength Int?       @default(0)
+  rateType     String?    @default("basic") // "basic" or "fixed"
+  weekdayRate  Float?     @default(0)
+  holidayRate  Float?     @default(0)
   employees    Employee[]
 }
 

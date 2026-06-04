@@ -13,6 +13,9 @@ interface Rank {
   cadre: "Ministerial" | "Industrial";
   born?: number;
   sanctioned?: number;
+  rateType?: string;
+  weekdayRate?: number;
+  holidayRate?: number;
 }
 
 const Ranks = () => {
@@ -26,7 +29,7 @@ const Ranks = () => {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [activeCadre, setActiveCadre] = useState<"Ministerial" | "Industrial">("Ministerial");
   const [viewingRank, setViewingRank] = useState<Rank | null>(null);
-  const [formData, setFormData] = useState<any>({ name: "", bps: "", cadre: "Ministerial", sanctioned: 0 });
+  const [formData, setFormData] = useState<any>({ name: "", bps: "", cadre: "Ministerial", sanctioned: 0, rateType: "basic", weekdayRate: 0, holidayRate: 0 });
 
   const handleOpenModal = (rank?: Rank, e?: React.MouseEvent) => {
     e?.stopPropagation();
@@ -36,11 +39,14 @@ const Ranks = () => {
         name: rank.name,
         bps: rank.bps,
         cadre: rank.cadre,
-        sanctioned: rank.sanctioned || 0
+        sanctioned: rank.sanctioned || 0,
+        rateType: rank.rateType || "basic",
+        weekdayRate: rank.weekdayRate || 0,
+        holidayRate: rank.holidayRate || 0
       });
     } else {
       setEditingId(null);
-      setFormData({ name: "", bps: "", cadre: activeCadre, sanctioned: 0 });
+      setFormData({ name: "", bps: "", cadre: activeCadre, sanctioned: 0, rateType: "basic", weekdayRate: 0, holidayRate: 0 });
     }
     setIsModalOpen(true);
   };
@@ -237,7 +243,15 @@ const Ranks = () => {
         <div className="overflow-x-auto -m-5">
           <table className="data-table">
             <thead>
-              <tr><th>Rank Title</th><th>Level</th><th>Born</th><th>Sanctioned</th><th>Status</th><th className="text-right">Actions</th></tr>
+              <tr>
+                <th>Rank Title</th>
+                <th>Level</th>
+                <th>Born</th>
+                <th>Sanctioned</th>
+                <th>Rate Basis</th>
+                <th>Status</th>
+                <th className="text-right">Actions</th>
+              </tr>
             </thead>
             <tbody>
               {filteredRanks.map((r) => (
@@ -246,6 +260,15 @@ const Ranks = () => {
                   <td className="font-mono text-xs text-muted-foreground">{r.bps}</td>
                   <td className="font-mono font-bold">{r.born}</td>
                   <td className="font-mono text-muted-foreground">{r.sanctioned || 0}</td>
+                  <td className="text-xs">
+                    {r.rateType === "fixed" ? (
+                      <span className="font-mono text-accent">
+                        Fixed (Rs. {r.weekdayRate || 0} / {r.holidayRate || 0})
+                      </span>
+                    ) : (
+                      <span className="text-muted-foreground font-semibold">Basic Pay ÷ 30</span>
+                    )}
+                  </td>
                   <td>
                     <div className="text-[0.6rem] font-bold uppercase flex items-center gap-1.5">
                        <div className={`w-1.5 h-1.5 rounded-full ${
@@ -275,16 +298,50 @@ const Ranks = () => {
 
       {isModalOpen && (
         <div className="fixed inset-0 z-[100] bg-primary/60 backdrop-blur-sm flex items-center justify-center p-8">
-          <div className="bg-card w-full max-w-md rounded-md shadow-elevated border border-border overflow-hidden animate-in zoom-in-95">
+          <div className="bg-card w-full max-w-lg rounded-md shadow-elevated border border-border overflow-hidden animate-in zoom-in-95">
             <div className="bg-primary px-6 py-4 flex items-center justify-between text-white font-heading font-bold uppercase italic tracking-wider">
                {editingId ? "Modify Rank" : "Define Rank"}
                <button onClick={() => setIsModalOpen(false)}><X className="w-5 h-5" /></button>
             </div>
             <div className="p-8 space-y-4">
-              <Field label="Rank Title" required><Input value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} /></Field>
-              <Field label="BPS Level" required><Input value={formData.bps} onChange={e => setFormData({...formData, bps: e.target.value})} placeholder="e.g. BPS-07" /></Field>
-              <Field label="Cadre" required><Select value={formData.cadre} onChange={e => setFormData({...formData, cadre: e.target.value})}><option value="Ministerial">Ministerial</option><option value="Industrial">Industrial</option></Select></Field>
-              <Field label="Sanctioned Strength"><Input type="number" value={formData.sanctioned} onChange={e => setFormData({...formData, sanctioned: parseInt(e.target.value)})} /></Field>
+              <div className="grid grid-cols-2 gap-4">
+                <Field label="Rank Title" required><Input value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} /></Field>
+                <Field label="BPS Level" required><Input value={formData.bps} onChange={e => setFormData({...formData, bps: e.target.value})} placeholder="e.g. BPS-07" /></Field>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <Field label="Cadre" required>
+                  <Select value={formData.cadre} onChange={e => setFormData({...formData, cadre: e.target.value})}>
+                    <option value="Ministerial">Ministerial</option>
+                    <option value="Industrial">Industrial</option>
+                  </Select>
+                </Field>
+                <Field label="Sanctioned Strength">
+                  <Input type="number" value={formData.sanctioned} onChange={e => setFormData({...formData, sanctioned: parseInt(e.target.value) || 0})} />
+                </Field>
+              </div>
+
+              <div className="border-t border-border pt-4 mt-2">
+                <p className="text-xs font-bold uppercase text-primary tracking-wider mb-3">Overtime / Late-Sitting Rates</p>
+                <div className="grid grid-cols-2 gap-4">
+                  <Field label="Calculation Mode" required>
+                    <Select value={formData.rateType || "basic"} onChange={e => setFormData({...formData, rateType: e.target.value})}>
+                      <option value="basic">Based on Basic Pay (÷ 30)</option>
+                      <option value="fixed">Fixed Rates</option>
+                    </Select>
+                  </Field>
+                </div>
+
+                {formData.rateType === "fixed" && (
+                  <div className="grid grid-cols-2 gap-4 mt-3 animate-in fade-in-50 duration-200">
+                    <Field label="Weekday Rate (Rs.)" required>
+                      <Input type="number" value={formData.weekdayRate || ""} onChange={e => setFormData({...formData, weekdayRate: parseFloat(e.target.value) || 0})} />
+                    </Field>
+                    <Field label="Holiday Rate (Rs.)" required>
+                      <Input type="number" value={formData.holidayRate || ""} onChange={e => setFormData({...formData, holidayRate: parseFloat(e.target.value) || 0})} />
+                    </Field>
+                  </div>
+                )}
+              </div>
             </div>
             <div className="bg-muted/30 p-5 flex justify-end gap-3 border-t border-border">
               <Btn variant="outline" onClick={() => setIsModalOpen(false)}>Cancel</Btn>
