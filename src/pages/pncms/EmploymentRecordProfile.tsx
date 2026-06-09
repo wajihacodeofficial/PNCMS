@@ -94,7 +94,7 @@ const EmploymentRecordProfile = () => {
     const savedUser = settings.admin_username || "PNCMS";
     const savedPass = settings.admin_password || "14081947";
     if (deleteUsername === savedUser && deletePassword === savedPass) {
-      deleteLeave(leaveIdToDelete, {
+      deleteLeave({ id: leaveIdToDelete, username: deleteUsername, password: deletePassword }, {
         onSuccess: () => {
           createLog({
             user: savedUser,
@@ -299,15 +299,23 @@ const EmploymentRecordProfile = () => {
     const dbAttendance: any[] = (employeeWithAttendance as any)?.attendance || [];
     if (dbAttendance.length === 0) return [];
     return dbAttendance
-      .map((a: any, i: number) => ({
-        id: a.id || i.toString(),
-        d: format(parseISO(a.date), 'dd-MMM-yyyy'),
-        s: a.status,
-      }))
+      .map((a: any, i: number) => {
+        let formattedDate = 'Unknown';
+        try {
+          if (a.date) {
+            formattedDate = format(parseISO(a.date), 'dd-MMM-yyyy');
+          }
+        } catch(e) {}
+        return {
+          id: a.id || i.toString(),
+          d: formattedDate,
+          s: a.status,
+        };
+      })
       .sort((a: any, b: any) => {
         const dateA = parse(a.d, 'dd-MMM-yyyy', new Date());
         const dateB = parse(b.d, 'dd-MMM-yyyy', new Date());
-        return dateB.getTime() - dateA.getTime();
+        return (isNaN(dateB.getTime()) ? 0 : dateB.getTime()) - (isNaN(dateA.getTime()) ? 0 : dateA.getTime());
       });
   }, [employeeWithAttendance]);
 
@@ -319,8 +327,10 @@ const EmploymentRecordProfile = () => {
     const filtered = initialAttendance.filter((a) => {
       let matchesDate = true;
       if (attendanceDateFilter) {
-        const target = format(parseISO(attendanceDateFilter), 'dd-MMM-yyyy');
-        matchesDate = a.d === target;
+        try {
+          const target = format(parseISO(attendanceDateFilter), 'dd-MMM-yyyy');
+          matchesDate = a.d === target;
+        } catch(e) { matchesDate = false; }
       }
 
       let matchesStatus = true;
@@ -339,7 +349,15 @@ const EmploymentRecordProfile = () => {
 
     const groups: Record<string, typeof initialAttendance> = {};
     filtered.forEach((a) => {
-      const month = format(parse(a.d, 'dd-MMM-yyyy', new Date()), 'MMMM yyyy');
+      let month = 'Unknown';
+      try {
+        const parsedDate = parse(a.d, 'dd-MMM-yyyy', new Date());
+        if (!isNaN(parsedDate.getTime())) {
+           month = format(parsedDate, 'MMMM yyyy');
+        }
+      } catch (e) {
+        // invalid date
+      }
       if (!groups[month]) groups[month] = [];
       groups[month].push(a);
     });

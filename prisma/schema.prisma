@@ -129,6 +129,7 @@ model Sanction {
   sanctionId    String    @unique
   amount        Float?
   hours         Float?
+  holidayHours  Float?
   period        String?
   reason        String?
   date          String?

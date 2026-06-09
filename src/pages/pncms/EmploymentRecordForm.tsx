@@ -172,7 +172,7 @@ const EmploymentRecordForm = () => {
   };
 
   const handleSubmit = () => {
-    if (!form.serviceNo || !form.name || !form.rankId || !form.departmentId) {
+    if (!form.serviceNo || !form.name || !form.rankId || !form.departmentId || !form.basicPay) {
       toast.error('Please fill all required fields marked with *');
       return;
     }
@@ -662,7 +662,7 @@ const EmploymentRecordForm = () => {
 
         <div className="col-span-4 space-y-5">
           <Section title="Financial Details">
-            <Field label="Basic Pay">
+            <Field label="Basic Pay" required>
               <Input
                 type="number"
                 value={form.basicPay}

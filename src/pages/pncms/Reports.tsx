@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { AppShell, PageHeader } from "@/components/pncms/AppShell";
 import { Btn, Field, Select } from "@/components/pncms/ui-kit";
-import { FileText, Users, Wallet, ClipboardList, CalendarDays, BarChart3, ShieldCheck, FileSpreadsheet, Eye, Printer, Download } from "lucide-react";
+import { FileText, Users, Wallet, ClipboardList, CalendarDays, BarChart3, FileSpreadsheet, Eye, Printer, Download, ShieldCheck } from "lucide-react";
 import { usePersonnel, useSanctions, useAttendanceRange, useLogs, useSettings, useLeaves } from "@/hooks/use-api";
 import { exportToPDF, exportToExcel } from "@/lib/export";
 import { toast } from "sonner";
@@ -10,10 +10,12 @@ import { format, startOfMonth, endOfMonth, parse } from 'date-fns';
 const reportConfig = [
   { id: "personnel", icon: Users, title: "Personnel Master Report", desc: "Complete civilian staff register with rank, cadre, BPS and posting details." },
   { id: "sanctions", icon: ClipboardList, title: "Sanction Register Report", desc: "Consolidated list of all approved and pending overtime/late-sitting authorizations." },
-  { id: "payments", icon: Wallet, title: "Payment Disbursement Bill", desc: "Department-wise financial roster with hours performed and net payable amounts." },
   { id: "attendance", icon: BarChart3, title: "Monthly Attendance Summary", desc: "Aggregate muster roll report for the selected month showing presence/absence trends." },
   { id: "leave", icon: CalendarDays, title: "Leave Register", desc: "Summary of casual, medical and recreational leaves consumed by personnel." },
-  { id: "audit", icon: ShieldCheck, title: "System Audit Trail", desc: "Logs of all administrative actions, status changes and record modifications." },
+  { id: "latesitting-payment", icon: Wallet, title: "Late Sitting Payment Report", desc: "Monthly payment summary for Ministerial (Late Sitting) staff." },
+  { id: "overtime-payment", icon: Wallet, title: "Overtime Payment Report", desc: "Monthly payment summary for Industrial (Overtime) staff." },
+  { id: "overtime-sanction-requests", icon: ClipboardList, title: "Overtime Sanction Requests", desc: "Pending overtime sanction requests for the selected month." },
+  { id: "latesitting-requests", icon: ClipboardList, title: "Late Sitting Requests", desc: "Pending late sitting sanction requests for the selected month." }
 ];
 
 const Reports = () => {
@@ -76,28 +78,91 @@ const Reports = () => {
         }
       }
 
-      else if (type === "payments") {
-        const headers = [["#", "Employee", "Svc No", "Department", "Payable", "Status", "Amount"]];
+      // New report: Late Sitting Payment (Ministerial)
+      else if (type === "latesitting-payment") {
+        const headers = [["#", "Employee", "Svc No", "Department", "Payable Hours", "Amount"]];
         const rows = (sanctions as any[])
-          .filter((s: any) => (s.status === 'Approved' || s.status === 'Paid') && isSameMonth(s.date))
+          .filter((s: any) => s.employee?.cardType === 'Ministerial' && (s.status === 'Approved' || s.status === 'Paid') && isSameMonth(s.date))
           .map((s: any, i: number) => {
-            const rate = s.employee?.cardType === 'Ministerial' ? 
-              parseInt(settings.rate_ministerial || '380') : 
-              parseInt(settings.rate_industrial || '420');
+            const rate = parseInt(settings.rate_ministerial || '380');
             const payable = s.limit ?? s.hours;
             return [
-              i + 1, s.employee?.name, s.employee?.serviceNo, s.employee?.department?.name, 
-              `${payable}h`, s.status, `Rs. ${(payable * rate).toLocaleString()}`
+              i + 1,
+              s.employee?.name,
+              s.employee?.serviceNo,
+              s.employee?.department?.name,
+              `${payable}h`,
+              `Rs. ${(payable * rate).toLocaleString()}`
             ];
           });
-
         if (formatType === 'pdf') {
-          exportToPDF("Disbursement Bill Summary", headers, rows, "payment_bill", getCommonMetadata());
+          exportToPDF("Late Sitting Payment Report", headers, rows, "latesitting_payment", getCommonMetadata());
         } else {
-          await exportToExcel("Payments", headers[0], rows, "payment_bill");
+          await exportToExcel("Late Sitting Payment", headers[0], rows, "latesitting_payment");
         }
       }
-
+      // New report: Overtime Payment (Industrial)
+      else if (type === "overtime-payment") {
+        const headers = [["#", "Employee", "Svc No", "Department", "Payable Hours", "Amount"]];
+        const rows = (sanctions as any[])
+          .filter((s: any) => s.employee?.cardType === 'Industrial' && (s.status === 'Approved' || s.status === 'Paid') && isSameMonth(s.date))
+          .map((s: any, i: number) => {
+            const rate = parseInt(settings.rate_industrial || '420');
+            const payable = s.limit ?? s.hours;
+            return [
+              i + 1,
+              s.employee?.name,
+              s.employee?.serviceNo,
+              s.employee?.department?.name,
+              `${payable}h`,
+              `Rs. ${(payable * rate).toLocaleString()}`
+            ];
+          });
+        if (formatType === 'pdf') {
+          exportToPDF("Overtime Payment Report", headers, rows, "overtime_payment", getCommonMetadata());
+        } else {
+          await exportToExcel("Overtime Payment", headers[0], rows, "overtime_payment");
+        }
+      }
+      // New report: Overtime Sanction Requests (pending)
+      else if (type === "overtime-sanction-requests") {
+        const headers = [["#", "SNC ID", "Employee", "Svc No", "Requested Hours", "Status"]];
+        const rows = (sanctions as any[])
+          .filter((s: any) => s.employee?.cardType === 'Industrial' && s.status === 'Pending' && isSameMonth(s.date))
+          .map((s: any, i: number) => [
+            i + 1,
+            s.sanctionId,
+            s.employee?.name,
+            s.employee?.serviceNo,
+            `${s.hours ?? s.limit}h`,
+            s.status
+          ]);
+        if (formatType === 'pdf') {
+          exportToPDF("Overtime Sanction Requests", headers, rows, "overtime_requests", getCommonMetadata());
+        } else {
+          await exportToExcel("Overtime Requests", headers[0], rows, "overtime_requests");
+        }
+      }
+      // New report: Late Sitting Requests (pending)
+      else if (type === "latesitting-requests") {
+        const headers = [["#", "SNC ID", "Employee", "Svc No", "Requested Hours", "Status"]];
+        const rows = (sanctions as any[])
+          .filter((s: any) => s.employee?.cardType === 'Ministerial' && s.status === 'Pending' && isSameMonth(s.date))
+          .map((s: any, i: number) => [
+            i + 1,
+            s.sanctionId,
+            s.employee?.name,
+            s.employee?.serviceNo,
+            `${s.hours ?? s.limit}h`,
+            s.status
+          ]);
+        if (formatType === 'pdf') {
+          exportToPDF("Late Sitting Requests", headers, rows, "latesitting_requests", getCommonMetadata());
+        } else {
+          await exportToExcel("Late Sitting Requests", headers[0], rows, "latesitting_requests");
+        }
+      }
+      // Existing attendance report
       else if (type === "attendance") {
         const headers = [["#", "Date", "Total Strength", "Present", "Absent", "Leave"]];
         
@@ -137,17 +202,7 @@ const Reports = () => {
         }
       }
 
-      else if (type === "audit") {
-        const headers = [["#", "Time", "User", "Action", "Entity", "Result"]];
-        const rows = (logs as any[]).map((l, i) => [
-          i + 1, format(new Date(l.time), 'dd-MMM-yy HH:mm'), l.user, l.action, l.entity, l.result
-        ]);
-        if (formatType === 'pdf') {
-          exportToPDF("System Audit History", headers, rows, "audit_trail", getCommonMetadata());
-        } else {
-          await exportToExcel("AuditLog", headers[0], rows, "audit_trail");
-        }
-      }
+
 
       toast.dismiss();
       toast.success(`${type.charAt(0).toUpperCase() + type.slice(1)} report exported successfully.`);

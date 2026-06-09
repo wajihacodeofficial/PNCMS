@@ -72,7 +72,6 @@ const OvertimeSystem = () => {
   
   const [clerkName, setClerkName] = useState("Wajiha Zehra");
   const [formSvc, setFormSvc] = useState("");
-  const [formHours, setFormHours] = useState("");
   const [formRank, setFormRank] = useState("");
   const [formDateInitiated, setFormDateInitiated] = useState("");
   const [formAction, setFormAction] = useState("");
@@ -80,6 +79,7 @@ const OvertimeSystem = () => {
     const now = new Date();
     return now.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
   });
+  const [rosterInputs, setRosterInputs] = useState<Record<string, { regular: string, holiday: string }>>({});
 
   const rates = useMemo(() => ({
     Ministerial: parseInt(settings.rate_ministerial || "380"),
@@ -101,7 +101,7 @@ const OvertimeSystem = () => {
   }, [selectedCadre]);
 
   const handleSubmitSanction = () => {
-    if (!formSvc || !formHours) {
+    if (!formSvc) {
       toast.error("Please fill all required fields");
       return;
     }
@@ -117,8 +117,9 @@ const OvertimeSystem = () => {
     const payload: any = {
       svc: formSvc,
       sanctionId: `SN-${Date.now()}`,
-      hours: parseInt(formHours),
-      limit: parseInt(formHours),
+      hours: 0,
+      holidayHours: 0,
+      limit: 0,
       rank: rankName,
       action: formAction || typeLabel,
       period: formPeriod,
@@ -136,13 +137,12 @@ const OvertimeSystem = () => {
         createLog({
           user: localStorage.getItem("username") || "Admin",
           action: "CREATE",
-          entity: `Sanction for ${formSvc} (${formHours}h)`,
+          entity: `Sanction for ${formSvc}`,
           result: "Success"
         });
         toast.success("Sanction request submitted");
         setIsAddingSanction(false);
         setFormSvc("");
-        setFormHours("");
         setFormRank("");
         setFormDateInitiated("");
         setFormAction("");
@@ -155,7 +155,7 @@ const OvertimeSystem = () => {
     });
   };
 
-  const updateSanctionStatus = (id: string, status: string) => {
+  const updateSanctionStatus = (id: string, status: string, extraData?: any) => {
     const current = (allSanctions as any[]).find((s: any) => s.id === id);
     if (current && (current.status === 'Approved' || current.status === 'Rejected') && status !== current.status && status !== 'Paid') {
       setUnlockModal({ id, targetStatus: status });
@@ -171,7 +171,7 @@ const OvertimeSystem = () => {
       ]);
     }
     
-    updateSanction({ id, status, ...(updatedTimelineStr ? { timeline: updatedTimelineStr } : {}) }, {
+    updateSanction({ id, status, ...(updatedTimelineStr ? { timeline: updatedTimelineStr } : {}), ...extraData }, {
       onSuccess: () => {
         createLog({
           user: localStorage.getItem("username") || "Admin",
@@ -213,25 +213,6 @@ const OvertimeSystem = () => {
 
   // ─── Rate calculation ──────────────────────────────────────────────────────
   const calculateSanctionAmount = (s: any) => {
-    // Day-type config (weekday vs holiday)
-    let dayTypesConfig: Record<string, 'weekday' | 'holiday'> = {
-      Monday: 'weekday',
-      Tuesday: 'weekday',
-      Wednesday: 'weekday',
-      Thursday: 'weekday',
-      Friday: 'weekday',
-      Saturday: 'holiday',
-      Sunday: 'holiday',
-    };
-    if (settings.day_types) {
-      try { dayTypesConfig = JSON.parse(settings.day_types); } catch (e) { console.error(e); }
-    }
-
-    const targetDate = s.dateInitiated || s.date || new Date().toISOString();
-    const dateObj = new Date(targetDate);
-    const dayName = dateObj.toLocaleDateString('en-US', { weekday: 'long' });
-    const isHoliday = dayTypesConfig[dayName] === 'holiday';
-
     const cadre = s.employee?.cardType || selectedCadre;
     
     // Resolve rank
@@ -242,6 +223,9 @@ const OvertimeSystem = () => {
     const isMTC = rankName.includes('MTC');
     const isMTD = rankName.includes('MTD');
 
+    const totalRegular = parseFloat(s.hours || s.limit || '0') || 0;
+    const totalHoliday = parseFloat(s.holidayHours || '0') || 0;
+
     // ── Ministerial ────────────────────────────────────────────────────────
     if (cadre === 'Ministerial') {
       if (isMTC) {
@@ -249,12 +233,10 @@ const OvertimeSystem = () => {
         const basicPay = parseFloat(s.employee?.basicPay || '0');
         const daysInMonth = getDaysInMonth(s.period || formPeriod);
         const hourlyRate = basicPay > 0 ? basicPay / daysInMonth / 8 : 0;
-        const totalHours = s.limit ?? s.hours ?? 0;
-        const amount = Math.round(totalHours * hourlyRate);
+        const amount = Math.round((totalRegular + totalHoliday) * hourlyRate);
         return {
-          rate: Math.round(hourlyRate * 100) / 100,
-          isHoliday,
-          dayName,
+          regularRate: Math.round(hourlyRate * 100) / 100,
+          holidayRate: Math.round(hourlyRate * 100) / 100,
           isMTD: false,
           isMTC: true,
           usesBasicPay: true,
@@ -263,13 +245,12 @@ const OvertimeSystem = () => {
         };
       } else {
         // Regular Ministerial: fixed daily rate
-        const dailyRate = isHoliday ? 285 : 225;
-        const totalDays = s.limit ?? s.hours ?? 0;
-        const amount = Math.round(totalDays * dailyRate);
+        const regularRate = 225;
+        const holidayRate = 285;
+        const amount = Math.round((totalRegular * regularRate) + (totalHoliday * holidayRate));
         return {
-          rate: dailyRate,
-          isHoliday,
-          dayName,
+          regularRate,
+          holidayRate,
           isMTD: false,
           isMTC: false,
           usesBasicPay: false,
@@ -280,26 +261,28 @@ const OvertimeSystem = () => {
     }
 
     // ── Industrial ─────────────────────────────────────────────────────────
-    const totalHours = s.limit ?? s.hours ?? 0;
-    let hourlyRate = 0;
+    let regularRate = 0;
+    let holidayRate = 0;
     let usesBasicPay = true;
 
     if (isMTD) {
       // Industrial MTD: fixed hourly rate (weekday=80, holiday=100)
-      hourlyRate = isHoliday ? 100 : 80;
+      regularRate = 80;
+      holidayRate = 100;
       usesBasicPay = false;
     } else {
       // Industrial non-MTD: basicPay ÷ daysInMonth ÷ 8
       const basicPay = parseFloat(s.employee?.basicPay || '0');
       const daysInMonth = getDaysInMonth(s.period || formPeriod);
-      hourlyRate = basicPay > 0 ? basicPay / daysInMonth / 8 : 0;
+      const rate = basicPay > 0 ? basicPay / daysInMonth / 8 : 0;
+      regularRate = rate;
+      holidayRate = rate;
     }
 
-    const amount = Math.round(totalHours * hourlyRate);
+    const amount = Math.round((totalRegular * regularRate) + (totalHoliday * holidayRate));
     return {
-      rate: Math.round(hourlyRate * 100) / 100,
-      isHoliday,
-      dayName,
+      regularRate: Math.round(regularRate * 100) / 100,
+      holidayRate: Math.round(holidayRate * 100) / 100,
       isMTD,
       isMTC: false,
       usesBasicPay,
@@ -316,23 +299,21 @@ const OvertimeSystem = () => {
     });
 
     const isMin = selectedCadre === 'Ministerial';
-    const qtyLabel = isMin ? 'Total Days' : 'Total Hours';
-    const headers = [['Sanction ID', 'Personnel', 'Service No', 'Rank', qtyLabel, 'Period', 'Action', 'Status']];
+    const headers = [['Sanction ID', 'Personnel', 'Service No', 'Rank', 'Reg. Qty', 'Hol. Qty', 'Period', 'Action', 'Status']];
     const rows = listToExport.map((s: any) => {
-      const { rate, isHoliday, usesBasicPay, isMinisterial } = calculateSanctionAmount(s);
-      const qtyStr = isMin ? `${s.limit ?? s.hours} days` : `${s.limit ?? s.hours} hrs`;
-      const rateStr = isMinisterial
-        ? `Rs. ${rate}/day (${isHoliday ? 'Holiday' : 'Weekday'} Fixed)`
-        : `Rs. ${rate.toFixed(2)}/hr — ${usesBasicPay ? 'Basic Pay' : (isHoliday ? 'Holiday Fixed' : 'Weekday Fixed')}`;
+      const calc = calculateSanctionAmount(s);
+      const unit = calc.isMTC || selectedCadre !== 'Ministerial' ? 'hrs' : 'days';
+      
       return [
         s.id.slice(-8).toUpperCase(),
         s.employee?.name || 'N/A',
         s.employee?.serviceNo || 'N/A',
         s.rank || 'N/A',
-        qtyStr,
+        s.hours ? `${s.hours} ${unit}` : '—',
+        s.holidayHours ? `${s.holidayHours} ${unit}` : '—',
         s.period || 'N/A',
         s.action || 'N/A',
-        `${s.status} (${rateStr})`,
+        s.status,
       ];
     });
 
@@ -384,30 +365,34 @@ const OvertimeSystem = () => {
     });
 
     const isMin = selectedCadre === 'Ministerial';
+    const headers = [['Personnel', 'Service No', 'Department', 'Period', 'Regular Qty', 'Holiday Qty', 'Net Amount', 'Status']];
     const rows = listToExport.map((s: any) => {
-      const qty = s.limit ?? s.hours;
-      const { rate, isHoliday, amount, usesBasicPay, isMinisterial } = calculateSanctionAmount(s);
-      const qtyStr = isMin ? `${qty} days` : `${qty} hrs`;
-      const rateStr = isMinisterial
-        ? `Rs. ${rate}/day (${isHoliday ? 'Holiday Fixed' : 'Weekday Fixed'})`
-        : `Rs. ${rate.toFixed(2)}/hr (${usesBasicPay ? 'Basic÷Days÷8' : (isHoliday ? 'HD Fixed' : 'WD Fixed')})`;
+      const calc = calculateSanctionAmount(s);
+      const unit = calc.isMTC || selectedCadre !== 'Ministerial' ? 'hrs' : 'days';
+      
+      const inputReg = rosterInputs[s.id]?.regular;
+      const inputHol = rosterInputs[s.id]?.holiday;
+      const valReg = inputReg !== undefined ? inputReg : (s.hours || 0);
+      const valHol = inputHol !== undefined ? inputHol : (s.holidayHours || 0);
+      
+      const parsedReg = parseFloat(valReg as any) || 0;
+      const parsedHol = parseFloat(valHol as any) || 0;
+      const dynamicAmount = Math.round((parsedReg * calc.regularRate) + (parsedHol * calc.holidayRate));
+
       return [
         s.employee?.name || 'N/A',
         s.employee?.serviceNo || 'N/A',
         s.employee?.department?.name || 'N/A',
         s.period || 'N/A',
-        qtyStr,
-        rateStr,
-        `Rs. ${amount.toLocaleString()}`,
+        `${valReg} ${unit}`,
+        `${valHol} ${unit}`,
+        `Rs. ${dynamicAmount.toLocaleString()}`,
         s.status === 'Paid' ? 'Paid' : 'Pending Payment',
       ];
     });
 
-    const qtyColLabel = isMin ? 'Total Days' : 'Total Hours';
-    const rateColLabel = isMin ? 'Daily Rate' : 'Hourly Rate';
-    const headers = [['Personnel', 'Service No', 'Department', 'Period', qtyColLabel, rateColLabel, 'Net Amount', 'Status']];
     const titleSuffix = status === 'All' ? 'Full Roster' : `${status} Payments`;
-    const totalAmount = listToExport.reduce((sum, s) => sum + calculateSanctionAmount(s).amount, 0);
+    const totalAmount = rows.reduce((sum, r) => sum + parseInt(r[6].replace(/[^0-9]/g, '') || '0'), 0);
     const basisNote = isMin
       ? 'Fixed Daily Rate (Rs. 225 WD / Rs. 285 HD)'
       : 'Basic Pay ÷ Days in Month ÷ 8 hrs (MTD: Fixed Hourly)';
@@ -429,16 +414,10 @@ const OvertimeSystem = () => {
   // Roster Logic – use approved limit (allowance) sittings for payable
   const rosterData = useMemo(() => {
     return paymentSanctions.map((s: any) => {
-      const limitHours = s.limit ?? s.hours;
-      const payable = limitHours;
-      const { rate, amount, isHoliday, dayName } = calculateSanctionAmount(s);
+      const calc = calculateSanctionAmount(s);
       return {
         ...s,
-        payable,
-        rate,
-        amount,
-        isHoliday,
-        dayName,
+        ...calc,
       };
     });
   }, [paymentSanctions, settings, selectedCadre]);
@@ -529,7 +508,7 @@ const OvertimeSystem = () => {
             </div>
             <div className="overflow-x-auto -mx-5 -mb-5 mt-4">
               <table className="data-table">
-                <thead><tr><th>Sanction ID</th><th>Personnel</th><th>Rank</th><th>{selectedCadre === 'Ministerial' ? 'Total Days' : 'Total Hours'}</th><th>Period</th><th>Action</th><th>Status</th><th className="text-right">Action</th></tr></thead>
+                <thead><tr><th>Sanction ID</th><th>Personnel</th><th>Rank</th><th>Reg. Qty</th><th>Hol. Qty</th><th>Period</th><th>Action</th><th>Status</th><th className="text-right">Action</th></tr></thead>
                 <tbody>
                   {filteredSanctions.map((s: any) => (
                     <tr key={s.id} className="group hover:bg-muted/5">
@@ -539,7 +518,8 @@ const OvertimeSystem = () => {
                         <div className="text-[0.65rem] text-muted-foreground font-mono">{s.employee?.serviceNo}</div>
                       </td>
                       <td>{s.rank || ''}</td>
-                      <td className="font-bold font-mono">{s.limit ?? s.hours} {selectedCadre === 'Ministerial' ? 'days' : 'hrs'}</td>
+                      <td className="font-bold font-mono text-xs">{s.hours || '—'}</td>
+                      <td className="font-bold font-mono text-xs">{s.holidayHours || '—'}</td>
                       <td className="text-xs text-muted-foreground">{s.period || ''}</td>
                       <td>{s.action || ''}</td>
                       <td><Badge variant={s.status.toLowerCase() as any}>{s.status}</Badge></td>
@@ -558,7 +538,7 @@ const OvertimeSystem = () => {
                     </tr>
                   ))}
                   {filteredSanctions.length === 0 && (
-                    <tr><td colSpan={7} className="text-center py-20 text-muted-foreground italic">No sanctions recorded for this cadre.</td></tr>
+                    <tr><td colSpan={9} className="text-center py-20 text-muted-foreground italic">No sanctions recorded for this cadre.</td></tr>
                   )}
                 </tbody>
               </table>
@@ -569,13 +549,13 @@ const OvertimeSystem = () => {
         <Tabs.Content value="approved" className="animate-in fade-in duration-300">
            <Section title="Active Authorizations" actions={
              <Btn variant="outline" className="h-9" onClick={() => {
-                const isMin = selectedCadre === 'Ministerial';
-                const headers = [['Personnel', 'Service No', 'Rank', isMin ? 'Total Days' : 'Total Hours', 'Action', 'Status']];
+                const headers = [['Personnel', 'Service No', 'Rank', 'Reg. Qty', 'Hol. Qty', 'Action', 'Status']];
                 const rows = approvedSanctions.map((s: any) => [
                   s.employee?.name || 'N/A',
                   s.employee?.serviceNo || 'N/A',
                   s.rank || 'N/A',
-                  isMin ? `${s.limit ?? s.hours} days` : `${s.limit ?? s.hours} hrs`,
+                  s.hours ? `${s.hours}` : '—',
+                  s.holidayHours ? `${s.holidayHours}` : '—',
                   s.action || 'N/A',
                   s.status,
                 ]);
@@ -597,7 +577,7 @@ const OvertimeSystem = () => {
                       <div className="w-12 h-12 rounded-full bg-success/10 flex items-center justify-center text-success"><ScrollText className="w-6 h-6"/></div>
                       <div>
                         <div className="text-sm font-black text-primary uppercase italic">{s.employee?.name}</div>
-                        <div className="text-[0.6rem] font-bold text-muted-foreground uppercase tracking-widest">{s.employee?.serviceNo} · {s.limit ?? s.hours} {selectedCadre === 'Ministerial' ? 'days' : 'hrs'} · {s.period}</div>
+                        <div className="text-[0.6rem] font-bold text-muted-foreground uppercase tracking-widest">{s.employee?.serviceNo} · Reg: {s.hours || 0} | Hol: {s.holidayHours || 0} · {s.period}</div>
                       </div>
                     </div>
                   </div>
@@ -632,25 +612,31 @@ const OvertimeSystem = () => {
               </DropdownMenu>
               <Btn variant="primary" className="h-9 shadow-sm" onClick={() => {
                 const isMin = selectedCadre === 'Ministerial';
-                const qtyColLabel = isMin ? 'Total Days' : 'Total Hours';
-                const rateColLabel = isMin ? 'Daily Rate' : 'Hourly Rate';
-                const headers = [['Personnel', 'Service No', 'Department', 'Period', qtyColLabel, rateColLabel, 'Net Amount', 'Status']];
+                const headers = [['Personnel', 'Service No', 'Department', 'Period', 'Regular Qty', 'Holiday Qty', 'Net Amount', 'Status']];
                 const rows = rosterData.map((r: any) => {
-                  const qtyStr = isMin ? `${r.payable} days` : `${r.payable} hrs`;
-                  const rateStr = isMin
-                    ? `Rs. ${r.rate}/day (${r.isHoliday ? 'Holiday Fixed' : 'Weekday Fixed'})`
-                    : `Rs. ${r.rate.toFixed(2)}/hr (${r.usesBasicPay ? 'Basic÷Days÷8' : (r.isHoliday ? 'HD Fixed' : 'WD Fixed')})`;
+                  const unit = r.isMTC || selectedCadre !== 'Ministerial' ? 'hrs' : 'days';
+                  const inputReg = rosterInputs[r.id]?.regular;
+                  const inputHol = rosterInputs[r.id]?.holiday;
+                  const valReg = inputReg !== undefined ? inputReg : (r.hours || 0);
+                  const valHol = inputHol !== undefined ? inputHol : (r.holidayHours || 0);
+                  
+                  const parsedReg = parseFloat(valReg as any) || 0;
+                  const parsedHol = parseFloat(valHol as any) || 0;
+                  const dynamicAmount = Math.round((parsedReg * r.regularRate) + (parsedHol * r.holidayRate));
+
                   return [
                     r.employee?.name || 'N/A',
                     r.employee?.serviceNo || 'N/A',
                     r.employee?.department?.name || 'N/A',
                     r.period || 'N/A',
-                    qtyStr,
-                    rateStr,
-                    `Rs. ${r.amount.toLocaleString()}`,
+                    `${valReg} ${unit}`,
+                    `${valHol} ${unit}`,
+                    `Rs. ${dynamicAmount.toLocaleString()}`,
                     r.status === 'Paid' ? 'Paid' : 'Pending Payment',
                   ];
                 });
+                
+                const currentTotalDisbursement = rows.reduce((sum, r) => sum + parseInt(r[6].replace(/[^0-9]/g, '') || '0'), 0);
                 const basisNote = isMin
                   ? 'Fixed Daily Rate (Rs. 225 WD / Rs. 285 HD)'
                   : 'Basic Pay ÷ Days ÷ 8 hrs (MTD: Fixed Hourly)';
@@ -662,7 +648,7 @@ const OvertimeSystem = () => {
                   { period: new Date().toLocaleDateString('en-GB'), dept: `${selectedCadre} Cadre`, clerk: clerkName },
                   [
                     { label: 'Total Personnel', value: `${rosterData.length}` },
-                    { label: 'Total Disbursement', value: `Rs. ${totalDisbursement.toLocaleString()}` },
+                    { label: 'Total Disbursement', value: `Rs. ${currentTotalDisbursement.toLocaleString()}` },
                     { label: 'Calculation Basis', value: basisNote },
                   ]
                 );
@@ -686,41 +672,60 @@ const OvertimeSystem = () => {
             </div>
             <div className="overflow-x-auto -mx-5 -mb-5 mt-4">
                 <table className="data-table">
-                  <thead><tr><th>Personnel</th><th>Period</th><th>{selectedCadre === 'Ministerial' ? 'Total Days' : 'Total Hours'}</th><th>{selectedCadre === 'Ministerial' ? 'Daily Rate' : 'Hourly Rate'}</th><th>Status</th><th className="text-right">Net Amount</th><th className="text-right">Action</th></tr></thead>
+                  <thead><tr><th>Personnel</th><th>Period</th><th>Regular Qty</th><th>Holiday Qty</th><th>Rates (WD/HD)</th><th>Status</th><th className="text-right">Net Amount</th><th className="text-right">Action</th></tr></thead>
                   <tbody>
-                    {rosterData.map((r: any) => (
-                      <tr key={r.id}>
-                        <td><div className="font-bold">{r.employee?.name}</div><div className="text-[0.6rem] opacity-50 uppercase">{r.employee?.serviceNo} · {r.employee?.department?.name}</div></td>
-                        <td className="text-xs text-muted-foreground">{r.period || '—'}</td>
-                        <td className="font-mono font-black text-primary">{r.payable} {r.isMTC || selectedCadre !== 'Ministerial' ? 'hrs' : 'days'}</td>
-                        <td className="text-xs font-mono">
-                          {r.isMinisterial ? (
-                            <>
-                              <div className="font-bold text-accent">Rs. {r.rate}/day</div>
-                              <div className="text-[0.6rem] text-muted-foreground uppercase">{r.isHoliday ? 'Holiday Fixed' : 'Weekday Fixed'}</div>
-                            </>
-                          ) : (
-                            <>
-                              <div className="font-bold text-accent">Rs. {r.rate.toFixed(2)}/hr</div>
-                              <div className="text-[0.6rem] text-muted-foreground uppercase">
-                                {r.usesBasicPay ? 'Basic ÷ Days ÷ 8' : (r.isHoliday ? 'Holiday Fixed' : 'Weekday Fixed')}
+                    {rosterData.map((r: any) => {
+                      const unit = r.isMTC || selectedCadre !== 'Ministerial' ? 'hrs' : 'days';
+                      const inputReg = rosterInputs[r.id]?.regular;
+                      const inputHol = rosterInputs[r.id]?.holiday;
+                      const valReg = inputReg !== undefined ? inputReg : (r.hours || '');
+                      const valHol = inputHol !== undefined ? inputHol : (r.holidayHours || '');
+
+                      const parsedReg = parseFloat(valReg as any) || 0;
+                      const parsedHol = parseFloat(valHol as any) || 0;
+                      const dynamicAmount = Math.round((parsedReg * r.regularRate) + (parsedHol * r.holidayRate));
+
+                      return (
+                        <tr key={r.id}>
+                          <td><div className="font-bold">{r.employee?.name}</div><div className="text-[0.6rem] opacity-50 uppercase">{r.employee?.serviceNo} · {r.employee?.department?.name}</div></td>
+                          <td className="text-xs text-muted-foreground">{r.period || '—'}</td>
+                          <td className="font-mono">
+                            {r.status === 'Paid' ? (
+                              <span className="font-black text-primary">{valReg} {unit}</span>
+                            ) : (
+                              <div className="flex items-center gap-1">
+                                <Input type="number" className="w-16 h-7 text-xs px-2" value={valReg} onChange={e => setRosterInputs(prev => ({...prev, [r.id]: {...prev[r.id], regular: e.target.value}}))} placeholder="0" />
+                                <span className="text-xs text-muted-foreground">{unit}</span>
                               </div>
-                            </>
-                          )}
-                        </td>
-                        <td><Badge variant={r.status === 'Paid' ? 'success' : 'warning' as any}>{r.status === 'Paid' ? 'Paid' : 'Pending Payment'}</Badge></td>
-                        <td className="text-right font-mono font-bold text-accent">Rs. {r.amount.toLocaleString()}</td>
-                        <td className="text-right">
-                          {r.status !== 'Paid' && (
-                          <button onClick={() => updateSanctionStatus(r.id, 'Paid')} className="p-1.5 rounded-sm bg-success/10 text-success hover:bg-success hover:text-white transition-all shadow-sm" title="Mark as Paid">
-                            <Check className="w-4 h-4" />
-                          </button>
-                        )}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+                            )}
+                          </td>
+                          <td className="font-mono">
+                            {r.status === 'Paid' ? (
+                              <span className="font-black text-primary">{valHol} {unit}</span>
+                            ) : (
+                              <div className="flex items-center gap-1">
+                                <Input type="number" className="w-16 h-7 text-xs px-2" value={valHol} onChange={e => setRosterInputs(prev => ({...prev, [r.id]: {...prev[r.id], regular: prev[r.id]?.regular || r.hours || '', holiday: e.target.value}}))} placeholder="0" />
+                                <span className="text-xs text-muted-foreground">{unit}</span>
+                              </div>
+                            )}
+                          </td>
+                          <td className="text-xs font-mono">
+                            <div className="text-[0.65rem] text-muted-foreground">Rs.{r.regularRate} | Rs.{r.holidayRate}</div>
+                          </td>
+                          <td><Badge variant={r.status === 'Paid' ? 'success' : 'warning' as any}>{r.status === 'Paid' ? 'Paid' : 'Pending Payment'}</Badge></td>
+                          <td className="text-right font-mono font-bold text-accent">Rs. {dynamicAmount.toLocaleString()}</td>
+                          <td className="text-right">
+                            {r.status !== 'Paid' && (
+                              <button onClick={() => updateSanctionStatus(r.id, 'Paid', { hours: parsedReg, holidayHours: parsedHol, amount: dynamicAmount })} className="p-1.5 rounded-sm bg-success/10 text-success hover:bg-success hover:text-white transition-all shadow-sm" title="Mark as Paid">
+                                <Check className="w-4 h-4" />
+                              </button>
+                            )}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
             </div>
           </Section>
         </Tabs.Content>
@@ -811,52 +816,7 @@ const OvertimeSystem = () => {
                <Field label="Date Initiated" required>
                  <Input type="date" value={formDateInitiated} onChange={(e) => setFormDateInitiated(e.target.value)} />
                </Field>
-               <Field label={(() => {
-                 const emp = (personnel as any[]).find((p: any) => p.serviceNo === formSvc);
-                 const isMTC = (emp?.rank?.name || '').toUpperCase().includes('MTC');
-                 return (selectedCadre === 'Ministerial' && !isMTC) ? 'Total Days (Late-Sitting)' : 'Total Hours (OT / Late-Sitting)';
-               })()} required>
-                 <Input
-                   type="number"
-                   value={formHours}
-                   onChange={(e) => setFormHours(e.target.value)}
-                   placeholder={(() => {
-                     const emp = (personnel as any[]).find((p: any) => p.serviceNo === formSvc);
-                     const isMTC = (emp?.rank?.name || '').toUpperCase().includes('MTC');
-                     return (selectedCadre === 'Ministerial' && !isMTC) ? 'Enter total late-sitting days' : 'Enter total hours';
-                   })()}
-                 />
-               </Field>
-               <Field label="Estimated Amount">
-                 <div className="relative">
-                   <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[0.6rem] font-bold text-muted-foreground uppercase">Rs.</span>
-                   <Input
-                     value={(() => {
-                       const qty = parseFloat(formHours) || 0;
-                       if (!qty) return '';
-                       const emp = (personnel as any[]).find((p: any) => p.serviceNo === formSvc);
-                       const isMTC = (emp?.rank?.name || '').toUpperCase().includes('MTC');
-                       // Ministerial non-MTC: fixed daily rate
-                       if (selectedCadre === 'Ministerial' && !isMTC) {
-                         return Math.round(qty * 225).toLocaleString() + ' (WD est.)';
-                       }
-                       // Industrial or MTC
-                       const rank = (ranks as any[]).find((r: any) => r.name === emp?.rank?.name);
-                       if (rank?.rateType === 'fixed') {
-                         const r = parseFloat(rank.weekdayRate || '0');
-                         return Math.round(qty * r).toLocaleString();
-                       }
-                       const bp = parseFloat(emp?.basicPay || '0');
-                       const days = getDaysInMonth(formPeriod);
-                       if (!bp) return '';
-                       return Math.round(qty * (bp / days / 8)).toLocaleString();
-                     })()}
-                     disabled
-                     className="bg-muted/50 pl-10 font-mono font-bold text-accent"
-                     placeholder="Auto-calculated"
-                   />
-                 </div>
-               </Field>
+               <div className="col-span-2 hidden"></div>
 
                {/* Row 4 — Action */}
                <Field label="Action / Purpose (Optional)" className="col-span-3">
