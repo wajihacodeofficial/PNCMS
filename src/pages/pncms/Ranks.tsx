@@ -261,12 +261,18 @@ const Ranks = () => {
                   <td className="font-mono font-bold">{r.born}</td>
                   <td className="font-mono text-muted-foreground">{r.sanctioned || 0}</td>
                   <td className="text-xs">
-                    {r.rateType === "fixed" ? (
-                      <span className="font-mono text-accent">
-                        Fixed (Rs. {r.weekdayRate || 0} / {r.holidayRate || 0})
-                      </span>
+                    {r.cadre === 'Ministerial' ? (
+                      r.name.toUpperCase().includes('MTC') ? (
+                        <span className="text-muted-foreground font-semibold">Basic Pay ÷ Days ÷ 8 / hr</span>
+                      ) : (
+                        <span className="font-mono text-accent">Fixed (Rs. 225 WD / 285 HD / day)</span>
+                      )
                     ) : (
-                      <span className="text-muted-foreground font-semibold">Basic Pay ÷ 30</span>
+                      r.name.toUpperCase().includes('MTD') ? (
+                        <span className="font-mono text-accent">Fixed (Rs. 80 WD / 100 HD / hr)</span>
+                      ) : (
+                        <span className="text-muted-foreground font-semibold">Basic Pay ÷ Days ÷ 8 / hr</span>
+                      )
                     )}
                   </td>
                   <td>
@@ -322,25 +328,13 @@ const Ranks = () => {
 
               <div className="border-t border-border pt-4 mt-2">
                 <p className="text-xs font-bold uppercase text-primary tracking-wider mb-3">Overtime / Late-Sitting Rates</p>
-                <div className="grid grid-cols-2 gap-4">
-                  <Field label="Calculation Mode" required>
-                    <Select value={formData.rateType || "basic"} onChange={e => setFormData({...formData, rateType: e.target.value})}>
-                      <option value="basic">Based on Basic Pay (÷ 30)</option>
-                      <option value="fixed">Fixed Rates</option>
-                    </Select>
-                  </Field>
+                <div className="text-[0.65rem] text-muted-foreground p-3 bg-accent/5 rounded-sm border border-accent/20">
+                  <span className="font-bold text-accent">System Notice:</span> Rate calculation logic is automatically enforced. 
+                  <br/>
+                  <span className="font-bold text-primary mt-1 inline-block">Ministerial:</span> Fixed daily rates, except MTC (Basic Pay Hourly).
+                  <br/>
+                  <span className="font-bold text-primary">Industrial:</span> Basic Pay Hourly, except MTD (Fixed hourly rates).
                 </div>
-
-                {formData.rateType === "fixed" && (
-                  <div className="grid grid-cols-2 gap-4 mt-3 animate-in fade-in-50 duration-200">
-                    <Field label="Weekday Rate (Rs.)" required>
-                      <Input type="number" value={formData.weekdayRate || ""} onChange={e => setFormData({...formData, weekdayRate: parseFloat(e.target.value) || 0})} />
-                    </Field>
-                    <Field label="Holiday Rate (Rs.)" required>
-                      <Input type="number" value={formData.holidayRate || ""} onChange={e => setFormData({...formData, holidayRate: parseFloat(e.target.value) || 0})} />
-                    </Field>
-                  </div>
-                )}
               </div>
             </div>
             <div className="bg-muted/30 p-5 flex justify-end gap-3 border-t border-border">
