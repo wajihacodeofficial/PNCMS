@@ -212,17 +212,6 @@ const OvertimeSystem = () => {
   const [statusFilter, setStatusFilter] = useState<'All' | 'Pending' | 'Approved' | 'Rejected'>('All');
 
   // ─── Rate calculation ──────────────────────────────────────────────────────
-  // Ministerial cadre (Late-Sitting) — ALL ranks, fixed daily rates:
-  //   dailyRate = 225 (weekday) or 285 (holiday)
-  //   amount    = totalDays × dailyRate
-  //
-  // Industrial cadre (non-MTD / rateType="basic"):
-  //   hourlyRate = basicPay ÷ daysInMonth ÷ 8
-  //   amount     = totalHours × hourlyRate
-  //
-  // Industrial MTD (rateType="fixed"):
-  //   hourlyRate = weekdayRate (Rs. 80) or holidayRate (Rs. 100)
-  //   amount     = totalHours × hourlyRate
   const calculateSanctionAmount = (s: any) => {
     // Day-type config (weekday vs holiday)
     let dayTypesConfig: Record<string, 'weekday' | 'holiday'> = {
@@ -244,43 +233,66 @@ const OvertimeSystem = () => {
     const isHoliday = dayTypesConfig[dayName] === 'holiday';
 
     const cadre = s.employee?.cardType || selectedCadre;
-
-    // ── Ministerial: fixed daily rate ──────────────────────────────────────
-    if (cadre === 'Ministerial') {
-      const dailyRate = isHoliday ? 285 : 225;
-      const totalDays = s.limit ?? s.hours ?? 0;
-      const amount = Math.round(totalDays * dailyRate);
-      return {
-        rate: dailyRate,
-        isHoliday,
-        dayName,
-        isMTD: false,
-        usesBasicPay: false,
-        isMinisterial: true,
-        amount,
-      };
-    }
-
-    // ── Industrial ─────────────────────────────────────────────────────────
+    
+    // Resolve rank
     const matchedRank = (ranks as any[]).find(
       (r: any) => r.name === (s.rank || s.employee?.rank?.name)
     );
-    const rateType = matchedRank?.rateType || 'basic';
-    const usesBasicPay = rateType === 'basic';
+    const rankName = (matchedRank?.name || s.rank || s.employee?.rank?.name || '').toUpperCase();
+    const isMTC = rankName.includes('MTC');
+    const isMTD = rankName.includes('MTD');
 
+    // ── Ministerial ────────────────────────────────────────────────────────
+    if (cadre === 'Ministerial') {
+      if (isMTC) {
+        // MTC in Ministerial uses Basic Pay formula
+        const basicPay = parseFloat(s.employee?.basicPay || '0');
+        const daysInMonth = getDaysInMonth(s.period || formPeriod);
+        const hourlyRate = basicPay > 0 ? basicPay / daysInMonth / 8 : 0;
+        const totalHours = s.limit ?? s.hours ?? 0;
+        const amount = Math.round(totalHours * hourlyRate);
+        return {
+          rate: Math.round(hourlyRate * 100) / 100,
+          isHoliday,
+          dayName,
+          isMTD: false,
+          isMTC: true,
+          usesBasicPay: true,
+          isMinisterial: true,
+          amount,
+        };
+      } else {
+        // Regular Ministerial: fixed daily rate
+        const dailyRate = isHoliday ? 285 : 225;
+        const totalDays = s.limit ?? s.hours ?? 0;
+        const amount = Math.round(totalDays * dailyRate);
+        return {
+          rate: dailyRate,
+          isHoliday,
+          dayName,
+          isMTD: false,
+          isMTC: false,
+          usesBasicPay: false,
+          isMinisterial: true,
+          amount,
+        };
+      }
+    }
+
+    // ── Industrial ─────────────────────────────────────────────────────────
     const totalHours = s.limit ?? s.hours ?? 0;
-
     let hourlyRate = 0;
-    if (usesBasicPay) {
+    let usesBasicPay = true;
+
+    if (isMTD) {
+      // Industrial MTD: fixed hourly rate (weekday=80, holiday=100)
+      hourlyRate = isHoliday ? 100 : 80;
+      usesBasicPay = false;
+    } else {
       // Industrial non-MTD: basicPay ÷ daysInMonth ÷ 8
       const basicPay = parseFloat(s.employee?.basicPay || '0');
       const daysInMonth = getDaysInMonth(s.period || formPeriod);
       hourlyRate = basicPay > 0 ? basicPay / daysInMonth / 8 : 0;
-    } else {
-      // Industrial MTD: fixed hourly rate (weekday=80, holiday=100)
-      hourlyRate = isHoliday
-        ? parseFloat(matchedRank?.holidayRate || '0')
-        : parseFloat(matchedRank?.weekdayRate || '0');
     }
 
     const amount = Math.round(totalHours * hourlyRate);
@@ -288,7 +300,8 @@ const OvertimeSystem = () => {
       rate: Math.round(hourlyRate * 100) / 100,
       isHoliday,
       dayName,
-      isMTD: !usesBasicPay,
+      isMTD,
+      isMTC: false,
       usesBasicPay,
       isMinisterial: false,
       amount,
@@ -432,6 +445,13 @@ const OvertimeSystem = () => {
 
   const totalDisbursement = rosterData.reduce((sum, item) => sum + item.amount, 0);
 
+  // Grand total across BOTH cadres for the current month/period (assuming all paid sanctions)
+  const grandTotalPaid = useMemo(() => {
+    return (allSanctions as any[])
+      .filter(s => s.status === 'Paid')
+      .reduce((sum, s) => sum + calculateSanctionAmount(s).amount, 0);
+  }, [allSanctions, ranks, settings]);
+
   if (!activeTab) {
     return (
       <AppShell>
@@ -442,10 +462,16 @@ const OvertimeSystem = () => {
              <p className="label-mil">Synchronizing Allowance Database...</p>
           </div>
         ) : (
-          <div className="flex items-center justify-center gap-10 py-20 flex-wrap">
-            <ActionCard title="Sanction Request Initiation" icon={<Plus className="w-10 h-10" />} onClick={() => setActiveTab('sanctions')} />
-            <ActionCard title="Payments" icon={<Receipt className="w-10 h-10" />} onClick={() => setActiveTab('roster')} />
-          </div>
+          <>
+            <div className="grid grid-cols-3 gap-6 mb-8">
+              <StatCard label="Total Paid (This Cadre)" value={`Rs. ${totalDisbursement.toLocaleString()}`} />
+              <StatCard label="Grand Total Paid (All Cadres)" value={`Rs. ${grandTotalPaid.toLocaleString()}`} />
+            </div>
+            <div className="flex items-center justify-center gap-10 py-10 flex-wrap">
+              <ActionCard title="Sanction Request Initiation" icon={<Plus className="w-10 h-10" />} onClick={() => setActiveTab('sanctions')} />
+              <ActionCard title="Payments" icon={<Receipt className="w-10 h-10" />} onClick={() => setActiveTab('roster')} />
+            </div>
+          </>
         )}
       </AppShell>
     );
@@ -666,9 +692,9 @@ const OvertimeSystem = () => {
                       <tr key={r.id}>
                         <td><div className="font-bold">{r.employee?.name}</div><div className="text-[0.6rem] opacity-50 uppercase">{r.employee?.serviceNo} · {r.employee?.department?.name}</div></td>
                         <td className="text-xs text-muted-foreground">{r.period || '—'}</td>
-                        <td className="font-mono font-black text-primary">{r.payable} {selectedCadre === 'Ministerial' ? 'days' : 'hrs'}</td>
+                        <td className="font-mono font-black text-primary">{r.payable} {r.isMTC || selectedCadre !== 'Ministerial' ? 'hrs' : 'days'}</td>
                         <td className="text-xs font-mono">
-                          {selectedCadre === 'Ministerial' ? (
+                          {r.isMinisterial ? (
                             <>
                               <div className="font-bold text-accent">Rs. {r.rate}/day</div>
                               <div className="text-[0.6rem] text-muted-foreground uppercase">{r.isHoliday ? 'Holiday Fixed' : 'Weekday Fixed'}</div>
@@ -729,36 +755,44 @@ const OvertimeSystem = () => {
                </Field>
 
                {/* Row 2 — Pay & rate preview */}
-               {selectedCadre === 'Industrial' && (
-                 <Field label="Basic Pay (from record)">
-                   <div className="relative">
-                     <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[0.6rem] font-bold text-muted-foreground uppercase">Rs.</span>
-                     <Input
-                       value={(() => {
-                         const emp = (personnel as any[]).find((p: any) => p.serviceNo === formSvc);
-                         return emp?.basicPay ? Number(emp.basicPay).toLocaleString() : '';
-                       })()}
-                       disabled
-                       className="bg-muted/50 pl-10 font-mono font-bold text-accent"
-                       placeholder="Auto-filled"
-                     />
-                   </div>
-                 </Field>
-               )}
+               {(() => {
+                 const emp = (personnel as any[]).find((p: any) => p.serviceNo === formSvc);
+                 const isMTC = (emp?.rank?.name || '').toUpperCase().includes('MTC');
+                 const showBasicPay = selectedCadre === 'Industrial' || (selectedCadre === 'Ministerial' && isMTC);
+                 if (!showBasicPay) return null;
+                 return (
+                   <Field label="Basic Pay (from record)">
+                     <div className="relative">
+                       <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[0.6rem] font-bold text-muted-foreground uppercase">Rs.</span>
+                       <Input
+                         value={emp?.basicPay ? Number(emp.basicPay).toLocaleString() : ''}
+                         disabled
+                         className="bg-muted/50 pl-10 font-mono font-bold text-accent"
+                         placeholder="Auto-filled"
+                       />
+                     </div>
+                   </Field>
+                 );
+               })()}
                <Field label="Sanction Period" required>
                  <Select value={formPeriod} onChange={(e) => setFormPeriod(e.target.value)}>
                    {generateMonthOptions().map(m => <option key={m} value={m}>{m}</option>)}
                  </Select>
                </Field>
-               <Field label={selectedCadre === 'Ministerial' ? 'Daily Rate (Fixed)' : 'Computed Hourly Rate'}>
+               <Field label={(() => {
+                 const emp = (personnel as any[]).find((p: any) => p.serviceNo === formSvc);
+                 const isMTC = (emp?.rank?.name || '').toUpperCase().includes('MTC');
+                 return (selectedCadre === 'Ministerial' && !isMTC) ? 'Daily Rate (Fixed)' : 'Computed Hourly Rate';
+               })()}>
                  <div className="relative">
                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[0.6rem] font-bold text-muted-foreground uppercase">Rs.</span>
                    <Input
                      value={(() => {
-                       if (selectedCadre === 'Ministerial') {
+                       const emp = (personnel as any[]).find((p: any) => p.serviceNo === formSvc);
+                       const isMTC = (emp?.rank?.name || '').toUpperCase().includes('MTC');
+                       if (selectedCadre === 'Ministerial' && !isMTC) {
                          return '225/day (WD) · 285/day (HD) — Fixed';
                        }
-                       const emp = (personnel as any[]).find((p: any) => p.serviceNo === formSvc);
                        const rank = (ranks as any[]).find((r: any) => r.name === emp?.rank?.name);
                        if (rank?.rateType === 'fixed') return `${rank.weekdayRate}/hr (WD) · ${rank.holidayRate}/hr (HD) — MTD Fixed`;
                        const bp = parseFloat(emp?.basicPay || '0');
@@ -768,7 +802,7 @@ const OvertimeSystem = () => {
                      })()}
                      disabled
                      className="bg-muted/50 pl-10 font-mono font-bold text-primary"
-                     placeholder={selectedCadre === 'Ministerial' ? 'Fixed rate' : 'Select employee & period'}
+                     placeholder="Select employee & period"
                    />
                  </div>
                </Field>
@@ -777,12 +811,20 @@ const OvertimeSystem = () => {
                <Field label="Date Initiated" required>
                  <Input type="date" value={formDateInitiated} onChange={(e) => setFormDateInitiated(e.target.value)} />
                </Field>
-               <Field label={selectedCadre === 'Ministerial' ? 'Total Days (Late-Sitting)' : 'Total Hours (Overtime)'} required>
+               <Field label={(() => {
+                 const emp = (personnel as any[]).find((p: any) => p.serviceNo === formSvc);
+                 const isMTC = (emp?.rank?.name || '').toUpperCase().includes('MTC');
+                 return (selectedCadre === 'Ministerial' && !isMTC) ? 'Total Days (Late-Sitting)' : 'Total Hours (OT / Late-Sitting)';
+               })()} required>
                  <Input
                    type="number"
                    value={formHours}
                    onChange={(e) => setFormHours(e.target.value)}
-                   placeholder={selectedCadre === 'Ministerial' ? 'Enter total late-sitting days' : 'Enter total overtime hours'}
+                   placeholder={(() => {
+                     const emp = (personnel as any[]).find((p: any) => p.serviceNo === formSvc);
+                     const isMTC = (emp?.rank?.name || '').toUpperCase().includes('MTC');
+                     return (selectedCadre === 'Ministerial' && !isMTC) ? 'Enter total late-sitting days' : 'Enter total hours';
+                   })()}
                  />
                </Field>
                <Field label="Estimated Amount">
@@ -792,13 +834,13 @@ const OvertimeSystem = () => {
                      value={(() => {
                        const qty = parseFloat(formHours) || 0;
                        if (!qty) return '';
-                       // Ministerial: fixed daily rate
-                       if (selectedCadre === 'Ministerial') {
-                         // Use weekday rate as preview (actual depends on day type)
+                       const emp = (personnel as any[]).find((p: any) => p.serviceNo === formSvc);
+                       const isMTC = (emp?.rank?.name || '').toUpperCase().includes('MTC');
+                       // Ministerial non-MTC: fixed daily rate
+                       if (selectedCadre === 'Ministerial' && !isMTC) {
                          return Math.round(qty * 225).toLocaleString() + ' (WD est.)';
                        }
-                       // Industrial
-                       const emp = (personnel as any[]).find((p: any) => p.serviceNo === formSvc);
+                       // Industrial or MTC
                        const rank = (ranks as any[]).find((r: any) => r.name === emp?.rank?.name);
                        if (rank?.rateType === 'fixed') {
                          const r = parseFloat(rank.weekdayRate || '0');
@@ -829,7 +871,9 @@ const OvertimeSystem = () => {
                    <span className="font-bold text-accent uppercase tracking-wide">Rate Formula (Ministerial Late-Sitting): </span>
                    Fixed Daily Rate × Total Days = Net Amount &nbsp;|&nbsp;
                    <span className="font-bold text-primary">Weekday</span>: Rs. 225/day &nbsp;·&nbsp;
-                   <span className="font-bold text-primary">Holiday</span>: Rs. 285/day
+                   <span className="font-bold text-primary">Holiday</span>: Rs. 285/day <br/>
+                   <span className="font-bold text-accent uppercase tracking-wide">MTC Exception: </span>
+                   Basic Pay ÷ Days in Month ÷ 8 hrs × Total Hours
                  </>
                ) : (
                  <>
