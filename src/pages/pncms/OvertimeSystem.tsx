@@ -1,4 +1,29 @@
 import { useState, useMemo, useEffect } from 'react';
+
+// ─── Helper ───────────────────────────────────────────────────────────────────
+// Returns the number of calendar days in a given period string like "June 2026"
+const getDaysInMonth = (period: string): number => {
+  if (!period) return 30;
+  const parts = period.trim().split(' ');
+  if (parts.length === 2) {
+    const d = new Date(`${parts[0]} 1, ${parts[1]}`);
+    if (!isNaN(d.getTime())) {
+      return new Date(d.getFullYear(), d.getMonth() + 1, 0).getDate();
+    }
+  }
+  return 30; // fallback
+};
+
+// Generate a rolling list of months (3 past → current → 3 future)
+const generateMonthOptions = (): string[] => {
+  const months: string[] = [];
+  const now = new Date();
+  for (let i = -3; i <= 5; i++) {
+    const d = new Date(now.getFullYear(), now.getMonth() + i, 1);
+    months.push(d.toLocaleDateString('en-US', { month: 'long', year: 'numeric' }));
+  }
+  return months;
+};
 import { useParams, useNavigate } from 'react-router-dom';
 import { AppShell, PageHeader, useCadre } from '@/components/pncms/AppShell';
 import {
@@ -51,6 +76,10 @@ const OvertimeSystem = () => {
   const [formRank, setFormRank] = useState("");
   const [formDateInitiated, setFormDateInitiated] = useState("");
   const [formAction, setFormAction] = useState("");
+  const [formPeriod, setFormPeriod] = useState(() => {
+    const now = new Date();
+    return now.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+  });
 
   const rates = useMemo(() => ({
     Ministerial: parseInt(settings.rate_ministerial || "380"),
@@ -92,7 +121,7 @@ const OvertimeSystem = () => {
       limit: parseInt(formHours),
       rank: rankName,
       action: formAction || typeLabel,
-      period: "May 2026",
+      period: formPeriod,
       status: "Pending",
       date: new Date().toISOString().split('T')[0],
     };
@@ -117,6 +146,7 @@ const OvertimeSystem = () => {
         setFormRank("");
         setFormDateInitiated("");
         setFormAction("");
+        setFormPeriod(new Date().toLocaleDateString('en-US', { month: 'long', year: 'numeric' }));
       },
       onError: (err: any) => {
         console.error("Create sanction error:", err);
@@ -181,11 +211,16 @@ const OvertimeSystem = () => {
 
   const [statusFilter, setStatusFilter] = useState<'All' | 'Pending' | 'Approved' | 'Rejected'>('All');
 
-  // Rate calculation rules:
-  // • Determined by rank settings (rateType = 'basic' or 'fixed')
-  // • If 'basic': basicPay ÷ 30 per sitting from individual Employee Record
-  // • If 'fixed': weekdayRate or holidayRate configured on the rank
+  // ─── Rate calculation ──────────────────────────────────────────────────────
+  // Industrial cadre (non-MTC / rateType="basic"):
+  //   hourlyRate = basicPay ÷ daysInMonth ÷ 8
+  //   amount     = totalHours × hourlyRate
+  //
+  // MTC / any rank with rateType="fixed":
+  //   hourlyRate = weekdayRate (Rs. 80) or holidayRate (Rs. 100)
+  //   amount     = totalHours × hourlyRate
   const calculateSanctionAmount = (s: any) => {
+    // Day-type config (weekday vs holiday)
     let dayTypesConfig: Record<string, 'weekday' | 'holiday'> = {
       Monday: 'weekday',
       Tuesday: 'weekday',
@@ -196,11 +231,7 @@ const OvertimeSystem = () => {
       Sunday: 'holiday',
     };
     if (settings.day_types) {
-      try {
-        dayTypesConfig = JSON.parse(settings.day_types);
-      } catch (e) {
-        console.error(e);
-      }
+      try { dayTypesConfig = JSON.parse(settings.day_types); } catch (e) { console.error(e); }
     }
 
     const targetDate = s.dateInitiated || s.date || new Date().toISOString();
@@ -208,33 +239,38 @@ const OvertimeSystem = () => {
     const dayName = dateObj.toLocaleDateString('en-US', { weekday: 'long' });
     const isHoliday = dayTypesConfig[dayName] === 'holiday';
 
-    // Find the rank structure
+    // Resolve rank
     const matchedRank = (ranks as any[]).find(
       (r: any) => r.name === (s.rank || s.employee?.rank?.name)
     );
+    const rateType = matchedRank?.rateType || 'basic';
+    const usesBasicPay = rateType === 'basic';
 
-    const rateType = matchedRank?.rateType || "basic";
-    const usesBasicPay = rateType === "basic";
+    // Total hours entered in the sanction form
+    const totalHours = s.limit ?? s.hours ?? 0;
 
-    let rate = 0;
+    let hourlyRate = 0;
     if (usesBasicPay) {
+      // Core formula: basicPay ÷ daysInMonth ÷ 8
       const basicPay = parseFloat(s.employee?.basicPay || '0');
-      rate = basicPay > 0 ? Math.round(basicPay / 30) : 0;
+      const daysInMonth = getDaysInMonth(s.period || formPeriod);
+      hourlyRate = basicPay > 0 ? basicPay / daysInMonth / 8 : 0;
     } else {
-      rate = isHoliday
+      // Fixed rate (MTC: weekday=80, holiday=100 — or whatever is configured on the rank)
+      hourlyRate = isHoliday
         ? parseFloat(matchedRank?.holidayRate || '0')
         : parseFloat(matchedRank?.weekdayRate || '0');
     }
 
-    const sittings = s.limit ?? s.hours ?? 0;
+    const amount = Math.round(totalHours * hourlyRate);
     return {
-      rate,
+      rate: Math.round(hourlyRate * 100) / 100, // keep 2 dp for display
       isHoliday,
       dayName,
-      isMTC: false, // Legacy fallback
-      isCasualLabour: !usesBasicPay, // Legacy fallback
+      isMTC: !usesBasicPay,
+      isCasualLabour: !usesBasicPay,
       usesBasicPay,
-      amount: sittings * rate
+      amount,
     };
   };
 
@@ -245,17 +281,18 @@ const OvertimeSystem = () => {
       return true;
     });
 
-    const headers = [['Sanction ID', 'Personnel', 'Service No', 'Rank', 'Limit (Days)', 'Action', 'Status']];
+    const headers = [['Sanction ID', 'Personnel', 'Service No', 'Rank', 'Total Hours', 'Period', 'Action', 'Status']];
     const rows = listToExport.map((s: any) => {
-      const { rate, isHoliday } = calculateSanctionAmount(s);
+      const { rate, isHoliday, usesBasicPay } = calculateSanctionAmount(s);
       return [
         s.id.slice(-8).toUpperCase(),
         s.employee?.name || 'N/A',
         s.employee?.serviceNo || 'N/A',
         s.rank || 'N/A',
-        `${s.limit ?? s.hours} Sittings`,
+        `${s.limit ?? s.hours} hrs`,
+        s.period || 'N/A',
         s.action || 'N/A',
-        `${s.status} (Rs. ${rate} - ${isHoliday ? 'Holiday' : 'Weekday'})`,
+        `${s.status} (Rs. ${rate.toFixed(2)}/hr - ${usesBasicPay ? 'Basic Pay' : (isHoliday ? 'Holiday Rate' : 'Weekday Rate')})`,
       ];
     });
 
@@ -307,22 +344,22 @@ const OvertimeSystem = () => {
     });
 
     const rows = listToExport.map((s: any) => {
-      const limitHours = s.limit ?? s.hours;
-      const payable = limitHours;
-      const { rate, isHoliday, amount } = calculateSanctionAmount(s);
+      const totalHours = s.limit ?? s.hours;
+      const { rate, isHoliday, amount, usesBasicPay } = calculateSanctionAmount(s);
+      const rateLabel = usesBasicPay ? 'Basic÷Days÷8' : (isHoliday ? 'HD Fixed' : 'WD Fixed');
       return [
         s.employee?.name || 'N/A',
         s.employee?.serviceNo || 'N/A',
         s.employee?.department?.name || 'N/A',
-        `${limitHours}d`,
-        `${payable}d`,
-        `Rs. ${rate} (${isHoliday ? 'HD' : 'WD'})`,
+        s.period || 'N/A',
+        `${totalHours} hrs`,
+        `Rs. ${rate.toFixed(2)}/hr (${rateLabel})`,
         `Rs. ${amount.toLocaleString()}`,
         s.status === 'Paid' ? 'Paid' : 'Pending Payment',
       ];
     });
 
-    const headers = [['Personnel', 'Service No', 'Department', 'Sanctioned', 'Payable (d)', 'Rate/day', 'Net Amount', 'Status']];
+    const headers = [['Personnel', 'Service No', 'Department', 'Period', 'Total Hours', 'Hourly Rate', 'Net Amount', 'Status']];
     const titleSuffix = status === 'All' ? 'Full Roster' : `${status} Payments`;
     const totalAmount = listToExport.reduce((sum, s) => sum + calculateSanctionAmount(s).amount, 0);
 
@@ -335,7 +372,7 @@ const OvertimeSystem = () => {
       [
         { label: 'Total Personnel', value: `${listToExport.length}` },
         { label: 'Total Disbursement', value: `Rs. ${totalAmount.toLocaleString()}` },
-        { label: 'Calculated in Sittings / Days', value: 'Yes' },
+        { label: 'Calculation Basis', value: 'Basic Pay ÷ Days in Month ÷ 8 hrs' },
       ]
     );
   };
@@ -430,7 +467,7 @@ const OvertimeSystem = () => {
             </div>
             <div className="overflow-x-auto -mx-5 -mb-5 mt-4">
               <table className="data-table">
-                <thead><tr><th>Sanction ID</th><th>Personnel</th><th>Rank</th><th>Limit (Days)</th><th>Action</th><th>Status</th><th className="text-right">Action</th></tr></thead>
+                <thead><tr><th>Sanction ID</th><th>Personnel</th><th>Rank</th><th>Total Hours</th><th>Period</th><th>Action</th><th>Status</th><th className="text-right">Action</th></tr></thead>
                 <tbody>
                   {filteredSanctions.map((s: any) => (
                     <tr key={s.id} className="group hover:bg-muted/5">
@@ -440,7 +477,8 @@ const OvertimeSystem = () => {
                         <div className="text-[0.65rem] text-muted-foreground font-mono">{s.employee?.serviceNo}</div>
                       </td>
                       <td>{s.rank || ''}</td>
-                      <td className="font-bold">{s.limit ?? s.hours} Sittings</td>
+                      <td className="font-bold font-mono">{s.limit ?? s.hours} hrs</td>
+                      <td className="text-xs text-muted-foreground">{s.period || ''}</td>
                       <td>{s.action || ''}</td>
                       <td><Badge variant={s.status.toLowerCase() as any}>{s.status}</Badge></td>
                       <td className="text-right">
@@ -469,12 +507,12 @@ const OvertimeSystem = () => {
         <Tabs.Content value="approved" className="animate-in fade-in duration-300">
            <Section title="Active Authorizations" actions={
              <Btn variant="outline" className="h-9" onClick={() => {
-                const headers = [['Personnel', 'Service No', 'Rank', 'Sanctioned Days', 'Action', 'Status']];
+                const headers = [['Personnel', 'Service No', 'Rank', 'Total Hours', 'Action', 'Status']];
                 const rows = approvedSanctions.map((s: any) => [
                   s.employee?.name || 'N/A',
                   s.employee?.serviceNo || 'N/A',
                   s.rank || 'N/A',
-                  `${s.limit ?? s.hours}d`,
+                  `${s.limit ?? s.hours} hrs`,
                   s.action || 'N/A',
                   s.status,
                 ]);
@@ -496,7 +534,7 @@ const OvertimeSystem = () => {
                       <div className="w-12 h-12 rounded-full bg-success/10 flex items-center justify-center text-success"><ScrollText className="w-6 h-6"/></div>
                       <div>
                         <div className="text-sm font-black text-primary uppercase italic">{s.employee?.name}</div>
-                        <div className="text-[0.6rem] font-bold text-muted-foreground uppercase tracking-widest">{s.employee?.serviceNo} · {s.limit ?? s.hours} Sittings Limit</div>
+                        <div className="text-[0.6rem] font-bold text-muted-foreground uppercase tracking-widest">{s.employee?.serviceNo} · {s.limit ?? s.hours} hrs · {s.period}</div>
                       </div>
                     </div>
                   </div>
@@ -530,14 +568,14 @@ const OvertimeSystem = () => {
                 </DropdownMenuContent>
               </DropdownMenu>
               <Btn variant="primary" className="h-9 shadow-sm" onClick={() => {
-                const headers = [['Personnel', 'Service No', 'Department', 'Sanctioned', 'Payable (d)', 'Rate/day', 'Net Amount', 'Status']];
+                const headers = [['Personnel', 'Service No', 'Department', 'Period', 'Total Hours', 'Hourly Rate', 'Net Amount', 'Status']];
                 const rows = rosterData.map((r: any) => [
                   r.employee?.name || 'N/A',
                   r.employee?.serviceNo || 'N/A',
                   r.employee?.department?.name || 'N/A',
-                  `${r.limit ?? r.hours}d`,
-                  `${r.payable}d`,
-                  `Rs. ${r.rate} (${r.isHoliday ? 'HD' : 'WD'})`,
+                  r.period || 'N/A',
+                  `${r.payable} hrs`,
+                  `Rs. ${r.rate.toFixed(2)}/hr (${r.usesBasicPay ? 'Basic÷Days÷8' : (r.isHoliday ? 'HD Fixed' : 'WD Fixed')})`,
                   `Rs. ${r.amount.toLocaleString()}`,
                   r.status === 'Paid' ? 'Paid' : 'Pending Payment',
                 ]);
@@ -550,7 +588,7 @@ const OvertimeSystem = () => {
                   [
                     { label: 'Total Personnel', value: `${rosterData.length}` },
                     { label: 'Total Disbursement', value: `Rs. ${totalDisbursement.toLocaleString()}` },
-                    { label: 'Calculation Type', value: 'Day-wise / Sitting' },
+                    { label: 'Calculation Type', value: 'Basic Pay ÷ Days ÷ 8 hrs (Hourly Rate)' },
                   ]
                 );
               }}><Printer className="w-4 h-4 mr-2"/> Export Bill</Btn>
@@ -573,17 +611,17 @@ const OvertimeSystem = () => {
             </div>
             <div className="overflow-x-auto -mx-5 -mb-5 mt-4">
                 <table className="data-table">
-                  <thead><tr><th>Personnel</th><th>Sanctioned</th><th>Payable</th><th>Rate / Sitting</th><th>Status</th><th className="text-right">Net Amount</th><th className="text-right">Action</th></tr></thead>
+                  <thead><tr><th>Personnel</th><th>Period</th><th>Total Hours</th><th>Hourly Rate</th><th>Status</th><th className="text-right">Net Amount</th><th className="text-right">Action</th></tr></thead>
                   <tbody>
                     {rosterData.map((r: any) => (
                       <tr key={r.id}>
                         <td><div className="font-bold">{r.employee?.name}</div><div className="text-[0.6rem] opacity-50 uppercase">{r.employee?.serviceNo} · {r.employee?.department?.name}</div></td>
-                        <td className="font-mono text-xs">{r.limit ?? r.hours}d</td>
-                        <td className="font-mono font-black text-primary">{r.payable}d</td>
+                        <td className="text-xs text-muted-foreground">{r.period || '—'}</td>
+                        <td className="font-mono font-black text-primary">{r.payable} hrs</td>
                         <td className="text-xs font-mono">
-                          <div className="font-bold text-accent">Rs. {r.rate.toLocaleString()}</div>
+                          <div className="font-bold text-accent">Rs. {r.rate.toFixed(2)}/hr</div>
                           <div className="text-[0.6rem] text-muted-foreground uppercase">
-                            {r.usesBasicPay ? 'Basic Pay ÷ 30' : (r.isHoliday ? 'Holiday Rate' : 'Weekday Rate')}
+                            {r.usesBasicPay ? 'Basic ÷ Days ÷ 8' : (r.isHoliday ? 'Holiday Fixed' : 'Weekday Fixed')}
                           </div>
                         </td>
                         <td><Badge variant={r.status === 'Paid' ? 'success' : 'warning' as any}>{r.status === 'Paid' ? 'Paid' : 'Pending Payment'}</Badge></td>
@@ -607,54 +645,124 @@ const OvertimeSystem = () => {
       {isAddingSanction && (
         <div className="fixed inset-0 z-50 bg-primary/60 backdrop-blur-sm flex items-center justify-center p-8">
           <div className="bg-card w-full max-w-3xl rounded-md shadow-elevated border border-border overflow-hidden animate-in zoom-in-95">
-             <div className="bg-primary px-6 py-4 flex items-center justify-between"><h3 className="text-white font-heading font-black italic uppercase text-lg">New {typeLabel} Sanction</h3><button onClick={() => setIsAddingSanction(false)} className="text-white/70 hover:text-white"><X className="w-6 h-6"/></button></div>
-             <div className="p-8 grid grid-cols-3 gap-6">
-                <Field label="Service Number" required>
-                  <Input 
-                    value={formSvc} 
-                    onChange={(e) => setFormSvc(e.target.value)} 
-                    placeholder="Enter SVC No..." 
-                  />
-                </Field>
-                <Field label="Personnel Name">
-                  <Input 
-                    value={personnel.find((p: any) => p.serviceNo === formSvc)?.name || 'Not found'} 
-                    disabled 
-                    className="bg-muted/50"
-                  />
-                </Field>
-                 <Field label="Rank">
-                   <Input value={personnel.find((p: any) => p.serviceNo === formSvc)?.rank?.name || 'Not found'} disabled className="bg-muted/50" />
-                 </Field>
-                 <Field label="Basic Pay">
-                   <div className="relative">
-                     <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[0.6rem] font-bold text-muted-foreground uppercase">Rs.</span>
-                     <Input
-                       value={
-                         (() => {
-                           const emp = (personnel as any[]).find((p: any) => p.serviceNo === formSvc);
-                           return emp?.basicPay ? Number(emp.basicPay).toLocaleString() : '';
-                         })()
-                       }
-                       disabled
-                       className="bg-muted/50 pl-10 font-mono font-bold text-accent"
-                       placeholder="Auto-filled"
-                     />
-                   </div>
-                 </Field>
-                 <Field label="Date Initiated" required>
-                   <Input type="date" value={formDateInitiated} onChange={(e) => setFormDateInitiated(e.target.value)} />
-                 </Field>
-                 <Field label="Limit (Days)" required>
-                   <Input type="number" value={formHours} onChange={(e) => setFormHours(e.target.value)} placeholder="No. of Sittings / Days" />
-                 </Field>
-                 <Field label="Action (Optional)" className="col-span-3">
-                   <Input value={formAction} onChange={(e) => setFormAction(e.target.value)} placeholder="Describe work to be done (optional)" />
-                 </Field>
+             <div className="bg-primary px-6 py-4 flex items-center justify-between">
+               <h3 className="text-white font-heading font-black italic uppercase text-lg">New {typeLabel} Sanction</h3>
+               <button onClick={() => setIsAddingSanction(false)} className="text-white/70 hover:text-white"><X className="w-6 h-6"/></button>
              </div>
+             <div className="p-8 grid grid-cols-3 gap-6">
+
+               {/* Row 1 — Identity */}
+               <Field label="Service Number" required>
+                 <Input
+                   value={formSvc}
+                   onChange={(e) => setFormSvc(e.target.value)}
+                   placeholder="Enter SVC No..."
+                 />
+               </Field>
+               <Field label="Personnel Name">
+                 <Input
+                   value={personnel.find((p: any) => p.serviceNo === formSvc)?.name || 'Not found'}
+                   disabled
+                   className="bg-muted/50"
+                 />
+               </Field>
+               <Field label="Rank">
+                 <Input value={personnel.find((p: any) => p.serviceNo === formSvc)?.rank?.name || 'Not found'} disabled className="bg-muted/50" />
+               </Field>
+
+               {/* Row 2 — Pay & rate preview */}
+               <Field label="Basic Pay (from record)">
+                 <div className="relative">
+                   <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[0.6rem] font-bold text-muted-foreground uppercase">Rs.</span>
+                   <Input
+                     value={(() => {
+                       const emp = (personnel as any[]).find((p: any) => p.serviceNo === formSvc);
+                       return emp?.basicPay ? Number(emp.basicPay).toLocaleString() : '';
+                     })()}
+                     disabled
+                     className="bg-muted/50 pl-10 font-mono font-bold text-accent"
+                     placeholder="Auto-filled"
+                   />
+                 </div>
+               </Field>
+               <Field label="Sanction Period" required>
+                 <Select value={formPeriod} onChange={(e) => setFormPeriod(e.target.value)}>
+                   {generateMonthOptions().map(m => <option key={m} value={m}>{m}</option>)}
+                 </Select>
+               </Field>
+               <Field label="Computed Hourly Rate">
+                 <div className="relative">
+                   <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[0.6rem] font-bold text-muted-foreground uppercase">Rs.</span>
+                   <Input
+                     value={(() => {
+                       const emp = (personnel as any[]).find((p: any) => p.serviceNo === formSvc);
+                       const rank = (ranks as any[]).find((r: any) => r.name === emp?.rank?.name);
+                       if (rank?.rateType === 'fixed') return `${rank.weekdayRate} (WD) / ${rank.holidayRate} (HD) — Fixed`;
+                       const bp = parseFloat(emp?.basicPay || '0');
+                       const days = getDaysInMonth(formPeriod);
+                       if (!bp) return '';
+                       return (bp / days / 8).toFixed(2);
+                     })()}
+                     disabled
+                     className="bg-muted/50 pl-10 font-mono font-bold text-primary"
+                     placeholder="Select employee & period"
+                   />
+                 </div>
+               </Field>
+
+               {/* Row 3 — Hours & date */}
+               <Field label="Date Initiated" required>
+                 <Input type="date" value={formDateInitiated} onChange={(e) => setFormDateInitiated(e.target.value)} />
+               </Field>
+               <Field label="Total Hours (OT + Late Sitting)" required>
+                 <Input
+                   type="number"
+                   value={formHours}
+                   onChange={(e) => setFormHours(e.target.value)}
+                   placeholder="Enter total hours for the month"
+                 />
+               </Field>
+               <Field label="Estimated Amount">
+                 <div className="relative">
+                   <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[0.6rem] font-bold text-muted-foreground uppercase">Rs.</span>
+                   <Input
+                     value={(() => {
+                       const emp = (personnel as any[]).find((p: any) => p.serviceNo === formSvc);
+                       const rank = (ranks as any[]).find((r: any) => r.name === emp?.rank?.name);
+                       const hrs = parseFloat(formHours) || 0;
+                       if (!hrs) return '';
+                       if (rank?.rateType === 'fixed') {
+                         const r = parseFloat(rank.weekdayRate || '0');
+                         return Math.round(hrs * r).toLocaleString();
+                       }
+                       const bp = parseFloat(emp?.basicPay || '0');
+                       const days = getDaysInMonth(formPeriod);
+                       if (!bp) return '';
+                       return Math.round(hrs * (bp / days / 8)).toLocaleString();
+                     })()}
+                     disabled
+                     className="bg-muted/50 pl-10 font-mono font-bold text-accent"
+                     placeholder="Auto-calculated"
+                   />
+                 </div>
+               </Field>
+
+               {/* Row 4 — Action */}
+               <Field label="Action / Purpose (Optional)" className="col-span-3">
+                 <Input value={formAction} onChange={(e) => setFormAction(e.target.value)} placeholder="Describe work to be done (optional)" />
+               </Field>
+             </div>
+
+             {/* Formula note */}
+             <div className="mx-8 mb-4 p-3 bg-accent/5 border border-accent/20 rounded-sm text-[0.65rem] text-muted-foreground">
+               <span className="font-bold text-accent uppercase tracking-wide">Rate Formula (Industrial): </span>
+               Basic Pay ÷ Days in Month ÷ 8 hrs × Total Hours = Net Amount &nbsp;|&nbsp;
+               <span className="font-bold text-primary">MTC/Fixed ranks</span>: Rs. 80/hr (Weekday) · Rs. 100/hr (Holiday)
+             </div>
+
              <div className="bg-muted/30 p-5 flex justify-end gap-3 border-t border-border">
-                <Btn variant="outline" onClick={() => setIsAddingSanction(false)}>Cancel</Btn>
-                <Btn variant="gold" onClick={handleSubmitSanction}>Submit Request</Btn>
+               <Btn variant="outline" onClick={() => setIsAddingSanction(false)}>Cancel</Btn>
+               <Btn variant="gold" onClick={handleSubmitSanction}>Submit Request</Btn>
              </div>
           </div>
         </div>
