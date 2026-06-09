@@ -121,19 +121,6 @@ const EmploymentRecordProfile = () => {
 
 
 
-  const { tenureStr, isMinisterial } = useMemo(() => {
-    const isMin = id?.includes('1042') || true;
-    const joiningUnitDate = new Date('2022-01-15');
-    const unitDuration = intervalToDuration({
-      start: joiningUnitDate,
-      end: new Date(),
-    });
-    const str = formatDuration(unitDuration, {
-      format: ['years', 'months', 'days'],
-      delimiter: ', ',
-    });
-    return { tenureStr: str, isMinisterial: isMin };
-  }, [id]);
 
   const [transfers, setTransfers] = useState<any[]>([
     {
@@ -250,6 +237,20 @@ const EmploymentRecordProfile = () => {
       joinDate: employee.joiningCurrentUnitDate || 'N/A',
     };
   }, [employee]);
+
+  const { tenureStr, isMinisterial } = useMemo(() => {
+    const isMin = profile?.cardType === 'Ministerial' || true;
+    const apptDate = profile?.appointmentDate ? new Date(profile.appointmentDate) : new Date();
+    const unitDuration = intervalToDuration({
+      start: apptDate,
+      end: new Date(),
+    });
+    const str = formatDuration(unitDuration, {
+      format: ['years', 'months', 'days'],
+      delimiter: ', ',
+    });
+    return { tenureStr: str || '0 days', isMinisterial: isMin };
+  }, [profile]);
 
   const personLeaves = useMemo(() => {
     return allLeaves.filter((l: any) => l.serviceNo === employee?.serviceNo).map((l: any) => ({
@@ -539,8 +540,24 @@ const EmploymentRecordProfile = () => {
     toast.success("Attendance Report Generated");
   };
 
-  if (isEmployeeLoading) return null; 
-  if (!profile) return <div className="p-20 text-center">Personnel Record Not Found.</div>;
+  if (isEmployeeLoading) return (
+    <AppShell>
+      <div className="flex flex-col items-center justify-center min-h-[60vh] gap-4 text-muted-foreground">
+        <div className="w-12 h-12 rounded-full border-4 border-accent border-t-transparent animate-spin" />
+        <p className="text-sm font-bold uppercase tracking-widest">Loading Personnel Record...</p>
+      </div>
+    </AppShell>
+  );
+  if (!profile) return (
+    <AppShell>
+      <div className="flex flex-col items-center justify-center min-h-[60vh] gap-4 text-muted-foreground">
+        <div className="text-5xl">🔍</div>
+        <p className="text-lg font-bold uppercase tracking-widest text-primary">Personnel Record Not Found</p>
+        <p className="text-sm">No record exists for service number: <span className="font-mono font-bold text-accent">{id}</span></p>
+        <button onClick={() => window.history.back()} className="mt-2 px-4 py-2 border border-border rounded-sm text-xs font-bold uppercase tracking-wider hover:bg-muted/30 transition-colors">← Go Back</button>
+      </div>
+    </AppShell>
+  );
 
   return (
 

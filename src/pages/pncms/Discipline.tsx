@@ -500,22 +500,14 @@ const Discipline = () => {
                 </Field>
               </div>
               <div className="grid grid-cols-2 gap-4">
-                <Field label="Offense">
-                  <Select
+                <Field label="Offense" required>
+                  <Input
                     value={form.offense}
                     onChange={(e) =>
                       setForm({ ...form, offense: e.target.value })
                     }
-                  >
-                    <option>Unauthorized Absence</option>
-                    <option>Misconduct</option>
-                    <option>Professional Negligence</option>
-                    <option>Insubordination</option>
-                    <option>Theft/Damage to Property</option>
-                    <option>Breach of Security</option>
-                    <option>Tardiness</option>
-                    <option>Moral Turpitude</option>
-                  </Select>
+                    placeholder="Enter offense details..."
+                  />
                 </Field>
                 <Field label="Action">
                   <Select

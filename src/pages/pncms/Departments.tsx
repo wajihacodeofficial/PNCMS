@@ -26,6 +26,11 @@ const Departments = () => {
   const [viewingDeptId, setViewingDeptId] = useState<string | null>(null);
   const [formData, setFormData] = useState<any>({ name: '', location: '', navcom: '', hodName: '', hodRank: '', approvedSanctionStrength: 0 });
 
+  // Delete confirmation modal state
+  const [deleteModal, setDeleteModal] = useState<{ open: boolean; id: string; name: string }>({ open: false, id: '', name: '' });
+  const [deleteUsername, setDeleteUsername] = useState('');
+  const [deletePassword, setDeletePassword] = useState('');
+
   const handleOpenModal = (dept?: any, e?: React.MouseEvent) => {
     e?.stopPropagation();
     if (dept) {
@@ -70,19 +75,27 @@ const Departments = () => {
 
   const handleDelete = (id: string, name: string, e: React.MouseEvent) => {
     e.stopPropagation();
-    if (confirm(`Are you sure you want to delete ${name}?`)) {
-      deleteDept(id, {
-        onSuccess: () => {
-          createLog({
-            user: localStorage.getItem("username") || "Admin",
-            action: "DELETE",
-            entity: `Department: ${name}`,
-            result: "Success"
-          });
-          toast.success("Department deleted");
-        }
-      });
-    }
+    setDeleteModal({ open: true, id, name });
+    setDeleteUsername('');
+    setDeletePassword('');
+  };
+
+  const handleConfirmDelete = () => {
+    deleteDept({ id: deleteModal.id, username: deleteUsername, password: deletePassword } as any, {
+      onSuccess: () => {
+        createLog({
+          user: localStorage.getItem("username") || "Admin",
+          action: "DELETE",
+          entity: `Department: ${deleteModal.name}`,
+          result: "Success"
+        });
+        toast.success("Department deleted");
+        setDeleteModal({ open: false, id: '', name: '' });
+      },
+      onError: (err: any) => {
+        toast.error(err.message || "Delete failed — check credentials");
+      }
+    });
   };
 
   const processedDepts = useMemo(() => {
@@ -291,6 +304,31 @@ const Departments = () => {
             <div className="bg-muted/30 p-5 flex justify-end gap-3 border-t border-border">
               <Btn variant="outline" onClick={() => setIsModalOpen(false)}>Cancel</Btn>
               <Btn variant="gold" onClick={handleSave}>Commit Department</Btn>
+            </div>
+          </div>
+        </div>
+      )}
+      {deleteModal.open && (
+        <div className="fixed inset-0 z-[200] bg-primary/60 backdrop-blur-sm flex items-center justify-center p-8">
+          <div className="bg-card w-full max-w-md rounded-md shadow-elevated border border-border overflow-hidden animate-in zoom-in-95">
+            <div className="bg-gradient-command px-6 py-4 flex items-center justify-between text-white font-heading font-bold uppercase italic tracking-wider">
+              Confirm Delete Department
+              <button onClick={() => setDeleteModal({ open: false, id: '', name: '' })}><X className="w-5 h-5" /></button>
+            </div>
+            <div className="p-6 space-y-4">
+              <p className="text-sm text-muted-foreground">You are about to permanently delete department <span className="font-bold text-primary">{deleteModal.name}</span>. Enter admin credentials to confirm.</p>
+              <div>
+                <label className="text-[0.65rem] font-bold uppercase tracking-wider text-muted-foreground">Admin Username</label>
+                <input className="w-full mt-1 h-9 px-3 bg-muted/30 border border-border rounded-sm text-sm focus:outline-none focus:border-accent" value={deleteUsername} onChange={e => setDeleteUsername(e.target.value)} />
+              </div>
+              <div>
+                <label className="text-[0.65rem] font-bold uppercase tracking-wider text-muted-foreground">Admin Password</label>
+                <input type="password" className="w-full mt-1 h-9 px-3 bg-muted/30 border border-border rounded-sm text-sm focus:outline-none focus:border-accent" value={deletePassword} onChange={e => setDeletePassword(e.target.value)} onKeyDown={e => e.key === 'Enter' && handleConfirmDelete()} />
+              </div>
+            </div>
+            <div className="bg-muted/30 p-4 flex justify-end gap-3 border-t border-border">
+              <Btn variant="outline" onClick={() => setDeleteModal({ open: false, id: '', name: '' })}>Cancel</Btn>
+              <Btn variant="outline" onClick={handleConfirmDelete} className="text-destructive border-destructive hover:bg-destructive hover:text-white"><Trash2 className="w-4 h-4 mr-2" />Delete Department</Btn>
             </div>
           </div>
         </div>

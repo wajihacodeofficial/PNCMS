@@ -9,7 +9,6 @@ import * as Tabs from "@radix-ui/react-tabs";
 import { format, parseISO, isWithinInterval, subDays } from "date-fns";
 import { usePersonnel, useAttendance, useDepartments, useMusterLock, useLockMuster, useUnlockMuster, useAllMusterLocks, useDeleteMuster, useBatchUpdateAttendance } from "@/hooks/use-api";
 import { api } from "@/lib/api";
-import { useStore } from "@/store";
 
 type Mark = "P" | "A" | "L" | "CL" | "ML" | "RL" | "LWOP" | "DL" | "LFP" | "";
 
@@ -25,7 +24,6 @@ const STATUS_CONFIG: Record<string, { label: string; variant: string; color: str
 };
 
 const Attendance = () => {
-  const invalidateQueries = useStore(state => state.invalidateQueries);
   const [activeTab, setActiveTab] = useState("daily");
   const [selectedDate, setSelectedDate] = useState(format(new Date(), "yyyy-MM-dd"));
   const [search, setSearch] = useState("");
@@ -34,7 +32,7 @@ const Attendance = () => {
   const [clerkName, setClerkName] = useState("Wajiha Zehra");
   
   const { data: personnel = [], isLoading: isPersonnelLoading, error: personnelError } = usePersonnel();
-  const { data: attendance = [], isLoading: isAttendanceLoading, error: attendanceError } = useAttendance(selectedDate);
+  const { data: attendance = [], isLoading: isAttendanceLoading, error: attendanceError, refetch: refetchAttendance } = useAttendance(selectedDate);
 
   const { data: lock } = useMusterLock(selectedDate);
   const { data: allLocks = [] } = useAllMusterLocks();
@@ -50,6 +48,13 @@ const Attendance = () => {
   const [pendingUpdate, setPendingUpdate] = useState<{empId: string, status: string} | null>(null);
   const [targetDateForDelete, setTargetDateForDelete] = useState<string>("");
   const [isLocking, setIsLocking] = useState(false);
+  // Optimistic local marks — applied instantly on click, cleared when server data re-arrives
+  const [localMarks, setLocalMarks] = useState<Record<string, string>>({});
+
+  // Reset local optimistic marks when date changes or attendance reloads
+  useEffect(() => {
+    setLocalMarks({});
+  }, [selectedDate, attendance]);
 
   const filteredHistory = useMemo(() => {
     if (!Array.isArray(allLocks)) return [];
@@ -73,8 +78,9 @@ const Attendance = () => {
     attendance.forEach(a => {
       if (a.serviceNo) marks[a.serviceNo] = a.status;
     });
-    return marks;
-  }, [attendance]);
+    // Overlay optimistic local marks on top of server data
+    return { ...marks, ...localMarks };
+  }, [attendance, localMarks]);
 
   const markAttendance = async (serviceNo: string, status: string) => {
     if (lock) {
@@ -84,23 +90,33 @@ const Attendance = () => {
       return;
     }
 
+    // Apply optimistic update immediately so UI doesn't lag
+    setLocalMarks(prev => ({ ...prev, [serviceNo]: status }));
+
     try {
       await api.updateAttendance(selectedDate, serviceNo, status);
-      await invalidateQueries(['attendance']);
+      // Refetch from DB to confirm
+      refetchAttendance();
       toast.success("Attendance updated");
     } catch (error: any) {
+      // Revert optimistic update on failure
+      setLocalMarks(prev => { const n = { ...prev }; delete n[serviceNo]; return n; });
       toast.error(error.message || "Failed to update attendance");
     }
   };
 
   const handleOverride = async () => {
     if (!pendingUpdate) return;
+    // Apply optimistic update immediately
+    setLocalMarks(prev => ({ ...prev, [pendingUpdate.empId]: pendingUpdate.status }));
     try {
       await api.updateAttendance(selectedDate, pendingUpdate.empId, pendingUpdate.status, overrideUsername, overridePassword);
-      await invalidateQueries(['attendance']);
+      refetchAttendance();
       toast.success("Attendance updated with override");
       closeModal();
     } catch (error: any) {
+      // Revert on failure
+      setLocalMarks(prev => { const n = { ...prev }; delete n[pendingUpdate.empId]; return n; });
       toast.error(error.message || "Invalid credentials");
     }
   };
@@ -153,12 +169,23 @@ const Attendance = () => {
 
   const executeMarkAllPresent = (username?: string, password?: string) => {
     const updates = filteredList.map(p => ({ serviceNo: p.serviceNo, status: "P" }));
+    // Apply optimistic update for all visible personnel
+    const optimistic: Record<string, string> = {};
+    filteredList.forEach(p => { optimistic[p.serviceNo] = "P"; });
+    setLocalMarks(prev => ({ ...prev, ...optimistic }));
     batchUpdate({ date: selectedDate, updates, username, password }, {
       onSuccess: () => {
+        refetchAttendance();
         toast.success("All visible personnel marked present");
         closeModal();
       },
       onError: (err: any) => {
+        // Revert optimistic marks on failure
+        setLocalMarks(prev => {
+          const n = { ...prev };
+          filteredList.forEach(p => delete n[p.serviceNo]);
+          return n;
+        });
         toast.error(err.message || "Failed to update attendance");
       }
     });

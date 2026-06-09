@@ -24,8 +24,8 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { useDashboardStats, useLogs } from '@/hooks/use-api';
-import { format } from 'date-fns';
+import { useDashboardStats, useLogs, useLeaves } from '@/hooks/use-api';
+import { format, isWithinInterval, parseISO } from 'date-fns';
 
 const Dashboard = () => {
   const navigate = useNavigate();
@@ -34,6 +34,24 @@ const Dashboard = () => {
     isLoading,
   } = useDashboardStats();
   const { data: logs = [] } = useLogs();
+  const { data: leaves = [] } = useLeaves();
+
+  // Find people currently on leave today
+  const today = new Date();
+  const todayStr = format(today, 'yyyy-MM-dd');
+  const peopleOnLeave = (leaves as any[]).filter((l) => {
+    if (l.status !== 'Approved') return false;
+    try {
+      const start = parseISO(l.startDate);
+      const end = parseISO(l.endDate);
+      // set hours to handle edge cases of timezones
+      start.setHours(0,0,0,0);
+      end.setHours(23,59,59,999);
+      return isWithinInterval(today, { start, end });
+    } catch {
+      return false;
+    }
+  });
 
   const handleExportPDF = () => {
     const headers = [['Metric', 'Value', 'Subtitle']];
@@ -199,6 +217,43 @@ const Dashboard = () => {
               View Muster
             </Btn>
           </div>
+          
+          <div className="mt-6 border border-border rounded-md bg-card overflow-hidden">
+            <div className="bg-muted/30 px-4 py-3 border-b border-border flex items-center justify-between">
+              <h4 className="text-xs font-bold text-primary uppercase flex items-center gap-2">
+                <CalendarDays className="w-4 h-4" /> Personnel on Leave Today
+              </h4>
+              <Badge variant="info">{peopleOnLeave.length}</Badge>
+            </div>
+            {peopleOnLeave.length === 0 ? (
+              <div className="p-6 text-center text-muted-foreground text-xs italic">
+                No personnel are currently on approved leave.
+              </div>
+            ) : (
+              <table className="w-full text-left text-sm">
+                <thead>
+                  <tr className="bg-muted/10">
+                    <th className="px-4 py-2 font-semibold text-xs text-muted-foreground border-b border-border">Svc No</th>
+                    <th className="px-4 py-2 font-semibold text-xs text-muted-foreground border-b border-border">Name</th>
+                    <th className="px-4 py-2 font-semibold text-xs text-muted-foreground border-b border-border">Rank</th>
+                    <th className="px-4 py-2 font-semibold text-xs text-muted-foreground border-b border-border">Leave Type</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {peopleOnLeave.map((l, i) => (
+                    <tr key={i} className="hover:bg-primary/5 transition-colors border-b border-border last:border-b-0">
+                      <td className="px-4 py-2 font-mono text-xs">{l.serviceNo}</td>
+                      <td className="px-4 py-2 font-bold">{l.employee?.name}</td>
+                      <td className="px-4 py-2 text-xs text-muted-foreground">{l.employee?.rank?.name}</td>
+                      <td className="px-4 py-2">
+                        <Badge variant="info">{l.type}</Badge>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
+          </div>
         </Section>
 
         <div className="col-span-4 space-y-6">
@@ -242,10 +297,40 @@ const Dashboard = () => {
                 <Wallet className="w-5 h-5 mr-3 text-accent" />
                 <div className="text-left">
                   <div className="text-[0.7rem] font-bold uppercase">
-                    Allowance Control
+                    Ministerial Late-Sitting
                   </div>
                   <div className="text-[0.6rem] text-muted-foreground">
                     Sanctions & financial logs
+                  </div>
+                </div>
+              </Btn>
+              <Btn
+                variant="outline"
+                className="w-full justify-start h-12 border-accent/20 hover:border-accent/50"
+                onClick={() => navigate('/allowance/industrial')}
+              >
+                <Clock className="w-5 h-5 mr-3 text-accent" />
+                <div className="text-left">
+                  <div className="text-[0.7rem] font-bold uppercase">
+                    Industrial Overtime
+                  </div>
+                  <div className="text-[0.6rem] text-muted-foreground">
+                    Overtime request & sanctions
+                  </div>
+                </div>
+              </Btn>
+              <Btn
+                variant="outline"
+                className="w-full justify-start h-12 border-accent/20 hover:border-accent/50"
+                onClick={() => navigate('/discipline')}
+              >
+                <Gavel className="w-5 h-5 mr-3 text-accent" />
+                <div className="text-left">
+                  <div className="text-[0.7rem] font-bold uppercase">
+                    Disciplinary Actions
+                  </div>
+                  <div className="text-[0.6rem] text-muted-foreground">
+                    Log offenses and remarks
                   </div>
                 </div>
               </Btn>

@@ -20,8 +20,8 @@ export const api = {
   // Leaves
   getLeaves: () => ipcRenderer.invoke('get-leaves'),
   createLeave: (data: any) => ipcRenderer.invoke('create-leave', data),
-  deleteLeave: (id: string, username?: string, password?: string) =>
-    ipcRenderer.invoke('delete-leave', { id, username, password }),
+  deleteLeave: (data: { id: string; username?: string; password?: string }) =>
+    ipcRenderer.invoke('delete-leave', data),
 
   // Payments
   getPayments: () => ipcRenderer.invoke('get-payments'),
@@ -42,12 +42,12 @@ export const api = {
   // Master Data
   getRanks: () => ipcRenderer.invoke('get-ranks'),
   upsertRank: (data: any) => ipcRenderer.invoke('upsert-rank', data),
-  deleteRank: (id: string, username?: string, password?: string) =>
-    ipcRenderer.invoke('delete-rank', { id, username, password }),
+  deleteRank: (data: { id: string; username?: string; password?: string }) =>
+    ipcRenderer.invoke('delete-rank', data),
   getDepartments: () => ipcRenderer.invoke('get-departments'),
   upsertDepartment: (data: any) => ipcRenderer.invoke('upsert-department', data),
-  deleteDepartment: (id: string, username?: string, password?: string) =>
-    ipcRenderer.invoke('delete-department', { id, username, password }),
+  deleteDepartment: (data: { id: string; username?: string; password?: string }) =>
+    ipcRenderer.invoke('delete-department', data),
 
   // Auth
   login: (credentials: any) => ipcRenderer.invoke('login', credentials),

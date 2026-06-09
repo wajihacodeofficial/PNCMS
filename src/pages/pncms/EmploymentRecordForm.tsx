@@ -32,6 +32,7 @@ const EmploymentRecordForm = () => {
     cardType: 'Ministerial',
     bps: 'BPS-07',
     basicPay: '',
+    initialLfpBalance: 0,
     status: 'Active',
     attachedTo: '',
     attachedToRef: '',
@@ -99,6 +100,7 @@ const EmploymentRecordForm = () => {
           accountNo: emp.bankAccount || '',
           joiningDate: emp.joiningCurrentUnitDate || '',
           basicPay: emp.basicPay || '',
+          initialLfpBalance: emp.initialLfpBalance || 0,
           attachedToRef: emp.attachedToRef || '',
           maritalStatus: emp.maritalStatus || 'Single',
           religion: emp.religion || 'Islam',
@@ -672,12 +674,23 @@ const EmploymentRecordForm = () => {
                 placeholder="Enter Basic Pay"
               />
             </Field>
+            <Field label="Initial LFP Balance (Days)">
+              <Input
+                type="number"
+                value={form.initialLfpBalance}
+                onChange={(e) =>
+                  setForm({ ...form, initialLfpBalance: parseInt(e.target.value) || 0 })
+                }
+                placeholder="Enter days"
+              />
+            </Field>
             <Field label="Account Number">
               <Input
                 value={form.accountNo}
                 onChange={(e) =>
                   setForm({ ...form, accountNo: e.target.value })
                 }
+                placeholder="Enter Account No"
               />
             </Field>
             <Field label="Bank Name">
