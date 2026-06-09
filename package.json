@@ -141,12 +141,10 @@
       "target": [
         "portable",
         "nsis"
-      ],
-      "icon": "public/icon.ico"
+      ]
     },
     "mac": {
-      "target": "dmg",
-      "icon": "public/icon.icns"
+      "target": "dmg"
     },
     "asar": true,
     "asarUnpack": [
