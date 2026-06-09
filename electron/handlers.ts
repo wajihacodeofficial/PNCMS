@@ -598,12 +598,51 @@ export function setupHandlers() {
   })
 
   // Auth Handlers
+  ipcMain.handle('check-setup', async () => {
+    const setting = await prisma.setting.findUnique({ where: { key: 'login_username' } })
+    return { isSetup: !!setting }
+  })
+
+  ipcMain.handle('setup-admin', async (_, { username, password }: { username: string; password: string }) => {
+    // Only allow setup if not already configured
+    const existing = await prisma.setting.findUnique({ where: { key: 'login_username' } })
+    if (existing) throw new Error('System is already configured. Please log in.')
+
+    await prisma.setting.upsert({
+      where: { key: 'login_username' },
+      update: { value: username },
+      create: { key: 'login_username', value: username }
+    })
+    await prisma.setting.upsert({
+      where: { key: 'login_password' },
+      update: { value: password },
+      create: { key: 'login_password', value: password }
+    })
+    // Also set admin credentials for admin verification actions
+    await prisma.setting.upsert({
+      where: { key: 'admin_username' },
+      update: { value: username },
+      create: { key: 'admin_username', value: username }
+    })
+    await prisma.setting.upsert({
+      where: { key: 'admin_password' },
+      update: { value: password },
+      create: { key: 'admin_password', value: password }
+    })
+    return { success: true }
+  })
+
   ipcMain.handle('login', async (_, { username, password }: any) => {
     const savedUserSetting = await prisma.setting.findUnique({ where: { key: 'login_username' } })
     const savedPassSetting = await prisma.setting.findUnique({ where: { key: 'login_password' } })
-    
-    const expectedUser = savedUserSetting ? savedUserSetting.value : 'Administrator'
-    const expectedPass = savedPassSetting ? savedPassSetting.value : 'pncms@2026'
+
+    // If not set up yet, reject — user should go through setup first
+    if (!savedUserSetting || !savedPassSetting) {
+      throw new Error('System not configured. Please complete initial setup.')
+    }
+
+    const expectedUser = savedUserSetting.value
+    const expectedPass = savedPassSetting.value
 
     if (username !== expectedUser || password !== expectedPass) {
       throw new Error('Invalid username or password')

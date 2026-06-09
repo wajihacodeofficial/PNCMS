@@ -51,6 +51,8 @@ export const api = {
 
   // Auth
   login: (credentials: any) => ipcRenderer.invoke('login', credentials),
+  checkSetup: () => ipcRenderer.invoke('check-setup'),
+  setupAdmin: (data: { username: string; password: string }) => ipcRenderer.invoke('setup-admin', data),
 
   // Settings
   getSettings: () => ipcRenderer.invoke('get-settings'),

@@ -10,7 +10,8 @@
     "preview": "vite preview",
     "lint": "eslint . --ext ts,tsx --report-unused-disable-directives --max-warnings 0",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "generate-icons": "npx -y electron-icon-builder --input=src/assets/navy-crest.png --output=public --flatten"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.10.0",
@@ -141,10 +142,12 @@
       "target": [
         "portable",
         "nsis"
-      ]
+      ],
+      "icon": "public/icons/icon.ico"
     },
     "mac": {
-      "target": "dmg"
+      "target": "dmg",
+      "icon": "public/icons/icon.icns"
     },
     "asar": true,
     "asarUnpack": [

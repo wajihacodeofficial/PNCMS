@@ -1,8 +1,10 @@
-import { HashRouter, Route, Routes } from "react-router-dom";
+import { HashRouter, Route, Routes, useNavigate } from "react-router-dom";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
+import { useEffect } from "react";
 import Login from "./pages/pncms/Login";
+import Setup from "./pages/pncms/Setup";
 import Dashboard from "./pages/pncms/Dashboard";
 import EmploymentRecords from "./pages/pncms/EmploymentRecords";
 import OvertimeSystem from "./pages/pncms/OvertimeSystem";
@@ -25,21 +27,41 @@ import Discipline from "./pages/pncms/Discipline";
 import Payments from "./pages/pncms/Payments";
 import NotFound from "./pages/NotFound.tsx";
 import { useRealtimeSync } from "./hooks/use-api";
+import { api } from "./lib/api";
 
 const RealtimeSyncManager = () => {
   useRealtimeSync();
   return null;
 };
 
+// Checks on startup if system has been configured; redirects to /setup if not
+const SetupGuard = () => {
+  const navigate = useNavigate();
+  useEffect(() => {
+    api.checkSetup()
+      .then(({ isSetup }: { isSetup: boolean }) => {
+        if (!isSetup) {
+          navigate('/setup', { replace: true });
+        }
+      })
+      .catch(() => {
+        // In browser dev mode this API won't exist — stay on login
+      });
+  }, [navigate]);
+  return null;
+};
+
 const App = () => (
   <>
-    <RealtimeSyncManager />
     <TooltipProvider>
       <Toaster />
       <Sonner />
       <HashRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
+        <RealtimeSyncManager />
+        <SetupGuard />
         <Routes>
           <Route path="/" element={<Login />} />
+          <Route path="/setup" element={<Setup />} />
           <Route path="/dashboard" element={<Dashboard />} />
           <Route path="/employment-records" element={<EmploymentRecords />} />
           <Route path="/employment-records/new" element={<EmploymentRecordForm />} />
@@ -58,7 +80,6 @@ const App = () => (
           <Route path="/settings/ranks" element={<Ranks />} />
           <Route path="/discipline" element={<Discipline />} />
           <Route path="/payments" element={<Payments />} />
-
           <Route path="/help" element={<Help />} />
           <Route path="/about" element={<About />} />
           <Route path="*" element={<NotFound />} />
