@@ -12,7 +12,7 @@ model Employee {
   name                   String
   phoneNumber            String?
   rankId                 String
-  departmentId           String
+  departmentId           String?
   cardType               String
   bps                    String?
   basicPay               String?
@@ -65,7 +65,7 @@ model Employee {
   updatedAt              DateTime             @updatedAt
   attendance             Attendance[]
   disciplinaryActions    DisciplinaryAction[]
-  department             Department           @relation(fields: [departmentId], references: [id])
+  department             Department?          @relation(fields: [departmentId], references: [id], onDelete: SetNull)
   rank                   Rank                 @relation(fields: [rankId], references: [id])
   letters                EmployeeLetter[]
   phones                 EmployeePhone[]
