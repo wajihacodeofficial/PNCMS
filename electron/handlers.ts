@@ -1,5 +1,5 @@
 import { ipcMain, dialog, BrowserWindow, app } from 'electron'
-import { prisma } from './db'
+import { prisma, dbPath } from './db'
 import bcrypt from 'bcryptjs'
 import fs from 'fs'
 import path from 'path'
@@ -738,7 +738,6 @@ export function setupHandlers() {
 
   // Backup/Restore Handlers
   ipcMain.handle('export-backup', async (_, tag: string) => {
-    const dbPath = path.join(process.cwd(), 'prisma/dev.db')
     const fileName = `backup_${tag || Date.now()}.db`
     const { filePath } = await dialog.showSaveDialog({
       defaultPath: fileName,
@@ -758,7 +757,6 @@ export function setupHandlers() {
     })
 
     if (filePaths && filePaths.length > 0) {
-      const dbPath = path.join(process.cwd(), 'prisma/dev.db')
       fs.copyFileSync(filePaths[0], dbPath)
       app.relaunch()
       app.exit()

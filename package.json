@@ -6,7 +6,9 @@
   "main": "dist-electron/main.js",
   "scripts": {
     "dev": "vite",
-    "build": "tsc && vite build && electron-builder",
+    "build": "tsc && vite build",
+    "package": "npm run build && electron-builder --dir",
+    "dist": "npm run build && electron-builder",
     "preview": "vite preview",
     "lint": "eslint . --ext ts,tsx --report-unused-disable-directives --max-warnings 0",
     "test": "vitest run",
@@ -104,8 +106,8 @@
     "seed": "npx tsx prisma/seed.ts"
   },
   "build": {
-    "appId": "com.pncms.app",
-    "productName": "PNCMS",
+    "appId": "com.vertexems.desktop",
+    "productName": "VertexEMS",
     "directories": {
       "output": "release"
     },
@@ -140,10 +142,18 @@
     ],
     "win": {
       "target": [
-        "portable",
         "nsis"
       ],
       "icon": "public/icons/icon.ico"
+    },
+    "nsis": {
+      "oneClick": false,
+      "perMachine": true,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "VertexEMS",
+      "deleteAppDataOnUninstall": false
     },
     "mac": {
       "target": "dmg",
