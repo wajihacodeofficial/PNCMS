@@ -52,7 +52,9 @@ export const api = {
   // Auth
   login: (credentials: any) => ipcRenderer.invoke('login', credentials),
   checkSetup: () => ipcRenderer.invoke('check-setup'),
-  setupAdmin: (data: { username: string; password: string }) => ipcRenderer.invoke('setup-admin', data),
+  setupAdmin: (data: { username: string; password: string; secQuestion?: string; secAnswer?: string }) => ipcRenderer.invoke('setup-admin', data),
+  getSecurityQuestion: () => ipcRenderer.invoke('get-security-question'),
+  resetPassword: (data: { answer: string; newPassword: string }) => ipcRenderer.invoke('reset-password', data),
 
   // Settings
   getSettings: () => ipcRenderer.invoke('get-settings'),

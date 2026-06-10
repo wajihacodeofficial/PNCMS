@@ -603,32 +603,27 @@ export function setupHandlers() {
     return { isSetup: !!setting }
   })
 
-  ipcMain.handle('setup-admin', async (_, { username, password }: { username: string; password: string }) => {
+  ipcMain.handle('setup-admin', async (_, { username, password, secQuestion, secAnswer }: { username: string; password: string; secQuestion?: string; secAnswer?: string }) => {
     // Only allow setup if not already configured
     const existing = await prisma.setting.findUnique({ where: { key: 'login_username' } })
     if (existing) throw new Error('System is already configured. Please log in.')
 
-    await prisma.setting.upsert({
-      where: { key: 'login_username' },
-      update: { value: username },
-      create: { key: 'login_username', value: username }
-    })
-    await prisma.setting.upsert({
-      where: { key: 'login_password' },
-      update: { value: password },
-      create: { key: 'login_password', value: password }
-    })
-    // Also set admin credentials for admin verification actions
-    await prisma.setting.upsert({
-      where: { key: 'admin_username' },
-      update: { value: username },
-      create: { key: 'admin_username', value: username }
-    })
-    await prisma.setting.upsert({
-      where: { key: 'admin_password' },
-      update: { value: password },
-      create: { key: 'admin_password', value: password }
-    })
+    const entries = [
+      { key: 'login_username', value: username },
+      { key: 'login_password', value: password },
+      { key: 'admin_username', value: username },
+      { key: 'admin_password', value: password },
+    ]
+    if (secQuestion) entries.push({ key: 'sec_question', value: secQuestion })
+    if (secAnswer) entries.push({ key: 'sec_answer', value: secAnswer })
+
+    for (const entry of entries) {
+      await prisma.setting.upsert({
+        where: { key: entry.key },
+        update: { value: entry.value },
+        create: { key: entry.key, value: entry.value }
+      })
+    }
     return { success: true }
   })
 
@@ -652,6 +647,40 @@ export function setupHandlers() {
       username: expectedUser,
       role: 'Admin'
     }
+  })
+
+  ipcMain.handle('get-security-question', async () => {
+    const q = await prisma.setting.findUnique({ where: { key: 'sec_question' } })
+    const a = await prisma.setting.findUnique({ where: { key: 'sec_answer' } })
+    return {
+      question: q?.value || null,
+      hasAnswer: !!a?.value
+    }
+  })
+
+  ipcMain.handle('reset-password', async (_, { answer, newPassword }: { answer: string; newPassword: string }) => {
+    const savedAnswer = await prisma.setting.findUnique({ where: { key: 'sec_answer' } })
+    const correctAnswer = savedAnswer?.value || null
+
+    if (!correctAnswer) {
+      throw new Error('No security answer configured. Contact your system administrator.')
+    }
+
+    if (answer.toLowerCase().trim() !== correctAnswer.toLowerCase().trim()) {
+      throw new Error('Incorrect security answer.')
+    }
+
+    await prisma.setting.upsert({
+      where: { key: 'login_password' },
+      update: { value: newPassword },
+      create: { key: 'login_password', value: newPassword }
+    })
+    await prisma.setting.upsert({
+      where: { key: 'admin_password' },
+      update: { value: newPassword },
+      create: { key: 'admin_password', value: newPassword }
+    })
+    return { success: true }
   })
 
   // Settings Handlers
