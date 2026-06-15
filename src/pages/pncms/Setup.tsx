@@ -60,8 +60,8 @@ const Setup = () => {
       </div>
 
       <div className="absolute bottom-5 left-0 right-0 text-center label-mil text-white/60 text-[0.65rem] z-10">
-        Developed by{' '}
-        <span className="text-white font-semibold tracking-widest">Code Vertex Solutions</span>
+        <span className="block">Agency & Development: <span className="text-white font-semibold tracking-widest">Code Vertex Solutions</span></span>
+        <span className="block mt-1">Lead Developer: <span className="text-white font-semibold tracking-widest">Wajiha Zehra</span></span>
       </div>
 
       <div className="relative w-[460px] animate-fade-in">

@@ -80,6 +80,7 @@ const About = () => (
           </div>
           <dl className="text-sm space-y-2.5">
             {[
+              ['Lead Developer', 'Wajiha Zehra'],
               ['Project Code', 'CVS--2026-002'],
               ['Helpdesk', '+92-3177-760505'],
               ['Email', 'contact@codevertex.solutions'],
@@ -115,9 +116,9 @@ const About = () => (
       ))}
     </div>
 
-    <div className="mt-6 text-center text-xs text-muted-foreground">
-      © 2026 Pakistan Navy · All rights reserved · Developed by{' '}
-      <span className="font-semibold text-primary">Code Vertex Solutions</span>
+    <div className="mt-6 text-center text-xs text-muted-foreground leading-relaxed">
+      © 2026 Pakistan Navy · All rights reserved<br />
+      Agency & Development: <span className="font-semibold text-primary">Code Vertex Solutions</span> · Lead Developer: <span className="font-semibold text-primary">Wajiha Zehra</span>
     </div>
   </AppShell>
 );
