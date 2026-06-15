@@ -30,7 +30,7 @@ import { format, isWithinInterval, parseISO } from 'date-fns';
 const Dashboard = () => {
   const navigate = useNavigate();
   const {
-    data: stats = { personnelCount: 0, leaveCount: 0, pendingSanctions: 0 },
+    data: stats = { personnelCount: 0, leaveCount: 0, pendingSanctions: 0, cadre: { ministerial: 0, industrial: 0 } },
     isLoading,
   } = useDashboardStats();
   const { data: logs = [] } = useLogs();
@@ -66,7 +66,6 @@ const Dashboard = () => {
         stats.leaveCount.toString(),
         'Personnel away today',
       ],
-      ['Open Work Logs', stats.pendingSanctions.toString(), 'In current cycle'],
     ];
     exportToPDF('PNCMS Operational Brief', headers, data, 'pncms_brief');
   };
@@ -121,7 +120,7 @@ const Dashboard = () => {
         }
       />
 
-      <div className="grid grid-cols-3 gap-5">
+      <div className="grid grid-cols-2 gap-5">
         <StatCard
           label="Total Personnel"
           value={stats.personnelCount || 0}
@@ -138,39 +137,11 @@ const Dashboard = () => {
           accent="danger"
           onClick={() => navigate('/leave')}
         />
-        <StatCard
-          label="Open Work Logs"
-          value={stats.pendingSanctions || 0}
-          sub="Active Overtime"
-          icon={<ClipboardList className="w-5 h-5" />}
-          accent="info"
-          onClick={() => navigate('/allowance/ministerial')}
-        />
       </div>
 
       <div className="grid grid-cols-12 gap-6 mt-6">
         <Section title="Establishment Insights" className="col-span-8">
-          <div className="grid grid-cols-2 gap-6">
-            <div className="p-6 bg-accent/5 border border-accent/20 rounded-md">
-              <h4 className="text-xs font-bold text-primary uppercase tracking-wider mb-4 flex items-center gap-2">
-                <Building2 className="w-4 h-4" /> Unit Distribution
-              </h4>
-              <div className="space-y-3">
-                <div className="flex justify-between items-center text-sm">
-                  <span className="text-muted-foreground">Admin Offices</span>
-                  <span className="font-mono font-bold">04 Units</span>
-                </div>
-                <div className="flex justify-between items-center text-sm">
-                  <span className="text-muted-foreground">
-                    Operational Wings
-                  </span>
-                  <span className="font-mono font-bold">02 Units</span>
-                </div>
-                <div className="h-1 bg-muted rounded-full mt-2">
-                  <div className="h-full bg-accent w-2/3" />
-                </div>
-              </div>
-            </div>
+          <div className="grid grid-cols-1 gap-6">
             <div className="p-6 bg-primary/5 border border-primary/20 rounded-md">
               <h4 className="text-xs font-bold text-primary uppercase tracking-wider mb-4 flex items-center gap-2">
                 <ShieldCheck className="w-4 h-4" /> Cadre Strength
@@ -180,16 +151,21 @@ const Dashboard = () => {
                   <span className="text-muted-foreground">
                     Ministerial Staff
                   </span>
-                  <span className="font-mono font-bold">65%</span>
+                  <span className="font-mono font-bold">{stats.cadre?.ministerial || 0}</span>
                 </div>
                 <div className="flex justify-between items-center text-sm">
                   <span className="text-muted-foreground">
                     Industrial Staff
                   </span>
-                  <span className="font-mono font-bold">35%</span>
+                  <span className="font-mono font-bold">{stats.cadre?.industrial || 0}</span>
                 </div>
-                <div className="h-1 bg-muted rounded-full mt-2">
-                  <div className="h-full bg-primary w-3/4" />
+                <div className="pt-2 mt-2 border-t border-primary/10 flex justify-between items-center text-sm">
+                  <span className="font-bold text-primary">
+                    Total
+                  </span>
+                  <span className="font-mono font-bold text-primary">
+                    {(stats.cadre?.ministerial || 0) + (stats.cadre?.industrial || 0)}
+                  </span>
                 </div>
               </div>
             </div>

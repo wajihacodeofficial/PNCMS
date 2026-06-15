@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ShieldCheck, Lock, User, AlertCircle, CheckCircle2, Eye, EyeOff } from 'lucide-react';
+import { ShieldCheck, Lock, User, AlertCircle, CheckCircle2, Eye, EyeOff, HelpCircle } from 'lucide-react';
 import warship from '@/assets/navy-warship.jpg';
 import crest from '@/assets/navy-crest.png';
 import { Btn } from '@/components/pncms/ui-kit';
@@ -11,6 +11,8 @@ const Setup = () => {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [confirm, setConfirm] = useState('');
+  const [secQuestion, setSecQuestion] = useState("What is your mother's maiden name?");
+  const [secAnswer, setSecAnswer] = useState('');
   const [showPass, setShowPass] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
   const [error, setError] = useState('');
@@ -25,10 +27,11 @@ const Setup = () => {
     if (!username.trim()) return setError('Username is required.');
     if (password.length < 6) return setError('Password must be at least 6 characters.');
     if (password !== confirm) return setError('Passwords do not match.');
+    if (!secAnswer.trim()) return setError('Security answer is required.');
 
     setLoading(true);
     try {
-      await api.setupAdmin({ username: username.trim(), password });
+      await api.setupAdmin({ username: username.trim(), password, secQuestion, secAnswer: secAnswer.trim() });
       setSuccess('System configured successfully! Redirecting to login...');
       setTimeout(() => nav('/'), 1800);
     } catch (err: any) {
@@ -150,6 +153,41 @@ const Setup = () => {
                 >
                   {showConfirm ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                 </button>
+              </div>
+            </div>
+
+            {/* Security Question */}
+            <div>
+              <label className="label-mil text-white/80">Security Question</label>
+              <div className="mt-1.5 relative">
+                <HelpCircle className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/50" />
+                <select
+                  value={secQuestion}
+                  onChange={(e) => setSecQuestion(e.target.value)}
+                  className="w-full h-11 pl-10 pr-3 bg-white/5 border border-white/20 rounded-sm text-white focus:outline-none focus:border-accent appearance-none"
+                >
+                  <option value="What is your mother's maiden name?" className="bg-primary text-white">What is your mother's maiden name?</option>
+                  <option value="What was the name of your first pet?" className="bg-primary text-white">What was the name of your first pet?</option>
+                  <option value="What city were you born in?" className="bg-primary text-white">What city were you born in?</option>
+                  <option value="What is your favorite book?" className="bg-primary text-white">What is your favorite book?</option>
+                  <option value="What was the make of your first car?" className="bg-primary text-white">What was the make of your first car?</option>
+                </select>
+              </div>
+            </div>
+
+            {/* Security Answer */}
+            <div>
+              <label className="label-mil text-white/80">Security Answer</label>
+              <div className="mt-1.5 relative">
+                <ShieldCheck className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/50" />
+                <input
+                  type="text"
+                  value={secAnswer}
+                  onChange={(e) => setSecAnswer(e.target.value)}
+                  placeholder="Enter your answer"
+                  className="w-full h-11 pl-10 pr-3 bg-white/5 border border-white/20 rounded-sm text-white placeholder:text-white/40 focus:outline-none focus:border-accent"
+                  autoComplete="off"
+                />
               </div>
             </div>
 

@@ -321,7 +321,7 @@ const EmploymentRecordProfile = () => {
   }, [employeeWithAttendance]);
 
   const [attendanceSearch, setAttendanceSearch] = useState('');
-  const [attendanceDateFilter, setAttendanceDateFilter] = useState('');
+  const [attendanceDateFilter, setAttendanceDateFilter] = useState(() => format(new Date(), 'yyyy-MM'));
   const [attendanceStatusFilter, setAttendanceStatusFilter] = useState('All');
 
   const groupedAttendance = useMemo(() => {
@@ -329,8 +329,13 @@ const EmploymentRecordProfile = () => {
       let matchesDate = true;
       if (attendanceDateFilter) {
         try {
-          const target = format(parseISO(attendanceDateFilter), 'dd-MMM-yyyy');
-          matchesDate = a.d === target;
+          const parsedTarget = parse(attendanceDateFilter, 'yyyy-MM', new Date());
+          const targetMonthYear = format(parsedTarget, 'MMMM yyyy');
+          
+          const parsedA = parse(a.d, 'dd-MMM-yyyy', new Date());
+          const aMonthYear = format(parsedA, 'MMMM yyyy');
+          
+          matchesDate = aMonthYear === targetMonthYear;
         } catch(e) { matchesDate = false; }
       }
 
@@ -1323,7 +1328,7 @@ const EmploymentRecordProfile = () => {
                       <div className="relative">
                         <Calendar className="absolute left-2 top-1/2 -translate-y-1/2 w-3 h-3 text-accent" />
                         <input
-                          type="date"
+                          type="month"
                           className="h-8 pl-7 pr-2 bg-muted/20 border border-border rounded-sm text-[0.65rem] focus:outline-none focus:border-accent font-bold"
                           value={attendanceDateFilter}
                           onChange={(e) => setAttendanceDateFilter(e.target.value)}

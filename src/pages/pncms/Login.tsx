@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   ShieldCheck,
@@ -29,6 +29,19 @@ const Login = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [showAnswer, setShowAnswer] = useState(false);
   const [showNewPassword, setShowNewPassword] = useState(false);
+  const [secQuestion, setSecQuestion] = useState('Loading...');
+  const [hasSecQuestion, setHasSecQuestion] = useState(false);
+
+  useEffect(() => {
+    api.getSecurityQuestion()
+      .then(({ question, hasAnswer }: { question: string | null; hasAnswer: boolean }) => {
+        setSecQuestion(question || 'No security question configured.');
+        setHasSecQuestion(hasAnswer);
+      })
+      .catch(() => {
+        setSecQuestion('No security question configured.');
+      });
+  }, []);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -47,24 +60,26 @@ const Login = () => {
     }
   };
 
-  const handleForgotSubmit = (e: React.FormEvent) => {
+  const handleForgotSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    const correctAns = localStorage.getItem('sec_answer') || 'blue';
-    if (secAnswer.toLowerCase().trim() === correctAns.toLowerCase().trim()) {
-      localStorage.setItem('admin_password', newPassword);
-      setError('');
+    setError('');
+    setSuccess('');
+
+    if (!newPassword || newPassword.length < 6) {
+      setError('New password must be at least 6 characters.');
+      return;
+    }
+
+    try {
+      await api.resetPassword({ answer: secAnswer, newPassword });
       setSuccess('Password changed successfully! Please login.');
       setForgotMode(false);
       setSecAnswer('');
       setNewPassword('');
-    } else {
-      setSuccess('');
-      setError('Incorrect security answer.');
+    } catch (err: any) {
+      setError(err?.message || 'Incorrect security answer.');
     }
   };
-
-  const secQuestion =
-    localStorage.getItem('sec_question') || 'What is your favorite color?';
 
   return (
     <div className="min-h-screen relative flex items-center justify-center overflow-hidden">

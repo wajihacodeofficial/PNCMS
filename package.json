@@ -147,6 +147,7 @@
       "icon": "public/icons/icon.ico"
     },
     "nsis": {
+      "artifactName": "PNCMS.exe",
       "oneClick": false,
       "perMachine": true,
       "allowToChangeInstallationDirectory": true,
@@ -158,6 +159,9 @@
     "mac": {
       "target": "dmg",
       "icon": "public/icons/icon.icns"
+    },
+    "dmg": {
+      "artifactName": "PNCMS.dmg"
     },
     "asar": true,
     "asarUnpack": [
