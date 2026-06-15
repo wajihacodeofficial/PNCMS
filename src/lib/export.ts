@@ -76,10 +76,14 @@ export const exportToPDF = (
     currentY += 25;
   }
 
+  // Add Serial Numbers column
+  const updatedHeaders = headers.map(hRow => ["S.No.", ...hRow]);
+  const updatedData = data.map((row, index) => [(index + 1).toString(), ...row]);
+
   // 4. Table Section
   autoTable(doc, {
-    head: headers,
-    body: data,
+    head: updatedHeaders,
+    body: updatedData,
     startY: currentY,
     theme: 'grid',
     styles: { fontSize: 8, cellPadding: 3, font: "helvetica" },
@@ -414,8 +418,8 @@ export const exportComprehensiveProfileToPDF = (
 
     autoTable(doc, {
       startY: currentY,
-      head: [["Leave Type", "Start Date", "End Date", "Days", "Status"]],
-      body: data.leaveRows,
+      head: [["S.No.", "Leave Type", "Start Date", "End Date", "Days", "Status"]],
+      body: data.leaveRows.map((r, index) => [(index + 1).toString(), ...r]),
       theme: 'grid',
       styles: { fontSize: 8, font: "helvetica" },
       headStyles: { fillColor: [71, 85, 105], fontStyle: "bold" }
@@ -436,8 +440,8 @@ export const exportComprehensiveProfileToPDF = (
 
   autoTable(doc, {
     startY: currentY,
-    head: [["Action Type", "Count"]],
-    body: discBody,
+    head: [["S.No.", "Action Type", "Count"]],
+    body: discBody.map((r, index) => [(index + 1).toString(), ...r]),
     theme: 'grid',
     styles: { fontSize: 8, font: "helvetica" },
     headStyles: { fillColor: [15, 23, 42], fontStyle: "bold" }
@@ -454,67 +458,12 @@ export const exportComprehensiveProfileToPDF = (
 
   autoTable(doc, {
     startY: currentY,
-    head: [["Event", "Date", "Location / Rank", "Reference", "Remarks"]],
-    body: data.serviceHistory.length > 0 ? data.serviceHistory : [["No history records found", "", "", "", ""]],
+    head: [["S.No.", "Event", "Date", "Location / Rank", "Reference", "Remarks"]],
+    body: data.serviceHistory.length > 0 ? data.serviceHistory.map((r, index) => [(index + 1).toString(), ...r]) : [["-", "No history records found", "", "", "", ""]],
     theme: 'grid',
     styles: { fontSize: 8, font: "helvetica" },
     headStyles: { fillColor: [15, 23, 42], fontStyle: "bold" }
   });
-
-  doc.save(`${filename}.pdf`);
-  y = drawSectionHeader("SECTION 07 · NEXT OF KIN & FINANCIAL", y);
-  drawFieldLine("Next of Kin Name:", 15, y, 110);
-  drawFieldLine("Relation to NOK:", 115, y, pageWidth - 15);
-  y += 10;
-  drawFieldLine("NOK CNIC Number:", 15, y, 110);
-  drawFieldLine("NOK Contact Number:", 115, y, pageWidth - 15);
-  y += 10;
-  drawFieldLine("NOK Home Address:", 15, y, pageWidth - 15);
-  y += 10;
-  drawFieldLine("Bank Name:", 15, y, 110);
-  drawFieldLine("Bank Account Number:", 115, y, pageWidth - 15);
-  y += 14;
-
-  // Section 8: Declarations and signatures
-  doc.setFontSize(12);
-  doc.setFont("helvetica", "bold");
-  doc.text("UNDERTAKING / DECLARATION BY APPLICANT", 15, y);
-  y += 6;
-  
-  const undertakingText = "I hereby declare that the particulars provided above are correct to the best of my knowledge and belief, and nothing has been concealed. I understand that any false declaration will render me liable to disciplinary action under service rules.";
-  y = drawJustifiedText(undertakingText, 15, y, pageWidth - 30, 12);
-  y += 15;
-
-  // Signatures
-  const sigWidth = 45;
-  const p1 = 15;
-  const p2 = (pageWidth / 2) - (sigWidth / 2);
-  const p3 = pageWidth - 15 - sigWidth;
-
-  doc.setDrawColor(0, 0, 0);
-  doc.setLineWidth(0.5);
-
-  doc.line(p1, y, p1 + sigWidth, y);
-  doc.setFontSize(12); doc.setFont("helvetica", "bold");
-  doc.text("Signature of Applicant", p1 + sigWidth / 2, y + 5, { align: 'center' });
-  doc.setFontSize(12); doc.setFont("helvetica", "normal");
-  doc.text("Date: ____/____/20___", p1 + sigWidth / 2, y + 10, { align: 'center' });
-
-  doc.line(p2, y, p2 + sigWidth, y);
-  doc.setFontSize(12); doc.setFont("helvetica", "bold");
-  doc.text("Countersigned by Clerk", p2 + sigWidth / 2, y + 5, { align: 'center' });
-  doc.setFontSize(12); doc.setFont("helvetica", "normal");
-  doc.text("Establishment Section", p2 + sigWidth / 2, y + 10, { align: 'center' });
-
-  doc.line(p3, y, p3 + sigWidth, y);
-  doc.setFontSize(12); doc.setFont("helvetica", "bold");
-  doc.text("Officer In-Charge", p3 + sigWidth / 2, y + 5, { align: 'center' });
-  doc.setFontSize(12); doc.setFont("helvetica", "normal");
-  doc.text("Signature & Stamp", p3 + sigWidth / 2, y + 10, { align: 'center' });
-
-  doc.setFontSize(12);
-  doc.setTextColor(0, 0, 0);
-  doc.text("Page 2 of 2 · Pakistan Navy Civilian Management System", pageWidth / 2, pageHeight - 10, { align: 'center' });
 
   doc.save(`${filename}.pdf`);
 };

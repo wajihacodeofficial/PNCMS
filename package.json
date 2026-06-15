@@ -111,8 +111,8 @@
     "seed": "npx tsx prisma/seed.ts"
   },
   "build": {
-    "appId": "com.vertexems.desktop",
-    "productName": "VertexEMS",
+    "appId": "com.pncms.desktop",
+    "productName": "PNCMS",
     "directories": {
       "output": "release"
     },
@@ -158,7 +158,7 @@
       "allowToChangeInstallationDirectory": true,
       "createDesktopShortcut": true,
       "createStartMenuShortcut": true,
-      "shortcutName": "VertexEMS",
+      "shortcutName": "PNCMS",
       "deleteAppDataOnUninstall": false
     },
     "mac": {

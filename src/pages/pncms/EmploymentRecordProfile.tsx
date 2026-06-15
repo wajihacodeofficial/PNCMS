@@ -693,11 +693,6 @@ const EmploymentRecordProfile = () => {
                 icon={Clock}
               />
               <TabTrigger
-                value="payments"
-                label="Payment History"
-                icon={Wallet}
-              />
-              <TabTrigger
                 value="attendance"
                 label="Attendance & Leave"
                 icon={CalendarDays}
@@ -1258,54 +1253,6 @@ const EmploymentRecordProfile = () => {
                               }
                             >
                               {row.status}
-                            </Badge>
-                          </td>
-                        </tr>
-                      ))
-                    )}
-                  </tbody>
-                </table>
-              </Section>
-            </Tabs.Content>
-
-            <Tabs.Content
-              value="payments"
-              className="space-y-5 animate-in fade-in slide-in-from-right-2"
-            >
-              <Section title="Payment History">
-                <table className="data-table">
-                  <thead>
-                    <tr>
-                      <th>Period</th>
-                      <th>Category</th>
-                      <th>Hours/Days</th>
-                      <th>Rate</th>
-                      <th>Deduction</th>
-                      <th>Net Payable</th>
-                      <th>Status</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {personPayments.length === 0 ? (
-                      <tr>
-                        <td colSpan={7} className="text-center text-muted-foreground py-8">
-                          No payment records found.
-                        </td>
-                      </tr>
-                    ) : (
-                      personPayments.map((p: any, i: number) => (
-                        <tr key={p.id || i}>
-                          <td>{p.period}</td>
-                          <td><Badge variant={p.type === 'Industrial' ? 'warning' : 'info'}>{p.type}</Badge></td>
-                          <td className="font-mono text-xs">{p.gross} hrs</td>
-                          <td className="font-mono text-xs">Rs. {p.rate}</td>
-                          <td className="font-mono text-xs text-destructive">- Rs. {p.leave}</td>
-                          <td className="font-bold text-success">Rs. {p.payable?.toLocaleString() || '0'}</td>
-                          <td>
-                            <Badge
-                              variant={p.status === 'Paid' ? 'success' : 'warning'}
-                            >
-                              {p.status}
                             </Badge>
                           </td>
                         </tr>
