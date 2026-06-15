@@ -56,7 +56,14 @@ const Login = () => {
 
       setTimeout(() => nav('/dashboard'), 1500);
     } catch (err: any) {
-      setError('Invalid identity or authorization failed');
+      const msg = err?.message || '';
+      if (msg.includes('Database unavailable') || msg.includes('connection failed')) {
+        setError('Database Error: Unable to connect to the local SQLite database. Please check logs.');
+      } else if (msg.includes('System not configured')) {
+        setError('System not configured. Please complete initial setup.');
+      } else {
+        setError('Invalid identity or authorization failed');
+      }
     }
   };
 

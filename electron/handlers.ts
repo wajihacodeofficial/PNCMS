@@ -3,6 +3,7 @@ import { prisma, dbPath } from './db'
 import bcrypt from 'bcryptjs'
 import fs from 'fs'
 import path from 'path'
+import { logger } from './logger'
 
 function notifyChange(topic: string) {
   BrowserWindow.getAllWindows().forEach(win => {
@@ -38,12 +39,12 @@ async function updateStrengths(tx: any) {
 export function setupHandlers() {
   // Sync strengths on startup
   updateStrengths(prisma).catch(err => {
-    console.error('[Startup] Failed to sync rank & department strengths:', err)
+    logger.error('[Startup] Failed to sync rank & department strengths:', err)
   })
 
   // Employee Handlers
   ipcMain.handle('get-personnel', async () => {
-    console.log('[IPC] Fetching personnel registry...');
+    logger.info('[IPC] Fetching personnel registry...');
     try {
       const result = await prisma.employee.findMany({
         include: {
@@ -53,10 +54,10 @@ export function setupHandlers() {
           letters: true,
         },
       })
-      console.log(`[IPC] Successfully retrieved ${result.length} personnel records`);
+      logger.info(`[IPC] Successfully retrieved ${result.length} personnel records`);
       return result;
     } catch (err) {
-      console.error('[IPC] Critical Error in get-personnel:', err);
+      logger.error('[IPC] Critical Error in get-personnel:', err);
       throw err;
     }
   })
@@ -217,7 +218,7 @@ export function setupHandlers() {
       notifyChange('sanctions');
       return result;
     } catch (err: any) {
-      console.error('[IPC] create-sanction error:', err);
+      logger.error('[IPC] create-sanction error:', err);
       throw new Error(err?.message || 'Failed to create sanction');
     }
   })
@@ -232,7 +233,7 @@ export function setupHandlers() {
       notifyChange('sanctions');
       return result;
     } catch (err: any) {
-      console.error('[IPC] update-sanction error:', err);
+      logger.error('[IPC] update-sanction error:', err);
       throw new Error(err?.message || 'Failed to update sanction');
     }
   })
@@ -315,7 +316,7 @@ export function setupHandlers() {
         await prisma.$transaction(txs)
         notifyChange('attendance')
       } catch (err) {
-        console.error('Error auto-marking leave attendance on create:', err)
+        logger.error('Error auto-marking leave attendance on create:', err)
       }
     }
 
@@ -367,7 +368,7 @@ export function setupHandlers() {
 
   // Attendance Handlers
   ipcMain.handle('get-attendance', async (_, date: string) => {
-    console.log(`[IPC] Fetching attendance for date: ${date}`);
+    logger.info(`[IPC] Fetching attendance for date: ${date}`);
     try {
       const result = await prisma.attendance.findMany({
         where: { date }
@@ -404,10 +405,10 @@ export function setupHandlers() {
         notifyChange('attendance')
       }
 
-      console.log(`[IPC] Found ${finalResult.length} attendance records`);
+      logger.info(`[IPC] Found ${finalResult.length} attendance records`);
       return finalResult;
     } catch (err) {
-      console.error(`[IPC] Error fetching attendance:`, err);
+      logger.error(`[IPC] Error fetching attendance:`, err);
       throw err;
     }
   })
@@ -628,24 +629,37 @@ export function setupHandlers() {
   })
 
   ipcMain.handle('login', async (_, { username, password }: any) => {
-    const savedUserSetting = await prisma.setting.findUnique({ where: { key: 'login_username' } })
-    const savedPassSetting = await prisma.setting.findUnique({ where: { key: 'login_password' } })
+    try {
+      const savedUserSetting = await prisma.setting.findUnique({ where: { key: 'login_username' } })
+      const savedPassSetting = await prisma.setting.findUnique({ where: { key: 'login_password' } })
 
-    // If not set up yet, reject — user should go through setup first
-    if (!savedUserSetting || !savedPassSetting) {
-      throw new Error('System not configured. Please complete initial setup.')
-    }
+      // If not set up yet, reject — user should go through setup first
+      if (!savedUserSetting || !savedPassSetting) {
+        throw new Error('System not configured. Please complete initial setup.')
+      }
 
-    const expectedUser = savedUserSetting.value
-    const expectedPass = savedPassSetting.value
+      const expectedUser = savedUserSetting.value
+      const expectedPass = savedPassSetting.value
 
-    if (username !== expectedUser || password !== expectedPass) {
-      throw new Error('Invalid username or password')
-    }
+      if (username !== expectedUser || password !== expectedPass) {
+        throw new Error('Invalid username or password')
+      }
 
-    return {
-      username: expectedUser,
-      role: 'Admin'
+      logger.info(`User ${username} logged in successfully.`)
+      return {
+        username: expectedUser,
+        role: 'Admin'
+      }
+    } catch (err: any) {
+      logger.error('Login error:', err.message || err)
+      if (err.message && err.message.includes('Invalid username or password')) {
+        throw err;
+      }
+      if (err.message && err.message.includes('System not configured')) {
+        throw err;
+      }
+      // Everything else is likely a database failure
+      throw new Error('Database unavailable or connection failed. See logs for details.')
     }
   })
 

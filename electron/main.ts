@@ -3,6 +3,14 @@ import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { initDb } from './db'
 import { setupHandlers } from './handlers'
+import { logger } from './logger'
+
+process.on('uncaughtException', (err) => {
+  logger.error('UNCAUGHT EXCEPTION:', err);
+});
+process.on('unhandledRejection', (reason, promise) => {
+  logger.error('UNHANDLED REJECTION:', reason);
+});
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 
@@ -42,6 +50,18 @@ function createWindow() {
     win?.webContents.send('main-process-message', (new Date).toLocaleString())
   })
 
+  // Developer Tools Shortcuts
+  win.webContents.on('before-input-event', (event, input) => {
+    if (
+      (input.control && input.shift && input.key.toLowerCase() === 'i') ||
+      (input.meta && input.alt && input.key.toLowerCase() === 'i') ||
+      input.key === 'F12'
+    ) {
+      win?.webContents.toggleDevTools()
+      event.preventDefault()
+    }
+  })
+
   if (process.env.VITE_DEV_SERVER_URL) {
     win.loadURL(process.env.VITE_DEV_SERVER_URL)
   } else {
@@ -64,7 +84,13 @@ app.on('activate', () => {
 })
 
 app.whenReady().then(async () => {
-  await initDb()
+  logger.info('Application starting...')
+  try {
+    await initDb()
+  } catch (dbErr: any) {
+    logger.error('Database failed to initialize:', dbErr)
+  }
   setupHandlers()
   createWindow()
+  logger.info('Main window created successfully.')
 })
