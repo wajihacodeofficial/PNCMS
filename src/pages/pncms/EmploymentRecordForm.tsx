@@ -71,9 +71,11 @@ const EmploymentRecordForm = () => {
     emergencyContact: '',
     emergencyContactRelation: '',
     phones: [{ number: '', brand: '', model: '', imei1: '', imei2: '' }],
+    photo: '',
     letters: [
-      { type: 'Appointment', refNo: '', refDate: '', fileName: '', fileNo: '' },
-      { type: 'Joining', refNo: '', refDate: '', fileName: '', fileNo: '' },
+      { type: 'Appointment', refNo: '', refDate: '', fileName: '', fileNo: '', filePath: '' },
+      { type: 'Joining', refNo: '', refDate: '', fileName: '', fileNo: '', filePath: '' },
+      { type: 'Transfer', refNo: '', refDate: '', fileName: '', fileNo: '', filePath: '' },
     ],
   });
 
@@ -94,9 +96,15 @@ const EmploymentRecordForm = () => {
             l.fileName?.toLowerCase().includes('join') ||
             l.referenceNumber?.toLowerCase().includes('join')
         );
+        const transferLetter = emp.letters?.find(
+          (l: any) =>
+            l.fileName?.toLowerCase().includes('transfer') ||
+            l.referenceNumber?.toLowerCase().includes('transfer')
+        );
 
         setForm({
           ...emp,
+          photo: emp.photo || '',
           accountNo: emp.bankAccount || '',
           joiningDate: emp.joiningCurrentUnitDate || '',
           basicPay: emp.basicPay || '',
@@ -140,6 +148,7 @@ const EmploymentRecordForm = () => {
                 : '',
               fileName: appointmentLetter?.fileName || '',
               fileNo: appointmentLetter?.fileNumber || '',
+              filePath: appointmentLetter?.filePath || '',
             },
             {
               type: 'Joining',
@@ -149,6 +158,17 @@ const EmploymentRecordForm = () => {
                 : '',
               fileName: joiningLetter?.fileName || '',
               fileNo: joiningLetter?.fileNumber || '',
+              filePath: joiningLetter?.filePath || '',
+            },
+            {
+              type: 'Transfer',
+              refNo: transferLetter?.referenceNumber || '',
+              refDate: transferLetter?.referenceDate
+                ? format(new Date(transferLetter.referenceDate), 'yyyy-MM-dd')
+                : '',
+              fileName: transferLetter?.fileName || '',
+              fileNo: transferLetter?.fileNumber || '',
+              filePath: transferLetter?.filePath || '',
             },
           ],
         });
@@ -172,6 +192,53 @@ const EmploymentRecordForm = () => {
     );
     setForm({ ...form, letters: newLetters });
   };
+
+  const handleUploadPhoto = async () => {
+    try {
+      const fileData = await (window as any).ipcRenderer.invoke('select-file', { properties: ['openFile'], filters: [{ name: 'Images', extensions: ['jpg', 'jpeg', 'png'] }] });
+      if (fileData) {
+        toast.info('Uploading photo...');
+        const filename = await (window as any).ipcRenderer.invoke('upload-file', { sourcePath: fileData.path, filename: fileData.name });
+        setForm({ ...form, photo: filename });
+        toast.success('Photo uploaded');
+      }
+    } catch (err) {
+      toast.error('Failed to upload photo');
+    }
+  };
+
+  const handleUploadLetter = async (type: string) => {
+    try {
+      const fileData = await (window as any).ipcRenderer.invoke('select-file', { properties: ['openFile'], filters: [{ name: 'Documents', extensions: ['pdf', 'jpg', 'jpeg', 'png'] }] });
+      if (fileData) {
+        toast.info('Uploading document...');
+        const filename = await (window as any).ipcRenderer.invoke('upload-file', { sourcePath: fileData.path, filename: fileData.name });
+        
+        const newLetters = form.letters.map((l: any) =>
+          l.type === type ? { ...l, filePath: filename, fileName: fileData.name } : l
+        );
+        setForm({ ...form, letters: newLetters });
+        toast.success('Document attached');
+      }
+    } catch (err) {
+      toast.error('Failed to attach document');
+    }
+  };
+
+  const [previewUrls, setPreviewUrls] = useState<Record<string, string>>({});
+  useEffect(() => {
+    const fetchPreview = async (filename: string) => {
+      if (filename && !previewUrls[filename]) {
+        try {
+          const b64 = await (window as any).ipcRenderer.invoke('read-file-base64', filename);
+          if (b64) setPreviewUrls(prev => ({ ...prev, [filename]: b64 }));
+        } catch (e) {
+          console.error(e);
+        }
+      }
+    };
+    if (form.photo) fetchPreview(form.photo);
+  }, [form.photo]);
 
   const handleSubmit = () => {
     if (!form.serviceNo || !form.name || !form.rankId || !form.departmentId || !form.basicPay) {
@@ -236,29 +303,46 @@ const EmploymentRecordForm = () => {
       <div className="grid grid-cols-12 gap-5">
         <div className="col-span-8 space-y-5">
           <Section title="01 · Service Details">
+            <div className="flex gap-4 mb-4 items-start">
+              <div 
+                className="w-24 h-24 bg-muted/50 border-2 border-dashed border-border rounded-sm flex flex-col items-center justify-center cursor-pointer hover:bg-accent/10 transition-colors shrink-0 overflow-hidden"
+                onClick={handleUploadPhoto}
+              >
+                {form.photo && previewUrls[form.photo] ? (
+                  <img src={previewUrls[form.photo]} alt="Profile" className="w-full h-full object-cover" />
+                ) : (
+                  <>
+                    <User className="w-8 h-8 text-muted-foreground mb-1" />
+                    <span className="text-[0.6rem] font-bold uppercase text-muted-foreground text-center">Add<br/>Photo</span>
+                  </>
+                )}
+              </div>
+              <div className="flex-1 grid grid-cols-2 gap-4">
+                <Field label="Service Number" required>
+                  <Input
+                    value={form.serviceNo}
+                    onChange={(e) =>
+                      setForm({ ...form, serviceNo: e.target.value })
+                    }
+                    placeholder="xxxxx"
+                  />
+                </Field>
+                <Field label="Rank" required>
+                  <Select
+                    value={form.rankId}
+                    onChange={(e) => handleRankChange(e.target.value)}
+                  >
+                    <option value="">Select Rank</option>
+                    {ranks.map((r: any) => (
+                      <option key={r.id} value={r.id}>
+                        {r.name}
+                      </option>
+                    ))}
+                  </Select>
+                </Field>
+              </div>
+            </div>
             <div className="grid grid-cols-3 gap-4">
-              <Field label="Service Number" required>
-                <Input
-                  value={form.serviceNo}
-                  onChange={(e) =>
-                    setForm({ ...form, serviceNo: e.target.value })
-                  }
-                  placeholder="xxxxx"
-                />
-              </Field>
-              <Field label="Rank" required>
-                <Select
-                  value={form.rankId}
-                  onChange={(e) => handleRankChange(e.target.value)}
-                >
-                  <option value="">Select Rank</option>
-                  {ranks.map((r: any) => (
-                    <option key={r.id} value={r.id}>
-                      {r.name}
-                    </option>
-                  ))}
-                </Select>
-              </Field>
               <Field label="Department" required>
                 <Select
                   value={form.departmentId}
@@ -326,27 +410,40 @@ const EmploymentRecordForm = () => {
                 />
               </Field>
             </div>
-            <div className="mt-6 grid grid-cols-2 gap-6">
-              {['Appointment', 'Joining'].map((type) => (
-                <div
-                  key={type}
-                  className="space-y-3 p-4 border border-border rounded-sm bg-muted/10"
-                >
-                  <h4 className="heading-mil text-[0.7rem] text-primary">
-                    {type} Letter Ref No
-                  </h4>
-                  <Field label="Ref Number">
-                    <Input
-                      value={
-                        form.letters.find((l: any) => l.type === type)?.refNo
-                      }
-                      onChange={(e) =>
-                        handleLetterChange(type, 'refNo', e.target.value)
-                      }
-                    />
-                  </Field>
-                </div>
-              ))}
+            <div className="mt-6 grid grid-cols-3 gap-4">
+              {['Appointment', 'Joining', 'Transfer'].map((type) => {
+                const ltr = form.letters.find((l: any) => l.type === type);
+                return (
+                  <div
+                    key={type}
+                    className="space-y-3 p-4 border border-border rounded-sm bg-muted/10"
+                  >
+                    <h4 className="heading-mil text-[0.7rem] text-primary">
+                      {type} Letter
+                    </h4>
+                    <Field label="Ref Number">
+                      <Input
+                        value={ltr?.refNo || ''}
+                        onChange={(e) =>
+                          handleLetterChange(type, 'refNo', e.target.value)
+                        }
+                      />
+                    </Field>
+                    <div className="pt-2">
+                      {ltr?.filePath ? (
+                        <div className="flex items-center justify-between text-xs p-2 bg-card border border-border rounded-sm">
+                          <span className="truncate max-w-[100px]" title={ltr.fileName}>{ltr.fileName || 'Document'}</span>
+                          <button onClick={() => handleLetterChange(type, 'filePath', '')} className="text-destructive"><X className="w-3 h-3" /></button>
+                        </div>
+                      ) : (
+                        <Btn variant="outline" className="w-full text-xs h-8" onClick={() => handleUploadLetter(type)}>
+                          <FileCheck2 className="w-3 h-3 mr-1" /> Attach
+                        </Btn>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
             </div>
           </Section>
 

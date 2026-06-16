@@ -37,6 +37,41 @@ async function updateStrengths(tx: any) {
 }
 
 export function setupHandlers() {
+  ipcMain.handle('select-file', async (_, options?: Electron.OpenDialogOptions) => {
+    const { canceled, filePaths } = await dialog.showOpenDialog(options || { properties: ['openFile'] });
+    if (!canceled && filePaths.length > 0) {
+      return { path: filePaths[0], name: path.basename(filePaths[0]) };
+    }
+    return null;
+  });
+
+  ipcMain.handle('upload-file', async (_, { sourcePath, filename }: any) => {
+    const uploadDir = path.join(app.getPath('userData'), 'uploads');
+    if (!fs.existsSync(uploadDir)) {
+      fs.mkdirSync(uploadDir, { recursive: true });
+    }
+    const uniqueName = `${Date.now()}_${filename.replace(/\\s+/g, '_')}`;
+    const destPath = path.join(uploadDir, uniqueName);
+    fs.copyFileSync(sourcePath, destPath);
+    return uniqueName;
+  });
+
+  ipcMain.handle('read-file-base64', async (_, filename: string) => {
+    const uploadDir = path.join(app.getPath('userData'), 'uploads');
+    const filePath = path.join(uploadDir, filename);
+    if (fs.existsSync(filePath)) {
+      const ext = path.extname(filePath).toLowerCase();
+      let mime = 'application/octet-stream';
+      if (ext === '.png') mime = 'image/png';
+      else if (ext === '.jpg' || ext === '.jpeg') mime = 'image/jpeg';
+      else if (ext === '.pdf') mime = 'application/pdf';
+
+      const buffer = fs.readFileSync(filePath);
+      return `data:${mime};base64,${buffer.toString('base64')}`;
+    }
+    return null;
+  });
+
   // Sync strengths on startup
   updateStrengths(prisma).catch(err => {
     logger.error('[Startup] Failed to sync rank & department strengths:', err)
@@ -82,13 +117,14 @@ export function setupHandlers() {
   ipcMain.handle('upsert-employee', async (_, data: any) => {
     const { 
       id, rankId, departmentId, rankName, deptName, phones, letters, 
-      accountNo, joiningDate, 
+      accountNo, joiningDate, photo,
       updatedAt, createdAt, rank, department,
       ...rest 
     } = data
     
     const employeeData: any = {
       ...rest,
+      photo,
       bankAccount: accountNo,
       joiningCurrentUnitDate: joiningDate,
     }
@@ -129,7 +165,8 @@ export function setupHandlers() {
       referenceNumber: l.refNo,
       referenceDate: new Date(l.refDate || new Date()),
       fileName: l.fileName,
-      fileNumber: l.fileNo
+      fileNumber: l.fileNo,
+      filePath: l.filePath
     }))
 
     // Use serviceNo as the primary key for upsert

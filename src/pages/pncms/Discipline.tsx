@@ -104,6 +104,7 @@ const Discipline = () => {
     remarks: '',
     authority: 'Cdr. Imtiaz Ali',
     type: 'Regular Proceeding',
+    attachment: '',
   });
 
   // Auto-fill personnel name from SVC number
@@ -131,6 +132,7 @@ const Discipline = () => {
         details: form.details,
         remarks: form.remarks,
         authority: form.authority,
+        attachment: form.attachment,
       },
       {
         onSuccess: () => {
@@ -168,6 +170,7 @@ const Discipline = () => {
       details: '',
       remarks: '',
       authority: 'Cdr. Imtiaz Ali',
+      attachment: '',
     });
   };
 
@@ -180,6 +183,7 @@ const Discipline = () => {
         svc: r.employee?.serviceNo,
         name: r.employee?.name,
         ref: r.caseId || r.reference,
+        attachment: r.attachment || '',
       });
       setEditingId(r.id);
       setIsAdding(true);
@@ -410,6 +414,30 @@ const Discipline = () => {
                     {selectedCase.details}
                   </div>
                 </div>
+                {selectedCase.attachment && (
+                  <div className="space-y-3">
+                    <label className="label-mil text-primary opacity-60 flex items-center gap-2">
+                      <FileText className="w-3.5 h-3.5" /> Attached Document
+                    </label>
+                    <Btn variant="outline" onClick={async () => {
+                      try {
+                        const b64 = await (window as any).ipcRenderer.invoke('read-file-base64', selectedCase.attachment);
+                        if (b64) {
+                          const w = window.open();
+                          if (w) {
+                            w.document.write(`<iframe src="${b64}" frameborder="0" style="border:0; top:0px; left:0px; bottom:0px; right:0px; width:100%; height:100%;" allowfullscreen></iframe>`);
+                          }
+                        } else {
+                          toast.error('Attachment not found');
+                        }
+                      } catch (e) {
+                        toast.error('Failed to open attachment');
+                      }
+                    }}>
+                      <Eye className="w-4 h-4 mr-2" /> View Attachment
+                    </Btn>
+                  </div>
+                )}
               </div>
             </div>
 
@@ -573,15 +601,43 @@ const Discipline = () => {
                   }
                 />
               </Field>
-              <Field label="Remarks">
-                <textarea
-                  className="w-full p-3 bg-accent/5 border border-accent/20 rounded-sm text-sm min-h-[60px] outline-none focus:border-accent"
-                  value={form.remarks}
-                  onChange={(e) =>
-                    setForm({ ...form, remarks: e.target.value })
-                  }
-                />
-              </Field>
+              <div className="grid grid-cols-2 gap-4">
+                <Field label="Remarks">
+                  <textarea
+                    className="w-full p-3 bg-accent/5 border border-accent/20 rounded-sm text-sm min-h-[60px] outline-none focus:border-accent"
+                    value={form.remarks}
+                    onChange={(e) =>
+                      setForm({ ...form, remarks: e.target.value })
+                    }
+                  />
+                </Field>
+                <Field label="Attachment Document">
+                  <div className="flex flex-col gap-2 mt-1">
+                    {form.attachment ? (
+                      <div className="flex items-center justify-between p-2 bg-muted/20 border border-border rounded-sm">
+                        <span className="text-xs truncate">{form.attachment}</span>
+                        <button onClick={() => setForm({ ...form, attachment: '' })} className="text-destructive"><X className="w-4 h-4" /></button>
+                      </div>
+                    ) : (
+                      <Btn variant="outline" className="h-11 w-full" onClick={async () => {
+                        try {
+                          const fileData = await (window as any).ipcRenderer.invoke('select-file', { properties: ['openFile'], filters: [{ name: 'Documents', extensions: ['pdf', 'jpg', 'jpeg', 'png'] }] });
+                          if (fileData) {
+                            toast.info('Uploading document...');
+                            const filename = await (window as any).ipcRenderer.invoke('upload-file', { sourcePath: fileData.path, filename: fileData.name });
+                            setForm({ ...form, attachment: filename });
+                            toast.success('Document attached');
+                          }
+                        } catch (err) {
+                          toast.error('Failed to attach document');
+                        }
+                      }}>
+                        <Upload className="w-4 h-4 mr-2" /> Select File
+                      </Btn>
+                    )}
+                  </div>
+                </Field>
+              </div>
             </div>
             <div className="bg-muted/30 p-5 flex justify-end gap-3">
               <Btn variant="outline" onClick={closeModal}>

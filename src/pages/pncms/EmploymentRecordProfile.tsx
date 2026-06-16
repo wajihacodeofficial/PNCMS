@@ -380,6 +380,17 @@ const EmploymentRecordProfile = () => {
 
   const [showLeaveDetails, setShowLeaveDetails] = useState(false);
 
+  const [photoUrl, setPhotoUrl] = useState<string | null>(null);
+  useEffect(() => {
+    if (profile?.photo) {
+      (window as any).ipcRenderer.invoke('read-file-base64', profile.photo).then((b64: any) => {
+        if (b64) setPhotoUrl(b64);
+      }).catch(console.error);
+    } else {
+      setPhotoUrl(null);
+    }
+  }, [profile?.photo]);
+
   const openModal = (
     title: string,
     fields: { key: string; label: string; type?: string }[],
@@ -591,8 +602,12 @@ const EmploymentRecordProfile = () => {
         <div className="w-80 shrink-0">
           <div className="panel overflow-hidden border-t-4 border-t-accent">
             <div className="p-6 text-center">
-              <div className="w-32 h-40 mx-auto bg-muted rounded-sm flex items-center justify-center mb-4 shadow-inner border border-border">
-                <User className="w-16 h-16 text-muted-foreground/20" />
+              <div className="w-32 h-40 mx-auto bg-muted rounded-sm flex items-center justify-center mb-4 shadow-inner border border-border overflow-hidden">
+                {photoUrl ? (
+                  <img src={photoUrl} alt="Personnel" className="w-full h-full object-cover" />
+                ) : (
+                  <User className="w-16 h-16 text-muted-foreground/20" />
+                )}
               </div>
               <div className="flex flex-col">
                 <h2 className="text-2xl font-heading font-black text-white italic tracking-tight">

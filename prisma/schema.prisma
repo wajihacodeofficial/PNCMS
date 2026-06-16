@@ -62,6 +62,7 @@ model Employee {
   nokAddress             String?
   attachedToRef          String?
   initialLfpBalance      Int?                 @default(0)
+  photo                  String?
   createdAt              DateTime             @default(now())
   updatedAt              DateTime             @updatedAt
   attendance             Attendance[]
@@ -123,6 +124,7 @@ model EmployeeLetter {
   referenceDate   DateTime
   fileName        String
   fileNumber      String
+  filePath        String?
   employee        Employee @relation(fields: [serviceNo], references: [serviceNo], onDelete: Cascade)
 }
 
@@ -182,6 +184,7 @@ model DisciplinaryAction {
   details    String?
   authority  String?
   serviceNo  String
+  attachment String?
   timeline   String?  @default("[]")
   createdAt  DateTime @default(now())
   employee  Employee @relation(fields: [serviceNo], references: [serviceNo], onDelete: Cascade)
