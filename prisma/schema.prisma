@@ -249,3 +249,13 @@ model MusterLock {
   lockedAt DateTime @default(now())
   lockedBy String
 }
+
+model YearlyBudget {
+  id          String   @id @default(cuid())
+  year        Int      @unique
+  overtime    Float    @default(0)
+  lateSitting Float    @default(0)
+  combined    Float    @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}

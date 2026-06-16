@@ -752,6 +752,24 @@ export function setupHandlers() {
     return result
   })
 
+  // Budgets
+  ipcMain.handle('get-budgets', async () => {
+    return await prisma.yearlyBudget.findMany({
+      orderBy: { year: 'desc' }
+    })
+  })
+
+  ipcMain.handle('upsert-budget', async (_, data: any) => {
+    const { year, overtime, lateSitting, combined } = data
+    const result = await prisma.yearlyBudget.upsert({
+      where: { year },
+      update: { overtime, lateSitting, combined },
+      create: { year, overtime, lateSitting, combined }
+    })
+    notifyChange('budgets')
+    return result
+  })
+
   // Dashboard Stats
   ipcMain.handle('get-dashboard-stats', async () => {
     const personnelCount = await prisma.employee.count()
